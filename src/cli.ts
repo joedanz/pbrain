@@ -19,7 +19,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'import', 'export', 'files', 'embed', 'serve', 'call', 'config']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'import', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -261,6 +261,11 @@ async function handleCliOnly(command: string, args: string[]) {
         await runConfig(engine, args);
         break;
       }
+      case 'doctor': {
+        const { runDoctor } = await import('./commands/doctor.ts');
+        await runDoctor(engine, args);
+        break;
+      }
     }
   } finally {
     if (command !== 'serve') await engine.disconnect();
@@ -308,6 +313,7 @@ USAGE
 SETUP
   init [--supabase|--url <conn>]     Create brain (guided wizard)
   upgrade                            Self-update
+  doctor [--json]                    Health check (pgvector, RLS, schema, embeddings)
 
 PAGES
   get <slug>                         Read a page

@@ -22,6 +22,32 @@ Compile a daily briefing from brain context.
 6. **Stale alerts.** From gbrain health check:
    - Pages flagged as stale that are relevant to today's meetings
 
+## GBrain-Native Context Loading
+
+Before generating any briefing, load context from gbrain systematically.
+
+### Before a meeting
+
+For every attendee on the calendar invite:
+- `gbrain search "<attendee name>"` -- find their brain page
+- `gbrain get <slug>` -- load compiled truth, recent timeline, relationship context
+- If no page exists, note the gap ("No brain page for Sarah Chen -- consider enrichment")
+
+### Before an email reply
+
+Before drafting or triaging any email:
+- `gbrain search "<sender name>"` -- load sender context
+- Read their compiled truth to understand who they are, what they care about, and
+  your relationship history. This turns a cold reply into an informed one.
+
+### Daily briefing queries
+
+Run these queries to populate the briefing sections:
+- `gbrain query "active deals status"` -- deal pipeline snapshot
+- `gbrain query "meetings this week"` -- recent meeting pages with insights
+- `gbrain query "pending commitments follow-ups"` -- open threads and action items
+- `gbrain search --type person --sort updated --limit 10` -- people in play
+
 ## Output Format
 
 ```

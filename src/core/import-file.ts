@@ -13,7 +13,7 @@ export interface ImportResult {
   error?: string;
 }
 
-const MAX_FILE_SIZE = 1_000_000; // 1MB
+const MAX_FILE_SIZE = 5_000_000; // 5MB
 
 /**
  * Import content from a string. Core pipeline:

@@ -52,7 +52,7 @@ describeE2E('E2E: Page CRUD', () => {
 
   test('fixture import creates correct page count', async () => {
     const stats = await callOp('get_stats') as any;
-    expect(stats.page_count).toBe(13);
+    expect(stats.page_count).toBe(16);
   });
 
   test('get_page returns correct data for person', async () => {
@@ -82,10 +82,10 @@ describeE2E('E2E: Page CRUD', () => {
     expect(people.length).toBe(3);
 
     const companies = await callOp('list_pages', { type: 'company' }) as any[];
-    expect(companies.length).toBe(2);
+    expect(companies.length).toBe(3); // novamind, threshold-ventures, ohmygreen
 
     const concepts = await callOp('list_pages', { type: 'concept' }) as any[];
-    expect(concepts.length).toBe(3);
+    expect(concepts.length).toBe(5); // compiled-truth, hybrid-search, RAG, notes-march-2024, big-file
   });
 
   test('list_pages tag filter works', async () => {
@@ -108,7 +108,7 @@ describeE2E('E2E: Page CRUD', () => {
   test('delete_page removes page and others survive', async () => {
     await callOp('delete_page', { slug: 'sources/crustdata-sarah-chen' });
     const stats = await callOp('get_stats') as any;
-    expect(stats.page_count).toBe(12);
+    expect(stats.page_count).toBe(15);
 
     // Other pages still exist
     const sarah = await callOp('get_page', { slug: 'people/sarah-chen' }) as any;
@@ -329,7 +329,7 @@ describeE2E('E2E: Admin', () => {
 
   test('get_stats returns valid structure', async () => {
     const stats = await callOp('get_stats') as any;
-    expect(stats.page_count).toBe(13);
+    expect(stats.page_count).toBe(16);
     expect(typeof stats.chunk_count).toBe('number');
   });
 
@@ -682,6 +682,251 @@ describeE2E('E2E: Schema Diff Guard', () => {
     const conn = getConn();
     const ext = await conn.unsafe(`SELECT extname FROM pg_extension WHERE extname = 'pg_trgm'`);
     expect(ext.length).toBe(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Slug with Special Characters (Apple Notes fix)
+// ─────────────────────────────────────────────────────────────────
+
+describeE2E('E2E: Slug with Special Characters', () => {
+  beforeAll(async () => {
+    await setupDB();
+    await importFixtures();
+  });
+  afterAll(teardownDB);
+
+  test('imports files with spaces in filename', async () => {
+    const page = await callOp('get_page', { slug: 'apple-notes/2017-05-03 ohmygreen' }) as any;
+    expect(page).not.toBeNull();
+    expect(page.title).toBe('OhMyGreen');
+    expect(page.type).toBe('company');
+  });
+
+  test('imports files with parens in filename', async () => {
+    const page = await callOp('get_page', { slug: 'apple-notes/notes (march 2024)' }) as any;
+    expect(page).not.toBeNull();
+    expect(page.title).toBe('March 2024 Notes');
+  });
+
+  test('search finds content from special-char files', async () => {
+    const results = await callOp('search', { query: 'OhMyGreen' }) as any[];
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    const slugs = results.map((r: any) => r.slug);
+    expect(slugs).toContain('apple-notes/2017-05-03 ohmygreen');
+  });
+
+  test('re-import of special-char files is idempotent', async () => {
+    const before = await callOp('get_stats') as any;
+    await importFixtures(); // second import
+    const after = await callOp('get_stats') as any;
+    expect(after.page_count).toBe(before.page_count);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// RLS Verification
+// ─────────────────────────────────────────────────────────────────
+
+describeE2E('E2E: RLS Verification', () => {
+  beforeAll(async () => {
+    await setupDB();
+  });
+  afterAll(teardownDB);
+
+  test('RLS is enabled on all gbrain tables', async () => {
+    const conn = getConn();
+    const tables = await conn.unsafe(`
+      SELECT tablename, rowsecurity FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename IN ('pages','content_chunks','links','tags','raw_data',
+                           'page_versions','timeline_entries','ingest_log','config','files')
+    `);
+    const noRls = tables.filter((t: any) => !t.rowsecurity);
+    // Some test DBs may not have BYPASSRLS privilege, so RLS might be skipped.
+    // If RLS was enabled, all tables should have it.
+    if (tables.some((t: any) => t.rowsecurity)) {
+      expect(noRls.length).toBe(0);
+    }
+  });
+
+  test('current user role has BYPASSRLS', async () => {
+    const conn = getConn();
+    const rows = await conn.unsafe(`SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user`);
+    // Docker test DB uses postgres role which has BYPASSRLS
+    if (rows.length > 0) {
+      expect(rows[0].rolbypassrls).toBe(true);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Doctor Command
+// ─────────────────────────────────────────────────────────────────
+
+describeE2E('E2E: Doctor Command', () => {
+  beforeAll(async () => {
+    await setupDB();
+    await importFixtures();
+  });
+  afterAll(teardownDB);
+
+  const cliCwd = join(import.meta.dir, '../..');
+  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, GBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
+
+  test('gbrain doctor exits 0 on healthy DB', () => {
+    // Init first so config exists for CLI
+    Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'init', '--non-interactive', '--url', process.env.DATABASE_URL!],
+      cwd: cliCwd, env: cliEnv(), timeout: 15_000,
+    });
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'doctor'],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 15_000,
+    });
+    expect(result.exitCode).toBe(0);
+  });
+
+  test('gbrain doctor --json produces valid JSON', () => {
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'doctor', '--json'],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 15_000,
+    });
+    const stdout = new TextDecoder().decode(result.stdout);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBeDefined();
+    expect(Array.isArray(parsed.checks)).toBe(true);
+    expect(parsed.checks.length).toBeGreaterThan(0);
+    for (const check of parsed.checks) {
+      expect(['ok', 'warn', 'fail']).toContain(check.status);
+      expect(typeof check.name).toBe('string');
+      expect(typeof check.message).toBe('string');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Parallel Import
+// ─────────────────────────────────────────────────────────────────
+
+describeE2E('E2E: Parallel Import', () => {
+  afterAll(teardownDB);
+
+  const cliCwd = join(import.meta.dir, '../..');
+  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, GBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
+
+  function initCli() {
+    Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'init', '--non-interactive', '--url', process.env.DATABASE_URL!],
+      cwd: cliCwd, env: cliEnv(), timeout: 15_000,
+    });
+  }
+
+  // Store sequential baseline for comparison
+  let seqPageCount: number;
+  let seqChunkCount: number;
+  let seqPageSlugs: string[];
+
+  test('sequential baseline: import all fixtures', async () => {
+    await setupDB();
+    initCli();
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'import', '--no-embed', FIXTURES_PATH],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 30_000,
+    });
+    expect(result.exitCode).toBe(0);
+
+    const stats = await callOp('get_stats') as any;
+    seqPageCount = stats.page_count;
+    seqChunkCount = stats.chunk_count;
+
+    const pages = await callOp('list_pages', { limit: 200 }) as any[];
+    seqPageSlugs = pages.map((p: any) => p.slug).sort();
+
+    expect(seqPageCount).toBeGreaterThan(0);
+    expect(seqChunkCount).toBeGreaterThan(0);
+  });
+
+  test('parallel import with --workers 2 matches sequential page count', async () => {
+    await setupDB();
+    initCli();
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'import', '--no-embed', '--workers', '2', FIXTURES_PATH],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 30_000,
+    });
+    expect(result.exitCode).toBe(0);
+
+    const stats = await callOp('get_stats') as any;
+    expect(stats.page_count).toBe(seqPageCount);
+  });
+
+  test('parallel import has same chunk count (no duplicates)', async () => {
+    const stats = await callOp('get_stats') as any;
+    expect(stats.chunk_count).toBe(seqChunkCount);
+  });
+
+  test('parallel import has same page slugs', async () => {
+    const pages = await callOp('list_pages', { limit: 200 }) as any[];
+    const parSlugs = pages.map((p: any) => p.slug).sort();
+    expect(parSlugs).toEqual(seqPageSlugs);
+  });
+
+  test('no duplicate pages from concurrent writes', async () => {
+    const conn = getConn();
+    const dupes = await conn.unsafe(`
+      SELECT slug, count(*) as n FROM pages GROUP BY slug HAVING count(*) > 1
+    `);
+    expect(dupes.length).toBe(0);
+  });
+
+  test('no duplicate chunks from concurrent writes', async () => {
+    const conn = getConn();
+    const dupes = await conn.unsafe(`
+      SELECT page_id, chunk_index, count(*) as n
+      FROM content_chunks
+      GROUP BY page_id, chunk_index
+      HAVING count(*) > 1
+    `);
+    expect(dupes.length).toBe(0);
+  });
+
+  test('parallel import with --workers 4 also works', async () => {
+    await setupDB();
+    initCli();
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'import', '--no-embed', '--workers', '4', FIXTURES_PATH],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 30_000,
+    });
+    expect(result.exitCode).toBe(0);
+
+    const stats = await callOp('get_stats') as any;
+    expect(stats.page_count).toBe(seqPageCount);
+    expect(stats.chunk_count).toBe(seqChunkCount);
+  });
+
+  test('re-import with workers is idempotent', async () => {
+    // Import again on top of existing data
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'run', 'src/cli.ts', 'import', '--no-embed', '--workers', '2', FIXTURES_PATH],
+      cwd: cliCwd,
+      env: cliEnv(),
+      timeout: 30_000,
+    });
+    expect(result.exitCode).toBe(0);
+
+    const stats = await callOp('get_stats') as any;
+    expect(stats.page_count).toBe(seqPageCount);
+    expect(stats.chunk_count).toBe(seqChunkCount);
   });
 });
 

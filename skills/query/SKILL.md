@@ -25,6 +25,30 @@ Answer questions using the brain's knowledge with 3-layer search and synthesis.
 - For "what happened" questions, use timeline entries
 - For "what do we know" questions, read compiled_truth directly
 
+## Token-Budget Awareness
+
+Search returns **chunks**, not full pages. Read the excerpts first before deciding
+whether to load a full page.
+
+- `gbrain search` / `gbrain query` return ranked chunks with context snippets.
+  These are often enough to answer the question directly.
+- Only use `gbrain get <slug>` to load the full page when a chunk confirms the
+  page is relevant and you need more context (e.g., compiled truth, timeline).
+- **"Tell me about X"** -- get the full page (the user wants the complete picture).
+- **"Did anyone mention Y?"** -- search results are enough (the user wants a yes/no with evidence).
+
+### Source precedence
+
+When multiple sources provide conflicting information, follow this precedence:
+
+1. **User's direct statements** (highest authority -- what the user told you directly)
+2. **Compiled truth** (the brain's synthesized, cited understanding)
+3. **Timeline entries** (raw evidence, reverse-chronological)
+4. **External sources** (web search, API enrichment -- lowest authority)
+
+When sources conflict, note the contradiction with both citations. Don't silently
+pick one.
+
 ## Tools Used
 
 - Keyword search gbrain (search)

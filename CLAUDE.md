@@ -16,6 +16,9 @@ server are both generated from this single source. Skills are fat markdown files
 - `src/core/db.ts` — Connection management, schema initialization
 - `src/core/import-file.ts` — importFromFile + importFromContent (chunk + embed + tags)
 - `src/core/sync.ts` — Pure sync functions (manifest parsing, filtering, slug conversion)
+- `src/core/storage.ts` — Pluggable storage interface (S3, Supabase Storage, local)
+- `src/core/supabase-admin.ts` — Supabase admin API (project discovery, pgvector check)
+- `src/core/file-resolver.ts` — MIME detection, content hashing for file uploads
 - `src/core/chunkers/` — 3-tier chunking (recursive, semantic, LLM-guided)
 - `src/core/search/` — Hybrid search: vector + keyword + RRF + multi-query expansion + dedup
 - `src/core/embedding.ts` — OpenAI text-embedding-3-large, batch, retry, backoff
@@ -29,14 +32,19 @@ Run `gbrain --help` or `gbrain --tools-json` for full command reference.
 
 ## Testing
 
-`bun test` runs all tests (9 unit test files + 3 E2E test files). Unit tests run
+`bun test` runs all tests (19 unit test files + 3 E2E test files). Unit tests run
 without a database. E2E tests skip gracefully when `DATABASE_URL` is not set.
 
 Unit tests: `test/markdown.test.ts` (frontmatter parsing), `test/chunkers/recursive.test.ts`
 (chunking), `test/sync.test.ts` (sync logic), `test/parity.test.ts` (operations contract
 parity), `test/cli.test.ts` (CLI structure), `test/config.test.ts` (config redaction),
 `test/files.test.ts` (MIME/hash), `test/import-file.test.ts` (import pipeline),
-`test/upgrade.test.ts` (schema migrations).
+`test/upgrade.test.ts` (schema migrations), `test/doctor.test.ts` (doctor command),
+`test/file-migration.test.ts` (file migration), `test/file-resolver.test.ts` (file resolution),
+`test/import-resume.test.ts` (import checkpoints), `test/migrate.test.ts` (migration),
+`test/setup-branching.test.ts` (setup flow), `test/slug-validation.test.ts` (slug validation),
+`test/storage.test.ts` (storage backends), `test/supabase-admin.test.ts` (Supabase admin),
+`test/yaml-lite.test.ts` (YAML parsing).
 
 E2E tests (`test/e2e/`): Run against real Postgres+pgvector. Require `DATABASE_URL`.
 - `bun run test:e2e` runs Tier 1 (mechanical, all operations, no API keys)
@@ -48,12 +56,22 @@ E2E tests (`test/e2e/`): Run against real Postgres+pgvector. Require `DATABASE_U
 
 Read the skill files in `skills/` before doing brain operations. They contain the
 workflows, heuristics, and quality rules for ingestion, querying, maintenance,
-enrichment, and setup. 8 skills: ingest, query, maintain, enrich, briefing,
-migrate, setup, install.
+enrichment, and setup. 7 skills: ingest, query, maintain, enrich, briefing,
+migrate, setup.
 
 ## Build
 
 `bun build --compile --outfile bin/gbrain src/cli.ts`
+
+## Pre-ship requirements
+
+Before shipping (/ship) or reviewing (/review), always run the full test suite:
+- `bun test` — unit tests (no database required)
+- `docker compose -f docker-compose.test.yml up -d` then
+  `DATABASE_URL=postgresql://postgres:postgres@localhost:5434/gbrain_test bun run test:e2e`
+  — E2E tests against real Postgres+pgvector
+
+Both must pass. Do not ship with failing E2E tests.
 
 ## Skill routing
 

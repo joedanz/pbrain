@@ -26,6 +26,12 @@ src/
     types.ts              TypeScript types
     markdown.ts           Frontmatter parsing
     config.ts             Config file management
+    storage.ts            Pluggable storage interface
+    storage/              Storage backends (S3, Supabase, local)
+    supabase-admin.ts     Supabase admin API
+    file-resolver.ts      MIME detection + content hashing
+    migrate.ts            Migration helpers
+    yaml-lite.ts          Lightweight YAML parser
     chunkers/             3-tier chunking (recursive, semantic, llm)
     search/               Hybrid search (vector, keyword, hybrid, expansion, dedup)
     embedding.ts          OpenAI embedding service
@@ -35,7 +41,7 @@ src/
 skills/                   Fat markdown skills for AI agents
 test/                     Unit tests (bun test, no DB required)
 test/e2e/                 E2E tests (requires DATABASE_URL, real Postgres+pgvector)
-  fixtures/               Miniature realistic brain corpus (13 files)
+  fixtures/               Miniature realistic brain corpus (16 files)
   helpers.ts              DB lifecycle, fixture import, timing
   mechanical.test.ts      All operations against real DB
   mcp.test.ts             MCP tool generation verification
@@ -72,7 +78,7 @@ automatically appears in the CLI, MCP server, and tools-json:
 2. Add tests
 3. That's it. The CLI, MCP server, and tools-json are generated from operations.
 
-For CLI-only commands (init, upgrade, import, export, files, embed):
+For CLI-only commands (init, upgrade, import, export, files, embed, doctor, sync):
 1. Create `src/commands/mycommand.ts`
 2. Add the case to `src/cli.ts`
 

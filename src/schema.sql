@@ -215,3 +215,32 @@ CREATE TRIGGER trg_timeline_search_vector
   AFTER INSERT OR UPDATE OR DELETE ON timeline_entries
   FOR EACH ROW
   EXECUTE FUNCTION update_page_search_vector_from_timeline();
+
+-- ============================================================
+-- Row Level Security: block anon access, postgres role bypasses
+-- ============================================================
+-- The postgres role (used by gbrain via pooler) has BYPASSRLS.
+-- Enabling RLS with no policies means the anon key can't read anything.
+-- Only enable if the current role actually has BYPASSRLS privilege,
+-- otherwise we'd lock ourselves out.
+DO $$
+DECLARE
+  has_bypass BOOLEAN;
+BEGIN
+  SELECT rolbypassrls INTO has_bypass FROM pg_roles WHERE rolname = current_user;
+  IF has_bypass THEN
+    ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE content_chunks ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE links ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE raw_data ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE timeline_entries ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE page_versions ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE ingest_log ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE config ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE files ENABLE ROW LEVEL SECURITY;
+    RAISE NOTICE 'RLS enabled on all tables (role % has BYPASSRLS)', current_user;
+  ELSE
+    RAISE WARNING 'Skipping RLS: role % does not have BYPASSRLS privilege. Run as postgres role to enable.', current_user;
+  END IF;
+END $$;

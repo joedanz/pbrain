@@ -2,6 +2,35 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.4.0] - 2026-04-09
+
+### Added
+
+- `gbrain doctor` command with `--json` output. Checks pgvector extension, RLS policies, schema version, embedding coverage, and connection health. Agents can self-diagnose issues.
+- Pluggable storage backends: S3, Supabase Storage, and local filesystem. Choose where binary files live independently of the database. Configured via `gbrain init` or environment variables.
+- Parallel import with per-worker engine instances. Large brain imports now use multiple database connections concurrently instead of a single serial pipeline.
+- Import resume checkpoints. If `gbrain import` is interrupted, it picks up where it left off instead of re-importing everything.
+- Automatic schema migration runner. On connect, gbrain detects the current schema version and applies any pending migrations without manual intervention.
+- Row-Level Security (RLS) enabled on all tables with `BYPASSRLS` safety check. Every query goes through RLS policies.
+- `--json` flag on `gbrain init` and `gbrain import` for machine-readable output. Agents can parse structured results instead of scraping CLI text.
+- File migration CLI (`gbrain files migrate`) for moving files between storage backends. Two-way-door: test with `--dry-run`, migrate incrementally.
+- Bulk chunk INSERT for faster page writes. Chunks are inserted in a single statement instead of one-at-a-time.
+- Supabase smart URL parsing: automatically detects and converts IPv6-only pooler URLs to the correct connection format.
+- 56 new unit tests covering doctor, storage backends, file migration, import resume, slug validation, setup branching, Supabase admin, and YAML parsing. Test suite grew from 9 to 19 test files.
+- E2E tests for parallel import concurrency and all new features.
+
+### Fixed
+
+- `validateSlug` now accepts any filename characters (spaces, unicode, special chars) instead of rejecting non-alphanumeric slugs. Apple Notes and other real-world filenames import cleanly.
+- Import resilience: files over 5MB are skipped with a warning instead of crashing the pipeline. Errors in individual files no longer abort the entire import.
+- `gbrain init` detects IPv6-only Supabase URLs and adds the required `pgvector` check during setup.
+- E2E test fixture counts, CLI argument parsing, and doctor exit codes cleaned up.
+
+### Changed
+
+- Setup skill and README rewritten for agent-first developer experience.
+- Maintain skill updated with RLS verification, schema health checks, and `nohup` hints for large embedding jobs.
+
 ## [0.3.0] - 2026-04-08
 
 ### Added

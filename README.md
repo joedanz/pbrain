@@ -1,42 +1,127 @@
 # GBrain
 
-Open source personal knowledge brain. Postgres + pgvector + hybrid search that actually works.
+The memex Vannevar Bush imagined, built for people who think for a living.
 
-```bash
-# You have 342 markdown files scattered across repos. GBrain makes them searchable.
-gbrain import ~/git/brain/
-# Imported 342 files (1,847 chunks) into Supabase. Embedding...
-```
+**GBrain is a knowledge brain for [OpenClaw](https://openclaw.com) agents.** It gives your agent a searchable, indexed memory over your markdown repos using Postgres + pgvector + hybrid search. Works with any OpenClaw agent. Paste the install instructions into your agent, and it handles the rest.
 
-```bash
-gbrain query "what are our biggest risks right now?"
-```
+### What one brain looks like
 
-```
-strategy/competitive-moats (concept) score=0.0312
-  A durable competitive advantage comes from compounding effects that
-  are hard to replicate. Network effects, switching costs, scale...
+Here's what one person built with gbrain and a single AI agent over six months:
 
-meetings/2025-03-board-prep (source) score=0.0298
-  Board discussion covered market positioning against three emerging
-  competitors. Key concern: pricing pressure in enterprise segment...
+- **10,000+ markdown files** indexed and searchable
+- **3,000+ people** with compiled dossiers and relationship history
+- **13 years of calendar data** (21,000+ events)
+- **5,800+ Apple Notes** going back to 2009
+- **280+ meeting transcripts** with AI analysis
+- **300+ captured original ideas** organized by thesis
+- **500+ media pages** (video transcripts, books, articles)
+- Company profiles, food guides, travel logs
 
-people/jane-chen (person) score=0.0251
-  VP Strategy. Led the competitive analysis project in Q1. Published
-  internal framework for evaluating competitive threats...
-```
+All in Postgres. All searchable by meaning, not just keywords. All maintained by an agent that runs while you sleep.
 
-Hybrid search finds knowledge by meaning, not just keywords. "Biggest risks" matches pages about competitive moats, board prep, and strategy leads even when the exact phrase doesn't appear. That's the point.
+### Ask it anything
+
+> "Who should I invite to dinner who knows both Pedro and Diana?"
+> — cross-references the social graph across 3,000+ people pages
+
+> "What have I said about the relationship between shame and founder performance?"
+> — searches YOUR thinking, not the internet
+
+> "What changed with the Series A since Tuesday?"
+> — diffs timeline entries across deal and company pages
+
+> "Prep me for my meeting with Jordan in 30 minutes"
+> — pulls dossier, shared history, recent activity, open threads
+
+Every meeting, email, tweet, and person enrichment flows back into the brain. Six months from now you know more than any human could retain. Not because you're taking notes — because the system never forgets.
+
+Your markdown repo is the source of truth. GBrain makes it searchable. Your AI agent makes it live.
 
 ## Why this exists
 
-You have a brain full of knowledge. It lives in markdown files, meeting notes, CRM exports, Obsidian vaults, Notion databases. It's scattered, unsearchable, and going stale.
+Andrej Karpathy's [LLM OS / Knowledge LLM](https://x.com/karpathy/status/1723140519554105733) post sketched the vision: a personal wiki maintained by AI agents, where every page is a living document that gets smarter as the agent processes more information. I started building exactly that. Markdown files in a git repo, one page per entity, compiled truth on top, append-only timeline on the bottom.
 
-Search is the bottleneck. Keyword search misses semantic matches. Vector search misses exact names and phrases. Neither connects related ideas across documents.
+It worked. Until I hit thousands of files.
 
-GBrain fixes this with hybrid search that combines both approaches, plus a knowledge model that treats every page like an intelligence assessment: compiled truth on top (your current best understanding, rewritten when evidence changes), append-only timeline on the bottom (the evidence trail that never gets edited).
+At 500 files, `grep` is fine. At 3,000 people pages, 5,800 Apple Notes, and 13 years of calendar data, `grep` falls apart. You need real search: keyword for exact names, vector for semantic meaning, and something that fuses both. You need an index that updates incrementally when one file changes, not a full directory walk. You need your agent to find "everyone who was at the board dinner last March" in milliseconds, not 30 seconds of grepping.
+
+That's what GBrain is. The search and sync layer I had to build once the brain outgrew `grep`.
+
+GBrain fixes this with hybrid search that combines keyword and vector approaches, plus a knowledge model that treats every page like an intelligence assessment: compiled truth on top (your current best understanding, rewritten when evidence changes), append-only timeline on the bottom (the evidence trail that never gets edited).
 
 AI agents maintain the brain. You ingest a document and the agent updates every entity mentioned, creates cross-reference links, and appends timeline entries. MCP clients query it. The intelligence lives in fat markdown skills, not application code.
+
+## The Compounding Thesis
+
+Most tools help you find things. GBrain makes you smarter over time.
+
+The core loop:
+
+```
+Signal arrives (meeting, email, tweet, link)
+  → Agent detects entities (people, companies, ideas)
+  → READ: check the brain first (gbrain search, gbrain get)
+  → Respond with full context
+  → WRITE: update brain pages with new information
+  → Sync: gbrain indexes changes for next query
+```
+
+Every cycle through this loop adds knowledge. The agent enriches a person page after a meeting. Next time that person comes up, the agent already has context — their role, your history, what they care about, what you discussed last time. You never start from zero.
+
+An agent without this loop answers from stale context. An agent with it gets smarter every conversation. The difference compounds daily.
+
+Never do anything twice. If you look someone up once, that lookup lives in the brain forever. If a pattern emerges across three meetings, the agent captures it. If you generate an original idea in conversation, it goes to `originals/` — your searchable intellectual archive.
+
+## Architecture
+
+```
+┌──────────────────┐    ┌───────────────┐    ┌──────────────────┐
+│   Brain Repo     │    │    GBrain     │    │    AI Agent      │
+│   (git)          │    │  (retrieval)  │    │  (read/write)    │
+│                  │    │               │    │                  │
+│  markdown files  │───>│  Postgres +   │<──>│  skills define   │
+│  = source of     │    │  pgvector     │    │  HOW to use the  │
+│    truth         │    │               │    │  brain           │
+│                  │<───│  hybrid       │    │                  │
+│  human can       │    │  search       │    │  entity detect   │
+│  always read     │    │  (vector +    │    │  enrich          │
+│  & edit          │    │   keyword +   │    │  ingest          │
+│                  │    │   RRF)        │    │  brief           │
+└──────────────────┘    └───────────────┘    └──────────────────┘
+```
+
+The repo is the system of record. GBrain is the retrieval layer. The agent reads and writes through both. Human always wins — you can edit any markdown file directly and `gbrain sync` picks up the changes.
+
+## What a Production Agent Looks Like
+
+The numbers above aren't theoretical. They come from a real deployment documented in [GBRAIN_SKILLPACK.md](docs/GBRAIN_SKILLPACK.md) — a reference architecture for how a production AI agent uses gbrain as its knowledge backbone.
+
+What's in the skillpack:
+
+- **The brain-agent loop** — the read-write cycle that makes knowledge compound
+- **Entity detection** — spawn on every message, capture people/companies/original ideas
+- **Enrichment pipeline** — 7-step protocol with tiered API spend
+- **Meeting ingestion** — transcript to brain pages with entity propagation
+- **Source attribution** — every fact traceable to where it came from
+- **Reference cron schedule** — 20+ recurring jobs that keep the brain alive
+
+It's a pattern book, not a tutorial. "Here's what works, here's why."
+
+## How gbrain fits with OpenClaw
+
+GBrain is world knowledge — people, companies, deals, meetings, concepts, your original thinking. It's the long-term memory of what you know about the world.
+
+[OpenClaw](https://openclaw.com) agent memory (`memory_search`) is operational state — preferences, decisions, session context, how the agent should behave.
+
+They're complementary:
+
+| Layer | What it stores | How to query |
+|-------|---------------|-------------|
+| **gbrain** | People, companies, meetings, ideas, media | `gbrain search`, `gbrain query`, `gbrain get` |
+| **Agent memory** | Preferences, decisions, operational config | `memory_search` |
+| **Session context** | Current conversation | (automatic) |
+
+All three should be checked. GBrain for facts about the world. Memory for agent config. Session for immediate context. Install via `openclaw skills install gbrain`.
 
 ## Try it: your files, searchable in 90 seconds
 
@@ -84,6 +169,8 @@ gbrain query "what are our biggest risks right now?"
 
 Your file count will be different. Your queries will be different. The agent picks them based on what it imported. That's the point: this is YOUR brain, not a demo.
 
+**The compounding effect.** Search for Pedro. The agent pulls his page, his relationship history, his company. Next time Brex comes up in conversation, the agent already knows Pedro co-founded it, what you discussed last, and what's on your open threads. You didn't do anything — the brain already had it.
+
 ## Install
 
 ### Prerequisites
@@ -109,51 +196,45 @@ Without an OpenAI key, search still works (keyword only, no vector search). With
 
 ### With OpenClaw (recommended)
 
-If you're running OpenClaw, paste this to set up your brain. Make sure your API keys are set in the environment first.
+To install, paste this into OpenClaw and we'll work with you to do the rest:
 
 ```
-You: "Set up gbrain (https://github.com/garrytan/gbrain) as my knowledge brain.
-      I need you to:
-      1. Make sure bun is installed (curl -fsSL https://bun.sh/install | bash), then run: bun add gbrain
-      2. Run: gbrain init --supabase (follow the wizard to connect my Supabase database)
-      3. Scan ~/git/ and ~/Documents/ for markdown repos, pick the best one, and run: gbrain import <path>
-      4. Run a query against the imported data to prove search works -- pick the query based on what you imported
-      5. Read https://github.com/garrytan/gbrain/blob/master/docs/GBRAIN_RECOMMENDED_SCHEMA.md and offer to restructure my knowledge base"
+Set up gbrain (https://github.com/garrytan/gbrain) as my knowledge brain.
+1. Make sure bun is installed (curl -fsSL https://bun.sh/install | bash), then run: bun add github:garrytan/gbrain
+2. Run: gbrain init --supabase (follow the wizard to connect my Supabase database)
+3. Scan ~/git/ and ~/Documents/ for markdown repos, pick the best one, and run: gbrain import <path> --no-embed
+4. Run a query against the imported data to prove search works
+5. Read https://github.com/garrytan/gbrain/blob/master/docs/GBRAIN_RECOMMENDED_SCHEMA.md and offer to restructure my knowledge base
 ```
 
-OpenClaw will install the package, walk through the Supabase connection wizard, discover your markdown files, import them into Supabase, prove search works with a query from your data, and learn the 7 brain skills (ingest, query, maintain, enrich, briefing, migrate, install).
+OpenClaw will install gbrain, walk through Supabase setup, discover your markdown files, import them, and prove search works with a query from your data.
 
 After setup, you talk to your brain through OpenClaw:
 
 ```
-You: "Search the brain for everything we know about [topic from your data]"
-You: "Ingest my meeting notes from today"
-You: "Give me a briefing for my meetings tomorrow"
-You: "How many pages are in the brain now?"
+Search the brain for everything we know about [topic]
+Ingest my meeting notes from today
+Give me a briefing for my meetings tomorrow
+How many pages are in the brain now?
 ```
 
-OpenClaw reads the skill files in `skills/`, figures out which gbrain commands to run, and does the work. You never touch the CLI directly unless you want to.
+GBrain keeps your brain current. After setup, `gbrain sync --watch` polls your git repo and imports only what changed. Binary files (images, PDFs, audio) can be moved to cloud storage with `gbrain files mirror` to slim down your git repo.
 
-GBrain keeps your brain current automatically. After setup, `gbrain sync --watch` polls your git repo and imports only what changed. Binary files (images, PDFs, audio) can be moved to Supabase Storage with `gbrain files sync` to slim down your git repo.
-
-### With ClawHub
-
-```bash
-clawhub install gbrain
-```
-
-ClawHub installs the bundle plugin, configures the MCP server, and auto-runs the setup skill. Each brain should have its own Supabase project (one project per person or team).
+> **Supabase settings:** GBrain connects directly to Postgres (not the REST API).
+> You need the **Session pooler connection string** (port 6543), not the project URL
+> or anon key. Find it: Project Settings > Database > Connection string > URI tab >
+> change dropdown to "Session pooler".
 
 ### Standalone CLI
 
 ```bash
-bun add -g gbrain
+bun add -g github:garrytan/gbrain
 ```
 
 ### As a library
 
 ```bash
-bun add gbrain
+bun add github:garrytan/gbrain
 ```
 
 ```typescript
@@ -380,6 +461,7 @@ TIMELINE
   gbrain timeline-add <slug> <date> <text>  Add timeline entry
 
 ADMIN
+  gbrain doctor [--json]                    Health checks (pgvector, RLS, schema, embeddings)
   gbrain stats                              Brain statistics
   gbrain health                             Health dashboard (embed coverage, stale, orphans)
   gbrain history <slug>                     Page version history
@@ -458,7 +540,7 @@ Fat markdown files that tell AI agents HOW to use gbrain. No skill logic in the 
 | **migrate** | Universal migration from Obsidian (wikilinks to gbrain links), Notion (stripped UUIDs), Logseq (block refs), plain markdown, CSV, JSON, Roam. |
 | **setup** | Set up GBrain from scratch: auto-provision Supabase via CLI, AGENTS.md injection, import, sync. Target TTHW < 2 min. |
 
-## Architecture
+## Engine Architecture
 
 ```
 CLI / MCP Server
@@ -499,6 +581,7 @@ Initial embedding cost: ~$4-5 for 7,500 pages via OpenAI text-embedding-3-large.
 
 ## Docs
 
+- [GBRAIN_SKILLPACK.md](docs/GBRAIN_SKILLPACK.md) -- Reference architecture for production agents: brain-agent loop, entity detection, enrichment pipeline, meeting ingestion, cron schedule
 - [GBRAIN_RECOMMENDED_SCHEMA.md](docs/GBRAIN_RECOMMENDED_SCHEMA.md) -- The recommended brain schema: MECE directories, compiled truth + timeline, enrichment pipelines, resolver decision tree
 - [GBRAIN_V0.md](docs/GBRAIN_V0.md) -- Full product spec, all architecture decisions, every option considered
 - [ENGINES.md](docs/ENGINES.md) -- Pluggable engine interface, capability matrix, how to add backends
@@ -513,9 +596,9 @@ against real Postgres+pgvector: `docker compose -f docker-compose.test.yml up -d
 Welcome PRs for:
 
 - SQLite engine implementation
-- Additional migration sources (Logseq, Roam, Notion)
 - New enrichment API integrations
 - Performance optimizations
+- Docker Compose for self-hosted Postgres
 
 ## License
 

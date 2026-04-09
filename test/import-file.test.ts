@@ -74,9 +74,9 @@ This is the compiled truth.
     expect(chunkCall).toBeTruthy();
   });
 
-  test('skips files larger than MAX_FILE_SIZE (1MB)', async () => {
+  test('skips files larger than MAX_FILE_SIZE (5MB)', async () => {
     const filePath = join(TMP, 'big-file.md');
-    const bigContent = '---\ntitle: Big\n---\n' + 'x'.repeat(1_100_000);
+    const bigContent = '---\ntitle: Big\n---\n' + 'x'.repeat(5_100_000);
     writeFileSync(filePath, bigContent);
 
     const engine = mockEngine();

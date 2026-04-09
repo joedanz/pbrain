@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { readFileSync, readdirSync, statSync, existsSync, writeFileSync, unlinkSync } from 'fs';
 import { join, relative, extname, basename } from 'path';
 import { createHash } from 'crypto';
 import type { BrainEngine } from '../core/engine.ts';
@@ -52,12 +52,36 @@ export async function runFiles(engine: BrainEngine, args: string[]) {
     case 'verify':
       await verifyFiles();
       break;
+    case 'mirror':
+      await mirrorFiles(args.slice(1));
+      break;
+    case 'unmirror':
+      await unmirrorFiles(args.slice(1));
+      break;
+    case 'redirect':
+      await redirectFiles(args.slice(1));
+      break;
+    case 'restore':
+      await restoreFiles(args.slice(1));
+      break;
+    case 'clean':
+      await cleanFiles(args.slice(1));
+      break;
+    case 'status':
+      await filesStatus(args.slice(1));
+      break;
     default:
-      console.error(`Usage: gbrain files <list|upload|sync|verify> [args]`);
-      console.error(`  list [slug]           List files for a page (or all)`);
+      console.error(`Usage: gbrain files <list|upload|sync|verify|mirror|unmirror|redirect|restore|clean|status> [args]`);
+      console.error(`  list [slug]               List files for a page (or all)`);
       console.error(`  upload <file> --page <slug>  Upload file linked to page`);
-      console.error(`  sync <dir>            Upload directory to storage`);
-      console.error(`  verify                Verify all uploads match local`);
+      console.error(`  sync <dir>                Upload directory to storage`);
+      console.error(`  verify                    Verify all uploads match local`);
+      console.error(`  mirror <dir> [--dry-run]  Mirror files to cloud storage`);
+      console.error(`  unmirror <dir>            Remove mirror marker (files stay in storage)`);
+      console.error(`  redirect <dir> [--dry-run]  Replace files with .redirect breadcrumbs`);
+      console.error(`  restore <dir>             Download from storage, recreate local files`);
+      console.error(`  clean <dir> [--yes]       Delete .redirect breadcrumbs (irreversible)`);
+      console.error(`  status                    Show migration status of directories`);
       process.exit(1);
   }
 }
@@ -201,6 +225,205 @@ async function verifyFiles() {
     console.error(`VERIFY FAILED: ${mismatches} mismatches, ${missing} missing.`);
     console.error(`Run: gbrain files sync --retry-failed`);
     process.exit(1);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// File Migration Commands (mirror → redirect → clean lifecycle)
+// ─────────────────────────────────────────────────────────────────
+
+async function mirrorFiles(args: string[]) {
+  const dir = args.find(a => !a.startsWith('--'));
+  const dryRun = args.includes('--dry-run');
+  if (!dir || !existsSync(dir)) { console.error('Usage: gbrain files mirror <dir> [--dry-run]'); process.exit(1); }
+
+  const { createStorage } = await import('../core/storage.ts');
+  const { loadConfig } = await import('../core/config.ts');
+  const { stringify } = await import('../core/yaml-lite.ts');
+  const config = loadConfig();
+  if (!config?.storage) { console.error('No storage backend configured. Run gbrain init with storage settings.'); process.exit(1); }
+
+  const storage = await createStorage(config.storage as any);
+  const files = collectFiles(dir);
+  console.log(`Found ${files.length} files to mirror`);
+
+  if (dryRun) {
+    for (const f of files) { console.log(`  Would upload: ${relative(dir, f)}`); }
+    console.log(`\nDry run: ${files.length} files would be uploaded.`);
+    return;
+  }
+
+  let uploaded = 0;
+  for (const filePath of files) {
+    const relPath = relative(dir, filePath);
+    const data = readFileSync(filePath);
+    const mime = getMimeType(filePath);
+    await storage.upload(relPath, data, mime || undefined);
+    uploaded++;
+  }
+
+  // Write .supabase marker
+  const marker = stringify({
+    synced_at: new Date().toISOString(),
+    bucket: config.storage.bucket || 'brain-files',
+    prefix: basename(dir) + '/',
+    file_count: uploaded,
+  });
+  writeFileSync(join(dir, '.supabase'), marker);
+
+  console.log(`Mirrored ${uploaded} files. Marker written to ${dir}/.supabase`);
+}
+
+async function unmirrorFiles(args: string[]) {
+  const dir = args.find(a => !a.startsWith('--'));
+  if (!dir) { console.error('Usage: gbrain files unmirror <dir>'); process.exit(1); }
+
+  const markerPath = join(dir, '.supabase');
+  if (existsSync(markerPath)) {
+    unlinkSync(markerPath);
+    console.log(`Removed mirror marker from ${dir}. Files remain in storage.`);
+  } else {
+    console.log(`No mirror marker found in ${dir}. Nothing to do.`);
+  }
+}
+
+async function redirectFiles(args: string[]) {
+  const dir = args.find(a => !a.startsWith('--'));
+  const dryRun = args.includes('--dry-run');
+  if (!dir || !existsSync(dir)) { console.error('Usage: gbrain files redirect <dir> [--dry-run]'); process.exit(1); }
+
+  const markerPath = join(dir, '.supabase');
+  if (!existsSync(markerPath)) {
+    console.error('Directory must be mirrored first. Run: gbrain files mirror <dir>');
+    process.exit(1);
+  }
+
+  const { parse: parseYaml, stringify } = await import('../core/yaml-lite.ts');
+  const marker = parseYaml(readFileSync(markerPath, 'utf-8'));
+  const files = collectFiles(dir);
+
+  if (dryRun) {
+    for (const f of files) { console.log(`  Would redirect: ${relative(dir, f)}`); }
+    console.log(`\nDry run: ${files.length} files would be redirected.`);
+    return;
+  }
+
+  let redirected = 0;
+  for (const filePath of files) {
+    const relPath = relative(dir, filePath);
+    const hash = fileHash(filePath);
+    const breadcrumb = stringify({
+      moved_to: 'storage',
+      bucket: marker.bucket || 'brain-files',
+      path: relPath,
+      moved_at: new Date().toISOString().split('T')[0],
+      original_hash: `sha256:${hash}`,
+    });
+    writeFileSync(filePath + '.redirect', breadcrumb);
+    unlinkSync(filePath);
+    redirected++;
+  }
+
+  console.log(`Redirected ${redirected} files. Originals removed, breadcrumbs created.`);
+  console.log('To undo: gbrain files restore <dir>');
+}
+
+async function restoreFiles(args: string[]) {
+  const dir = args.find(a => !a.startsWith('--'));
+  if (!dir || !existsSync(dir)) { console.error('Usage: gbrain files restore <dir>'); process.exit(1); }
+
+  const { createStorage } = await import('../core/storage.ts');
+  const { loadConfig } = await import('../core/config.ts');
+  const { parse: parseYaml } = await import('../core/yaml-lite.ts');
+  const config = loadConfig();
+  if (!config?.storage) { console.error('No storage backend configured.'); process.exit(1); }
+
+  const storage = await createStorage(config.storage as any);
+  const redirectFiles: string[] = [];
+
+  function findRedirects(d: string) {
+    for (const entry of readdirSync(d)) {
+      if (entry.startsWith('.')) continue;
+      const full = join(d, entry);
+      if (statSync(full).isDirectory()) findRedirects(full);
+      else if (entry.endsWith('.redirect')) redirectFiles.push(full);
+    }
+  }
+  findRedirects(dir);
+
+  let restored = 0;
+  let failed = 0;
+  for (const redirectPath of redirectFiles) {
+    const info = parseYaml(readFileSync(redirectPath, 'utf-8'));
+    const originalPath = redirectPath.replace(/\.redirect$/, '');
+    try {
+      const data = await storage.download(info.path);
+      writeFileSync(originalPath, data);
+      unlinkSync(redirectPath);
+      restored++;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`  Failed to restore ${info.path}: ${msg}`);
+      failed++;
+    }
+  }
+
+  console.log(`Restored ${restored} files. ${failed > 0 ? `${failed} failed.` : ''}`);
+}
+
+async function cleanFiles(args: string[]) {
+  const dir = args.find(a => !a.startsWith('--'));
+  const confirmed = args.includes('--yes');
+  if (!dir || !existsSync(dir)) { console.error('Usage: gbrain files clean <dir> [--yes]'); process.exit(1); }
+
+  if (!confirmed) {
+    console.error('WARNING: This permanently removes .redirect breadcrumbs.');
+    console.error('After this, files are only accessible from cloud storage.');
+    console.error('Git history still has the originals if you need them.');
+    console.error('Run with --yes to confirm.');
+    process.exit(1);
+  }
+
+  let cleaned = 0;
+  function findAndClean(d: string) {
+    for (const entry of readdirSync(d)) {
+      if (entry.startsWith('.')) continue;
+      const full = join(d, entry);
+      if (statSync(full).isDirectory()) findAndClean(full);
+      else if (entry.endsWith('.redirect')) { unlinkSync(full); cleaned++; }
+    }
+  }
+  findAndClean(dir);
+
+  console.log(`Cleaned ${cleaned} redirect breadcrumbs. Cloud storage is now the only source.`);
+}
+
+async function filesStatus(args: string[]) {
+  const dir = args[0] || '.';
+
+  let mirrored = 0, redirected = 0, local = 0;
+
+  function scan(d: string) {
+    for (const entry of readdirSync(d)) {
+      if (entry.startsWith('.') && entry !== '.supabase') continue;
+      const full = join(d, entry);
+      if (entry === '.supabase') { mirrored++; continue; }
+      if (statSync(full).isDirectory()) scan(full);
+      else if (entry.endsWith('.redirect')) redirected++;
+      else if (!entry.endsWith('.md')) local++;
+    }
+  }
+  scan(dir);
+
+  console.log('File migration status:');
+  console.log(`  Mirrored directories: ${mirrored}`);
+  console.log(`  Redirected files: ${redirected}`);
+  console.log(`  Local binary files: ${local}`);
+
+  if (mirrored === 0 && redirected === 0 && local > 0) {
+    console.log(`\n${local} local files. Run: gbrain files mirror <dir> to start migration.`);
+  } else if (redirected > 0) {
+    console.log(`\n${redirected} files redirected to storage. Run: gbrain files clean <dir> --yes to remove breadcrumbs.`);
   }
 }
 
