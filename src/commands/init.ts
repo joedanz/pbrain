@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
-import { readdirSync, lstatSync, existsSync, copyFileSync, mkdirSync, readFileSync, renameSync } from 'fs';
-import { join, dirname } from 'path';
+import { readdirSync, lstatSync, existsSync, copyFileSync, mkdirSync, readFileSync, renameSync, statSync } from 'fs';
+import { join, dirname, resolve, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 
@@ -20,8 +20,14 @@ export async function runInit(args: string[]) {
   const apiKey = keyIndex !== -1 ? args[keyIndex + 1] : null;
   const pathIndex = args.indexOf('--path');
   const customPath = pathIndex !== -1 ? args[pathIndex + 1] : null;
+  const brainPathIndex = args.indexOf('--brain-path');
+  const brainPathArg =
+    brainPathIndex !== -1
+      ? args[brainPathIndex + 1]
+      : process.env.PBRAIN_BRAIN_PATH || null;
 
   await maybeMigrateGBrainConfigDir({ isNonInteractive, jsonOutput });
+  const brainPath = await resolveBrainPath({ brainPathArg, isNonInteractive, jsonOutput });
 
   // Explicit PGLite mode
   if (isPGLite || (!isSupabase && !manualUrl && !isNonInteractive)) {
@@ -39,7 +45,7 @@ export async function runInit(args: string[]) {
       }
     }
 
-    return initPGLite({ jsonOutput, apiKey, customPath });
+    return initPGLite({ jsonOutput, apiKey, customPath, brainPath });
   }
 
   // Supabase/Postgres mode
@@ -58,11 +64,19 @@ export async function runInit(args: string[]) {
     databaseUrl = await supabaseWizard();
   }
 
-  return initPostgres({ databaseUrl, jsonOutput, apiKey });
+  return initPostgres({ databaseUrl, jsonOutput, apiKey, brainPath });
 }
 
-async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null }) {
-  const dbPath = opts.customPath || join(homedir(), '.pbrain', 'brain.pglite');
+async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string | null }) {
+  // Default index path moved to ~/.pbrain/indexes/ for Phase 3 — the PGLite
+  // file is a rebuildable index now, not the brain itself. Existing users on
+  // the legacy ~/.pbrain/brain.pglite path keep using that file; new installs
+  // land under indexes/.
+  const legacyDbPath = join(homedir(), '.pbrain', 'brain.pglite');
+  const defaultDbPath = existsSync(legacyDbPath)
+    ? legacyDbPath
+    : join(homedir(), '.pbrain', 'indexes', 'default.pglite');
+  const dbPath = opts.customPath || defaultDbPath;
   console.log(`Setting up local brain with PGLite (no server needed)...`);
 
   const engine = await createEngine({ engine: 'pglite' });
@@ -72,6 +86,7 @@ async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; cu
   const config: PBrainConfig = {
     engine: 'pglite',
     database_path: dbPath,
+    ...(opts.brainPath ? { brain_path: opts.brainPath } : {}),
     ...(opts.apiKey ? { openai_api_key: opts.apiKey } : {}),
   };
   saveConfig(config);
@@ -80,18 +95,19 @@ async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; cu
   await engine.disconnect();
 
   if (opts.jsonOutput) {
-    console.log(JSON.stringify({ status: 'success', engine: 'pglite', path: dbPath, pages: stats.page_count }));
+    console.log(JSON.stringify({ status: 'success', engine: 'pglite', path: dbPath, brain_path: opts.brainPath, pages: stats.page_count }));
   } else {
-    console.log(`\nBrain ready at ${dbPath}`);
+    console.log(`\nBrain index ready at ${dbPath}`);
+    if (opts.brainPath) console.log(`Brain folder: ${opts.brainPath}`);
     console.log(`${stats.page_count} pages. Engine: PGLite (local Postgres).`);
-    console.log('Next: pbrain import <dir>');
+    console.log(`Next: pbrain index${opts.brainPath ? '' : ' <dir>'}`);
     console.log('');
     console.log('When you outgrow local: pbrain migrate --to supabase');
     reportModStatus();
   }
 }
 
-async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null }) {
+async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null; brainPath: string | null }) {
   const { databaseUrl } = opts;
 
   // Detect Supabase direct connection URLs and warn about IPv6
@@ -144,6 +160,7 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
   const config: PBrainConfig = {
     engine: 'postgres',
     database_url: databaseUrl,
+    ...(opts.brainPath ? { brain_path: opts.brainPath } : {}),
     ...(opts.apiKey ? { openai_api_key: opts.apiKey } : {}),
   };
   saveConfig(config);
@@ -153,10 +170,11 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
   await engine.disconnect();
 
   if (opts.jsonOutput) {
-    console.log(JSON.stringify({ status: 'success', engine: 'postgres', pages: stats.page_count }));
+    console.log(JSON.stringify({ status: 'success', engine: 'postgres', brain_path: opts.brainPath, pages: stats.page_count }));
   } else {
-    console.log(`\nBrain ready. ${stats.page_count} pages. Engine: Postgres (Supabase).`);
-    console.log('Next: pbrain import <dir>');
+    console.log(`\nBrain index ready. ${stats.page_count} pages. Engine: Postgres (Supabase).`);
+    if (opts.brainPath) console.log(`Brain folder: ${opts.brainPath}`);
+    console.log(`Next: pbrain index${opts.brainPath ? '' : ' <dir>'}`);
     reportModStatus();
   }
 }
@@ -187,6 +205,51 @@ function countMarkdownFiles(dir: string, maxScan = 1500): number {
     scan(dir);
   } catch { /* skip unreadable root */ }
   return count;
+}
+
+/**
+ * Resolve the markdown brain folder. Source of truth: CLI flag, env var, or
+ * interactive prompt. Non-interactive flows without an explicit value return
+ * null (init still works; the user can set it later with `pbrain config set
+ * brain_path <dir>` or on first `pbrain index <dir>`).
+ *
+ * Validation is deliberately thin — we verify the path is a directory we can
+ * reach and create it if missing. Permission and cloud-sync quirks surface
+ * on first write rather than at config time, where we don't have enough
+ * context to diagnose them well.
+ */
+async function resolveBrainPath(opts: {
+  brainPathArg: string | null;
+  isNonInteractive: boolean;
+  jsonOutput: boolean;
+}): Promise<string | null> {
+  let raw = opts.brainPathArg;
+  if (!raw && !opts.isNonInteractive && !opts.jsonOutput) {
+    console.log('');
+    console.log('Where should your brain live?');
+    console.log('  Any filesystem path works — local folder, Obsidian vault, or cloud-synced mount.');
+    console.log('  Press enter to skip (you can set it later with --brain-path).');
+    const answer = await readLine('Brain path [skip]: ');
+    raw = answer?.trim() || null;
+  }
+  if (!raw) return null;
+
+  const expanded = raw.startsWith('~')
+    ? join(homedir(), raw.slice(1))
+    : raw;
+  const absolute = isAbsolute(expanded) ? expanded : resolve(process.cwd(), expanded);
+
+  if (existsSync(absolute)) {
+    const stat = statSync(absolute);
+    if (!stat.isDirectory()) {
+      console.error(`Brain path exists but is not a directory: ${absolute}`);
+      process.exit(1);
+    }
+  } else {
+    mkdirSync(absolute, { recursive: true });
+    console.log(`Created brain folder: ${absolute}`);
+  }
+  return absolute;
 }
 
 async function supabaseWizard(): Promise<string> {
