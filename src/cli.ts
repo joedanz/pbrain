@@ -431,6 +431,7 @@ SETUP
   upgrade                            Self-update
   check-update [--json]              Check for new versions
   doctor [--json] [--fast]            Health check (resolver, skills, pgvector, RLS, embeddings)
+  doctor --integrations               Validate brain folder as Obsidian-compatible vault (no DB)
   integrations [subcommand]          Manage integration recipes (senses + reflexes)
 
 PAGES
