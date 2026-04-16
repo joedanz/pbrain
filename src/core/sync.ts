@@ -73,7 +73,7 @@ export function buildSyncManifest(gitDiffOutput: string): SyncManifest {
 }
 
 /**
- * Filter a file path to determine if it should be synced to GBrain.
+ * Filter a file path to determine if it should be synced to PBrain.
  */
 export function isSyncable(path: string): boolean {
   // Must be .md or .mdx
@@ -126,7 +126,7 @@ export function slugifyPath(filePath: string): string {
 }
 
 /**
- * Convert a repo-relative file path to a GBrain page slug.
+ * Convert a repo-relative file path to a PBrain page slug.
  */
 export function pathToSlug(filePath: string, repoPrefix?: string): string {
   let slug = slugifyPath(filePath);

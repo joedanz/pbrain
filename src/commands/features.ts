@@ -1,8 +1,8 @@
 /**
- * gbrain features — Scan brain usage and recommend unused features.
+ * pbrain features — Scan brain usage and recommend unused features.
  *
  * Usage:
- *   gbrain features [--json] [--auto-fix] [--help]
+ *   pbrain features [--json] [--auto-fix] [--help]
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -52,7 +52,7 @@ const RECIPE_META = [
 // --- Persistence ---
 
 function offersPath(): string {
-  return join(process.env.HOME || '', '.gbrain', 'feature-offers.json');
+  return join(process.env.HOME || '', '.pbrain', 'feature-offers.json');
 }
 
 function loadOffers(): FeatureOffersFile {
@@ -66,7 +66,7 @@ function loadOffers(): FeatureOffersFile {
 
 function saveOffers(offers: FeatureOffersFile) {
   try {
-    const dir = join(process.env.HOME || '', '.gbrain');
+    const dir = join(process.env.HOME || '', '.pbrain');
     mkdirSync(dir, { recursive: true });
     writeFileSync(offersPath(), JSON.stringify(offers, null, 2));
   } catch { /* best-effort */ }
@@ -93,7 +93,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
       id: 'missing-embeddings', priority: 1,
       title: 'Fix Missing Embeddings',
       pitch: `${health.missing_embeddings} chunks invisible to semantic search. One command fixes it.`,
-      command: 'gbrain embed --stale',
+      command: 'pbrain embed --stale',
       auto_fixable: true,
     });
   }
@@ -104,7 +104,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
       id: 'dead-links', priority: 1,
       title: 'Fix Dead Links',
       pitch: `${health.dead_links} links pointing to non-existent pages.`,
-      command: 'gbrain check-backlinks fix',
+      command: 'pbrain check-backlinks fix',
       auto_fixable: false,
     });
   }
@@ -117,7 +117,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
         id: 'zero-links', priority: 2,
         title: 'Build Link Graph',
         pitch: `${stats.page_count} pages but 0 links. Your brain is a flat file cabinet, not a knowledge graph.`,
-        command: 'gbrain extract links',
+        command: 'pbrain extract links',
         auto_fixable: true,
       });
     }
@@ -128,7 +128,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
         id: 'zero-timeline', priority: 2,
         title: 'Extract Timeline',
         pitch: `No structured timeline entries. Your brain can't answer "when did X happen?"`,
-        command: 'gbrain extract timeline',
+        command: 'pbrain extract timeline',
         auto_fixable: true,
       });
     }
@@ -140,7 +140,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
         id: 'low-coverage', priority: 2,
         title: 'Improve Embedding Coverage',
         pitch: `${pct}% embed coverage. ${health.missing_embeddings} chunks invisible to semantic search.`,
-        command: 'gbrain embed --stale',
+        command: 'pbrain embed --stale',
         auto_fixable: true,
       });
     }
@@ -154,7 +154,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
         id: 'no-integrations', priority: 2,
         title: 'Set Up Integrations',
         pitch: `${unconfigured.length} integration recipes available but not configured: ${unconfigured.map(r => r.name).join(', ')}.`,
-        command: `gbrain integrations list`,
+        command: `pbrain integrations list`,
         auto_fixable: false,
       });
     }
@@ -167,7 +167,7 @@ async function scanFeatures(engine: BrainEngine): Promise<FeatureScanResult> {
           id: 'no-sync', priority: 2,
           title: 'Configure Sync',
           pitch: `Brain not syncing from git. Changes in your repo don't reach your brain.`,
-          command: 'gbrain sync --repo <path>',
+          command: 'pbrain sync --repo <path>',
           auto_fixable: false,
         });
       }
@@ -215,7 +215,7 @@ async function executeAutoFix(rec: FeatureRecommendation, engine: BrainEngine): 
 
 export async function runFeatures(engine: BrainEngine, args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: gbrain features [--json] [--auto-fix]\n\nScan brain usage and recommend unused features.\n\n  --json       Output as JSON (for agents)\n  --auto-fix   Automatically fix all auto-fixable issues');
+    console.log('Usage: pbrain features [--json] [--auto-fix]\n\nScan brain usage and recommend unused features.\n\n  --json       Output as JSON (for agents)\n  --auto-fix   Automatically fix all auto-fixable issues');
     return;
   }
 
@@ -282,7 +282,7 @@ export async function runFeatures(engine: BrainEngine, args: string[]) {
       offers.accepted[rec.id] = { at: new Date().toISOString().slice(0, 10), version: scan.version };
     }
   } else if (process.stdin.isTTY) {
-    console.log(`Run 'gbrain features --auto-fix' to fix all auto-fixable issues.`);
+    console.log(`Run 'pbrain features --auto-fix' to fix all auto-fixable issues.`);
   }
 
   offers.lastVersion = scan.version;
@@ -298,7 +298,7 @@ export async function featuresTeaserForDoctor(engine: BrainEngine): Promise<stri
     if (health.missing_embeddings > 0) parts.push(`${health.missing_embeddings} missing embeddings`);
     if (health.dead_links > 0) parts.push(`${health.dead_links} dead links`);
     if (parts.length === 0) return null;
-    return `Tip: ${parts.join(', ')}. Run 'gbrain features' to fix.`;
+    return `Tip: ${parts.join(', ')}. Run 'pbrain features' to fix.`;
   } catch {
     return null;
   }

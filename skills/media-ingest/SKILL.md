@@ -36,7 +36,7 @@ This skill guarantees:
 - Every ingested media item has a brain page with analysis (not just a transcript dump)
 - Transcripts (video/audio) saved in raw and human-readable formats
 - Entity extraction: every person and company mentioned gets back-linked
-- Raw source files preserved via `gbrain files upload-raw`
+- Raw source files preserved via `pbrain files upload-raw`
 - Filing by primary subject, not by media format
 
 ## Iron Law: Back-Linking (MANDATORY)
@@ -58,7 +58,7 @@ Every mention of a person or company with a brain page MUST create a back-link.
 
 ### Phase 2: Upload raw source
 
-Save the original file for provenance: `gbrain files upload-raw <file> --page <slug>`
+Save the original file for provenance: `pbrain files upload-raw <file> --page <slug>`
 
 ### Phase 3: Create brain page
 
@@ -96,7 +96,7 @@ A media item is NOT fully ingested until entity propagation is complete.
 
 ### Phase 5: Sync
 
-`gbrain sync` to update the index.
+`pbrain sync` to update the index.
 
 ## Output Format
 

@@ -1,18 +1,18 @@
-# GBrain Installation Guide for AI Agents
+# PBrain Installation Guide for AI Agents
 
 Read this entire file, then follow the steps. Ask the user for API keys when needed.
 Target: ~30 minutes to a fully working brain.
 
-## Step 1: Install GBrain
+## Step 1: Install PBrain
 
 ```bash
-git clone https://github.com/garrytan/gbrain.git ~/gbrain && cd ~/gbrain
+git clone https://github.com/joedanz/pbrain.git ~/pbrain && cd ~/pbrain
 curl -fsSL https://bun.sh/install | bash
 export PATH="$HOME/.bun/bin:$PATH"
 bun install && bun link
 ```
 
-Verify: `gbrain --version` should print a version number. If `gbrain` is not found,
+Verify: `pbrain --version` should print a version number. If `pbrain` is not found,
 restart the shell or add the PATH export to the shell profile.
 
 ## Step 2: API Keys
@@ -30,8 +30,8 @@ Without Anthropic, search works but skips query expansion.
 ## Step 3: Create the Brain
 
 ```bash
-gbrain init                           # PGLite, no server needed
-gbrain doctor --json                  # verify all checks pass
+pbrain init                           # PGLite, no server needed
+pbrain doctor --json                  # verify all checks pass
 ```
 
 The user's markdown files (notes, docs, brain repo) are SEPARATE from this tool repo.
@@ -41,21 +41,21 @@ Ask the user where their files are, or create a new brain repo:
 mkdir -p ~/brain && cd ~/brain && git init
 ```
 
-Read `~/gbrain/docs/GBRAIN_RECOMMENDED_SCHEMA.md` and set up the MECE directory
+Read `~/pbrain/docs/PBRAIN_RECOMMENDED_SCHEMA.md` and set up the MECE directory
 structure (people/, companies/, concepts/, etc.) inside the user's brain repo,
-NOT inside ~/gbrain.
+NOT inside ~/pbrain.
 
 ## Step 4: Import and Index
 
 ```bash
-gbrain import ~/brain/ --no-embed     # import markdown files
-gbrain embed --stale                  # generate vector embeddings
-gbrain query "key themes across these documents?"
+pbrain import ~/brain/ --no-embed     # import markdown files
+pbrain embed --stale                  # generate vector embeddings
+pbrain query "key themes across these documents?"
 ```
 
 ## Step 5: Load Skills
 
-Read `~/gbrain/skills/RESOLVER.md`. This is the skill dispatcher. It tells you which
+Read `~/pbrain/skills/RESOLVER.md`. This is the skill dispatcher. It tells you which
 skill to read for any task. Save this to your memory permanently.
 
 The three most important skills to adopt immediately:
@@ -86,30 +86,30 @@ If skipped, minimal defaults are installed automatically.
 
 Set up using your platform's scheduler (OpenClaw cron, Railway cron, crontab):
 
-- **Live sync** (every 15 min): `gbrain sync --repo ~/brain && gbrain embed --stale`
-- **Auto-update** (daily): `gbrain check-update --json` (tell user, never auto-install)
+- **Live sync** (every 15 min): `pbrain sync --repo ~/brain && pbrain embed --stale`
+- **Auto-update** (daily): `pbrain check-update --json` (tell user, never auto-install)
 - **Dream cycle** (nightly): read `docs/guides/cron-schedule.md` for the full protocol.
   Entity sweep, citation fixes, memory consolidation. This is what makes the brain
   compound. Do not skip it.
-- **Weekly**: `gbrain doctor --json && gbrain embed --stale`
+- **Weekly**: `pbrain doctor --json && pbrain embed --stale`
 
 ## Step 8: Integrations
 
-Run `gbrain integrations list`. Each recipe in `~/gbrain/recipes/` is a self-contained
+Run `pbrain integrations list`. Each recipe in `~/pbrain/recipes/` is a self-contained
 installer. It tells you what credentials to ask for, how to validate, and what cron
 to register. Ask the user which integrations they want (email, calendar, voice, Twitter).
 
-Verify: `gbrain integrations doctor` (after at least one is configured)
+Verify: `pbrain integrations doctor` (after at least one is configured)
 
 ## Step 9: Verify
 
-Read `docs/GBRAIN_VERIFY.md` and run all 6 verification checks. Check #4 (live sync
+Read `docs/PBRAIN_VERIFY.md` and run all 6 verification checks. Check #4 (live sync
 actually works) is the most important.
 
 ## Upgrade
 
 ```bash
-cd ~/gbrain && git pull origin main && bun install
+cd ~/pbrain && git pull origin main && bun install
 ```
 
-Then run `gbrain init` to apply any schema migrations (idempotent, safe to re-run).
+Then run `pbrain init` to apply any schema migrations (idempotent, safe to re-run).

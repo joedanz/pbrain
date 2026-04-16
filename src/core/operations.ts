@@ -4,7 +4,7 @@
  */
 
 import type { BrainEngine } from './engine.ts';
-import type { GBrainConfig } from './config.ts';
+import type { PBrainConfig } from './config.ts';
 import { importFromContent } from './import-file.ts';
 import { hybridSearch } from './search/hybrid.ts';
 import { expandQuery } from './search/expansion.ts';
@@ -59,7 +59,7 @@ export interface Logger {
 
 export interface OperationContext {
   engine: BrainEngine;
-  config: GBrainConfig;
+  config: PBrainConfig;
   logger: Logger;
   dryRun: boolean;
 }
@@ -646,7 +646,7 @@ const file_url: Operation = {
       throw new OperationError('storage_error', `File not found: ${p.storage_path}`);
     }
     // TODO: generate signed URL from Supabase Storage
-    return { storage_path: rows[0].storage_path, url: `gbrain:files/${rows[0].storage_path}` };
+    return { storage_path: rows[0].storage_path, url: `pbrain:files/${rows[0].storage_path}` };
   },
 };
 

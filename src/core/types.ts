@@ -176,7 +176,7 @@ export interface EngineConfig {
 }
 
 // Errors
-export class GBrainError extends Error {
+export class PBrainError extends Error {
   constructor(
     public problem: string,
     public cause_description: string,
@@ -184,6 +184,6 @@ export class GBrainError extends Error {
     public docs_url?: string,
   ) {
     super(`${problem}: ${cause_description}. Fix: ${fix}`);
-    this.name = 'GBrainError';
+    this.name = 'PBrainError';
   }
 }

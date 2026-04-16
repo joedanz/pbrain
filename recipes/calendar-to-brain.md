@@ -100,7 +100,7 @@ This builds the full relationship graph from day one.
 
 ## Prerequisites
 
-1. **GBrain installed and configured** (`gbrain doctor` passes)
+1. **PBrain installed and configured** (`pbrain doctor` passes)
 2. **Node.js 18+** (for the sync script)
 3. **Google Calendar access** via ONE of:
    - **Option A: ClawVisor** (recommended, handles OAuth for you, no token management)
@@ -150,12 +150,12 @@ Tell the user:
 2. Click **'+ CREATE CREDENTIALS'** at the top, select **'OAuth client ID'**
 3. If prompted, configure the OAuth consent screen first:
    - User type: **External** (or Internal if you have Google Workspace)
-   - App name: anything (e.g., 'GBrain Calendar')
+   - App name: anything (e.g., 'PBrain Calendar')
    - Scopes: add **'Google Calendar API .../auth/calendar.readonly'**
    - Test users: add your own email
 4. Back on Credentials, create the OAuth client ID:
    - Application type: **Desktop app**
-   - Name: anything (e.g., 'GBrain')
+   - Name: anything (e.g., 'PBrain')
 5. Click **'Create'**. You'll see the Client ID and Client Secret.
 6. Copy both and paste them to me.
 
@@ -176,7 +176,7 @@ Then run the OAuth flow to get an access token:
 # 1. Open browser to Google auth URL with calendar.readonly scope
 # 2. User grants access
 # 3. Script receives auth code, exchanges for access + refresh token
-# 4. Stores tokens in ~/.gbrain/google-tokens.json
+# 4. Stores tokens in ~/.pbrain/google-tokens.json
 # 5. Auto-refreshes on expiry
 ```
 
@@ -234,16 +234,16 @@ ls brain/daily/calendar/2026/ | head -10
 
 Should show daily files like `2026-04-01.md`, `2026-04-02.md`, etc.
 
-### Step 5: Import Calendar Data to GBrain
+### Step 5: Import Calendar Data to PBrain
 
 ```bash
-gbrain import brain/daily/calendar/ --no-embed
-gbrain embed --stale
+pbrain import brain/daily/calendar/ --no-embed
+pbrain embed --stale
 ```
 
 Verify:
 ```bash
-gbrain search "meeting" --limit 3
+pbrain search "meeting" --limit 3
 ```
 
 Should return calendar pages with event details.
@@ -252,7 +252,7 @@ Should return calendar pages with event details.
 
 This is YOUR job (the agent). For each person who appears in calendar events:
 
-1. **Check brain**: `gbrain search "attendee name"` — do they have a page?
+1. **Check brain**: `pbrain search "attendee name"` — do they have a page?
 2. **Create page if missing**: notable attendees (appears 3+ times) get a brain page
 3. **Update existing pages**: add meeting history to timeline:
    `- YYYY-MM-DD | Meeting: {event title} [Source: Google Calendar]`
@@ -269,14 +269,14 @@ The calendar should sync weekly to stay current:
 
 After sync, import new data:
 ```bash
-gbrain sync --no-pull --no-embed && gbrain embed --stale
+pbrain sync --no-pull --no-embed && pbrain embed --stale
 ```
 
 ### Step 8: Log Setup Completion
 
 ```bash
-mkdir -p ~/.gbrain/integrations/calendar-to-brain
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"accounts":"ACCOUNT_COUNT","start_year":"YYYY"}}' >> ~/.gbrain/integrations/calendar-to-brain/heartbeat.jsonl
+mkdir -p ~/.pbrain/integrations/calendar-to-brain
+echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"accounts":"ACCOUNT_COUNT","start_year":"YYYY"}}' >> ~/.pbrain/integrations/calendar-to-brain/heartbeat.jsonl
 ```
 
 Tell the user: "Calendar-to-brain is set up. You have [N] days of calendar history

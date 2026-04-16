@@ -11,8 +11,8 @@ describe('file-resolver', () => {
   let storage: LocalStorage;
 
   beforeAll(() => {
-    brainRoot = mkdtempSync(join(tmpdir(), 'gbrain-resolver-'));
-    storageDir = mkdtempSync(join(tmpdir(), 'gbrain-resolver-storage-'));
+    brainRoot = mkdtempSync(join(tmpdir(), 'pbrain-resolver-'));
+    storageDir = mkdtempSync(join(tmpdir(), 'pbrain-resolver-storage-'));
     storage = new LocalStorage(storageDir);
 
     // Create a local file
@@ -102,7 +102,7 @@ describe('parseRedirect', () => {
   let tmpDir: string;
 
   beforeAll(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-redirect-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-redirect-'));
   });
 
   afterAll(() => {
@@ -125,7 +125,7 @@ describe('parseMarker', () => {
   let tmpDir: string;
 
   beforeAll(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-marker-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-marker-'));
   });
 
   afterAll(() => {

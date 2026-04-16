@@ -28,7 +28,7 @@ function validateParams(op: Operation, params: Record<string, unknown>): string 
 
 export async function startMcpServer(engine: BrainEngine) {
   const server = new Server(
-    { name: 'gbrain', version: VERSION },
+    { name: 'pbrain', version: VERSION },
     { capabilities: { tools: {} } },
   );
 
@@ -95,7 +95,7 @@ export async function startMcpServer(engine: BrainEngine) {
   await server.connect(transport);
 }
 
-// Backward compat: used by `gbrain call` command
+// Backward compat: used by `pbrain call` command
 export async function handleToolCall(
   engine: BrainEngine,
   tool: string,

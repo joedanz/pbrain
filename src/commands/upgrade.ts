@@ -5,7 +5,7 @@ import { VERSION } from '../version.ts';
 
 export async function runUpgrade(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: gbrain upgrade\n\nSelf-update the CLI.\n\nDetects install method (bun, binary, clawhub) and runs the appropriate update.\nAfter upgrading, shows what\'s new and offers to set up new features.');
+    console.log('Usage: pbrain upgrade\n\nSelf-update the CLI.\n\nDetects install method (bun, binary, clawhub) and runs the appropriate update.\nAfter upgrading, shows what\'s new and offers to set up new features.');
     return;
   }
 
@@ -20,35 +20,35 @@ export async function runUpgrade(args: string[]) {
     case 'bun':
       console.log('Upgrading via bun...');
       try {
-        execSync('bun update gbrain', { stdio: 'inherit', timeout: 120_000 });
+        execSync('bun update pbrain', { stdio: 'inherit', timeout: 120_000 });
         upgraded = true;
       } catch {
-        console.error('Upgrade failed. Try running manually: bun update gbrain');
+        console.error('Upgrade failed. Try running manually: bun update pbrain');
       }
       break;
 
     case 'binary':
       console.log('Binary self-update not yet implemented.');
       console.log('Download the latest binary from GitHub Releases:');
-      console.log('  https://github.com/garrytan/gbrain/releases');
+      console.log('  https://github.com/joedanz/pbrain/releases');
       break;
 
     case 'clawhub':
       console.log('Upgrading via ClawHub...');
       try {
-        execSync('clawhub update gbrain', { stdio: 'inherit', timeout: 120_000 });
+        execSync('clawhub update pbrain', { stdio: 'inherit', timeout: 120_000 });
         upgraded = true;
       } catch {
-        console.error('ClawHub upgrade failed. Try: clawhub update gbrain');
+        console.error('ClawHub upgrade failed. Try: clawhub update pbrain');
       }
       break;
 
     default:
       console.error('Could not detect installation method.');
       console.log('Try one of:');
-      console.log('  bun update gbrain');
-      console.log('  clawhub update gbrain');
-      console.log('  Download from https://github.com/garrytan/gbrain/releases');
+      console.log('  bun update pbrain');
+      console.log('  clawhub update pbrain');
+      console.log('  Download from https://github.com/joedanz/pbrain/releases');
   }
 
   if (upgraded) {
@@ -57,13 +57,13 @@ export async function runUpgrade(args: string[]) {
     saveUpgradeState(oldVersion, newVersion);
     // Run post-upgrade feature discovery (reads migration files from the NEW binary)
     try {
-      execSync('gbrain post-upgrade', { stdio: 'inherit', timeout: 30_000 });
+      execSync('pbrain post-upgrade', { stdio: 'inherit', timeout: 30_000 });
     } catch {
       // post-upgrade is best-effort, don't fail the upgrade
     }
     // Run features scan to show what's new and what to fix
     try {
-      execSync('gbrain features', { stdio: 'inherit', timeout: 30_000 });
+      execSync('pbrain features', { stdio: 'inherit', timeout: 30_000 });
     } catch {
       // features scan is best-effort
     }
@@ -72,9 +72,9 @@ export async function runUpgrade(args: string[]) {
 
 function verifyUpgrade(): string {
   try {
-    const output = execSync('gbrain --version', { encoding: 'utf-8', timeout: 10_000 }).trim();
+    const output = execSync('pbrain --version', { encoding: 'utf-8', timeout: 10_000 }).trim();
     console.log(`Upgrade complete. Now running: ${output}`);
-    return output.replace(/^gbrain\s*/i, '').trim();
+    return output.replace(/^pbrain\s*/i, '').trim();
   } catch {
     console.log('Upgrade complete. Could not verify new version.');
     return '';
@@ -83,7 +83,7 @@ function verifyUpgrade(): string {
 
 function saveUpgradeState(oldVersion: string, newVersion: string) {
   try {
-    const dir = join(process.env.HOME || '', '.gbrain');
+    const dir = join(process.env.HOME || '', '.pbrain');
     mkdirSync(dir, { recursive: true });
     const statePath = join(dir, 'upgrade-state.json');
     const state: Record<string, unknown> = existsSync(statePath)
@@ -102,12 +102,12 @@ function saveUpgradeState(oldVersion: string, newVersion: string) {
 
 /**
  * Post-upgrade feature discovery. Reads migration files between old and new version,
- * prints feature pitches from YAML frontmatter. Called by `gbrain post-upgrade` which
+ * prints feature pitches from YAML frontmatter. Called by `pbrain post-upgrade` which
  * runs the NEW binary after upgrade completes.
  */
 export function runPostUpgrade() {
   try {
-    const statePath = join(process.env.HOME || '', '.gbrain', 'upgrade-state.json');
+    const statePath = join(process.env.HOME || '', '.pbrain', 'upgrade-state.json');
     if (!existsSync(statePath)) return;
     const state = JSON.parse(readFileSync(statePath, 'utf-8'));
     const lastUpgrade = state.last_upgrade;
@@ -131,7 +131,7 @@ export function runPostUpgrade() {
           console.log(`NEW: ${pitch.headline}`);
           if (pitch.description) console.log(pitch.description);
           if (pitch.recipe) {
-            console.log(`Run \`gbrain integrations show ${pitch.recipe}\` to set it up.`);
+            console.log(`Run \`pbrain integrations show ${pitch.recipe}\` to set it up.`);
           }
           console.log('');
         }
@@ -147,7 +147,7 @@ function findMigrationsDir(): string | null {
   const candidates = [
     resolve(__dirname, '../../skills/migrations'),
     resolve(process.cwd(), 'skills/migrations'),
-    resolve(process.cwd(), 'node_modules/gbrain/skills/migrations'),
+    resolve(process.cwd(), 'node_modules/pbrain/skills/migrations'),
   ];
   for (const dir of candidates) {
     if (existsSync(dir)) return dir;
@@ -193,7 +193,7 @@ export function detectInstallMethod(): 'bun' | 'binary' | 'clawhub' | 'unknown' 
   }
 
   // Check if running as compiled binary
-  if (execPath.endsWith('/gbrain') || execPath.endsWith('\\gbrain.exe')) {
+  if (execPath.endsWith('/pbrain') || execPath.endsWith('\\pbrain.exe')) {
     return 'binary';
   }
 

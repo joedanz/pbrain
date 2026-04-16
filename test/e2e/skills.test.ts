@@ -1,7 +1,7 @@
 /**
  * E2E Skill Tests — Tier 2 (requires API keys + openclaw)
  *
- * Tests gbrain skills via OpenClaw agent CLI invocations.
+ * Tests pbrain skills via OpenClaw agent CLI invocations.
  * Asserts on DB state changes, not LLM output text.
  *
  * Requires:
@@ -131,13 +131,13 @@ Action: Sarah to draft VP Sales job description by April 7.
     `.trim();
 
     const { text, exitCode, durationMs } = runOpenClaw(
-      `Ingest this meeting transcript into gbrain. Create or update pages for each person mentioned. Add timeline entries for today's date. Here is the transcript:\n\n${transcript}`,
+      `Ingest this meeting transcript into pbrain. Create or update pages for each person mentioned. Add timeline entries for today's date. Here is the transcript:\n\n${transcript}`,
       180_000,
     );
 
     console.log(`  Ingest skill completed in ${durationMs}ms`);
 
-    // The agent runs against its own configured gbrain DB, not our test DB.
+    // The agent runs against its own configured pbrain DB, not our test DB.
     // We can't assert on test DB state. Instead, verify the agent responded
     // with content indicating it processed the transcript.
     expect(text.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describeT2('E2E Tier 2: Query Skill', () => {
 
   test('query skill returns results for known topic', async () => {
     const { text, exitCode, durationMs } = runOpenClaw(
-      'Search gbrain for "NovaMind" and tell me what you found.',
+      'Search pbrain for "NovaMind" and tell me what you found.',
       180_000,
     );
 
@@ -183,7 +183,7 @@ describeT2('E2E Tier 2: Health Skill', () => {
 
   test('health skill reports brain status', async () => {
     const { text, exitCode, durationMs } = runOpenClaw(
-      'Run gbrain doctor --json and tell me the results.',
+      'Run pbrain doctor --json and tell me the results.',
       180_000,
     );
 

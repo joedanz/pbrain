@@ -1,8 +1,8 @@
 /**
- * gbrain integrations — standalone CLI command for recipe discovery and health.
+ * pbrain integrations — standalone CLI command for recipe discovery and health.
  *
  * NOT an operation (no database connection needed).
- * Reads embedded recipe files and heartbeat JSONL from ~/.gbrain/integrations/.
+ * Reads embedded recipe files and heartbeat JSONL from ~/.pbrain/integrations/.
  *
  * ARCHITECTURE:
  *   recipes/*.md (embedded at build time)
@@ -15,7 +15,7 @@
  *     ├── test    → validate recipe file
  *     └── (bare)  → dashboard view
  *
- *   ~/.gbrain/integrations/<id>/heartbeat.jsonl
+ *   ~/.pbrain/integrations/<id>/heartbeat.jsonl
  *     └── append-only, pruned to 30 days on read
  */
 
@@ -265,8 +265,8 @@ export function parseRecipe(content: string, filename: string): ParsedRecipe | n
 // For source installs (bun run), they're read from disk.
 function getRecipesDir(): string {
   // Explicit override (for compiled binaries or custom installs)
-  if (process.env.GBRAIN_RECIPES_DIR && existsSync(process.env.GBRAIN_RECIPES_DIR)) {
-    return process.env.GBRAIN_RECIPES_DIR;
+  if (process.env.PBRAIN_RECIPES_DIR && existsSync(process.env.PBRAIN_RECIPES_DIR)) {
+    return process.env.PBRAIN_RECIPES_DIR;
   }
   // Try relative to this file (source install via bun)
   const sourceDir = join(import.meta.dir, '../../recipes');
@@ -275,7 +275,7 @@ function getRecipesDir(): string {
   const cwdDir = join(process.cwd(), 'recipes');
   if (existsSync(cwdDir)) return cwdDir;
   // Try global install path (bun add -g)
-  const globalDir = join(homedir(), '.bun', 'install', 'global', 'node_modules', 'gbrain', 'recipes');
+  const globalDir = join(homedir(), '.bun', 'install', 'global', 'node_modules', 'pbrain', 'recipes');
   if (existsSync(globalDir)) return globalDir;
   return '';
 }
@@ -334,7 +334,7 @@ function findRecipe(id: string): ParsedRecipe | null {
 // --- Heartbeat ---
 
 function heartbeatDir(id: string): string {
-  return join(homedir(), '.gbrain', 'integrations', id);
+  return join(homedir(), '.pbrain', 'integrations', id);
 }
 
 function heartbeatPath(id: string): string {
@@ -506,14 +506,14 @@ function cmdList(args: string[]): void {
     console.log(`\n  This week: ${weekEvents.length} events logged.`);
   }
 
-  console.log("\n  Run 'gbrain integrations show <id>' for setup details.");
+  console.log("\n  Run 'pbrain integrations show <id>' for setup details.");
   console.log('');
 }
 
 function cmdShow(args: string[]): void {
   const id = args.find(a => !a.startsWith('-'));
   if (!id) {
-    console.error('Usage: gbrain integrations show <recipe-id>');
+    console.error('Usage: pbrain integrations show <recipe-id>');
     return;
   }
 
@@ -548,7 +548,7 @@ function cmdStatus(args: string[]): void {
   const jsonMode = args.includes('--json');
   const id = args.find(a => !a.startsWith('-'));
   if (!id) {
-    console.error('Usage: gbrain integrations status <recipe-id>');
+    console.error('Usage: pbrain integrations status <recipe-id>');
     return;
   }
 
@@ -598,7 +598,7 @@ function cmdStatus(args: string[]): void {
     if (ageMs > 24 * 60 * 60 * 1000) {
       console.log(`  WARNING: no events in ${Math.floor(ageMs / (24 * 60 * 60 * 1000))} days`);
       console.log('  Check: is ngrok running? Is the voice server alive?');
-      console.log('  Run: gbrain integrations doctor');
+      console.log('  Run: pbrain integrations doctor');
     }
   } else {
     console.log('\nNo heartbeat data yet.');
@@ -704,7 +704,7 @@ function cmdStats(args: string[]): void {
 function cmdTest(args: string[]): void {
   const filePath = args.find(a => !a.startsWith('-'));
   if (!filePath) {
-    console.error('Usage: gbrain integrations test <recipe-file.md>');
+    console.error('Usage: pbrain integrations test <recipe-file.md>');
     return;
   }
 
@@ -770,16 +770,16 @@ function cmdTest(args: string[]): void {
 }
 
 function printHelp(): void {
-  console.log(`gbrain integrations — manage integration recipes
+  console.log(`pbrain integrations — manage integration recipes
 
 USAGE
-  gbrain integrations                  Show integration dashboard
-  gbrain integrations list [--json]    List available integrations
-  gbrain integrations show <id>        Show recipe details
-  gbrain integrations status <id>      Check secrets + health
-  gbrain integrations doctor [--json]  Run health checks
-  gbrain integrations stats [--json]   Show signal statistics
-  gbrain integrations test <file>      Validate a recipe file
+  pbrain integrations                  Show integration dashboard
+  pbrain integrations list [--json]    List available integrations
+  pbrain integrations show <id>        Show recipe details
+  pbrain integrations status <id>      Check secrets + health
+  pbrain integrations doctor [--json]  Run health checks
+  pbrain integrations stats [--json]   Show signal statistics
+  pbrain integrations test <file>      Validate a recipe file
 `);
 }
 

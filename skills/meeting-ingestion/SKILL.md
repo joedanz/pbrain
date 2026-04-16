@@ -76,7 +76,7 @@ Extract from the transcript:
 ### Phase 3: Attendee enrichment (MANDATORY)
 
 For EACH attendee:
-1. `gbrain search "{name}"` — does a people page exist?
+1. `pbrain search "{name}"` — does a people page exist?
 2. If NO → create via enrich skill (this is mandatory, not optional)
 3. If YES → update compiled truth with meeting context
 4. Add timeline entry: `- **{date}** | Attended [{meeting title}](path) — {context}`
@@ -96,7 +96,7 @@ Acme Corp, the event goes on Alice's page, Bob's page, AND Acme Corp's page.
 
 ### Phase 6: Sync
 
-`gbrain sync` to update the index.
+`pbrain sync` to update the index.
 
 ## Output Format
 

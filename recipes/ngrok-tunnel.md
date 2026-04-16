@@ -22,7 +22,7 @@ cost_estimate: "$8/mo for Hobby tier (fixed domain). Free tier works but URLs ch
 
 # Public Tunnel: Fixed URL for Your Brain
 
-Your GBrain MCP server and voice agent need public URLs so Claude Desktop,
+Your PBrain MCP server and voice agent need public URLs so Claude Desktop,
 Perplexity, and Twilio can reach them. ngrok gives you a fixed domain that
 never changes.
 
@@ -43,7 +43,7 @@ never changes.
 
 ```
 Local services (your machine)
-  ├── GBrain MCP server (port 3000)    gbrain serve
+  ├── PBrain MCP server (port 3000)    pbrain serve
   └── Voice agent (port 8765)          node server.mjs
          │
          ▼
@@ -162,16 +162,16 @@ Add to crontab:
 ### Step 5: Log Setup Completion
 
 ```bash
-mkdir -p ~/.gbrain/integrations/ngrok-tunnel
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"domain":"NGROK_DOMAIN","tier":"hobby"}}' >> ~/.gbrain/integrations/ngrok-tunnel/heartbeat.jsonl
+mkdir -p ~/.pbrain/integrations/ngrok-tunnel
+echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"domain":"NGROK_DOMAIN","tier":"hobby"}}' >> ~/.pbrain/integrations/ngrok-tunnel/heartbeat.jsonl
 ```
 
 ## Connecting AI Clients (after tunnel is running)
 
 **Claude Code:**
 ```bash
-claude mcp add gbrain -t http https://your-brain.ngrok.app/mcp \
-  -H "Authorization: Bearer YOUR_GBRAIN_TOKEN"
+claude mcp add pbrain -t http https://your-brain.ngrok.app/mcp \
+  -H "Authorization: Bearer YOUR_PBRAIN_TOKEN"
 ```
 
 **Claude Desktop:**
@@ -231,7 +231,7 @@ to debug MCP connection issues (see request/response headers, latency, errors).
 
 1. Start tunnel. Visit `https://your-brain.ngrok.app` in a browser.
    You should see a response (health check or default page).
-2. From Claude Desktop, run `gbrain search "test"`. Results should come back.
+2. From Claude Desktop, run `pbrain search "test"`. Results should come back.
 3. Kill ngrok. Wait 2 minutes. Check the watchdog restarted it.
 4. From a different device (phone), access the same URL. Verify it works.
 
@@ -246,4 +246,4 @@ to debug MCP connection issues (see request/response headers, latency, errors).
 
 ---
 
-*Part of the [GBrain Skillpack](../docs/GBRAIN_SKILLPACK.md). See also: [Voice-to-Brain](twilio-voice-brain.md), [Remote MCP Deployment](../docs/mcp/DEPLOY.md)*
+*Part of the [PBrain Skillpack](../docs/PBRAIN_SKILLPACK.md). See also: [Voice-to-Brain](twilio-voice-brain.md), [Remote MCP Deployment](../docs/mcp/DEPLOY.md)*

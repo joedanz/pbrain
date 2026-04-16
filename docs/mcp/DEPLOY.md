@@ -1,7 +1,7 @@
-# Deploy GBrain Remote MCP Server
+# Deploy PBrain Remote MCP Server
 
-Access your brain from any device, any AI client. GBrain's MCP server runs locally
-via `gbrain serve` (stdio). For remote access, wrap it in an HTTP server behind a
+Access your brain from any device, any AI client. PBrain's MCP server runs locally
+via `pbrain serve` (stdio). For remote access, wrap it in an HTTP server behind a
 public tunnel.
 
 ## Two Paths
@@ -9,7 +9,7 @@ public tunnel.
 ### Local (zero setup)
 
 ```bash
-gbrain serve
+pbrain serve
 ```
 
 Works with Claude Code, Cursor, Windsurf, and any MCP client that supports stdio.
@@ -20,12 +20,12 @@ No server, no tunnel, no token needed.
 ```
 Your AI client (Claude Desktop, Perplexity, etc.)
   → ngrok tunnel (https://YOUR-DOMAIN.ngrok.app)
-  → Your HTTP server (wraps gbrain serve)
+  → Your HTTP server (wraps pbrain serve)
   → Supabase Postgres (via pooler connection string)
 ```
 
 This requires:
-1. A machine running `gbrain serve` behind an HTTP wrapper
+1. A machine running `pbrain serve` behind an HTTP wrapper
 2. A public tunnel (ngrok, Tailscale, or cloud host)
 3. Bearer token auth for security
 
@@ -75,7 +75,7 @@ bun run src/commands/auth.ts test \
 
 ## Operations
 
-All 30 GBrain operations are available remotely, including `sync_brain` and
+All 30 PBrain operations are available remotely, including `sync_brain` and
 `file_upload` (no timeout limits with self-hosted server).
 
 ## Deployment Options
@@ -109,7 +109,7 @@ Remote servers must be added via Settings > Integrations, NOT
 | put_page | 100-500ms | Write + trigger search_vector update |
 | get_stats | < 100ms | Aggregate query |
 
-**Note:** `gbrain serve --http` (built-in HTTP transport) is planned but not yet
+**Note:** `pbrain serve --http` (built-in HTTP transport) is planned but not yet
 implemented. Currently, remote MCP requires a custom HTTP wrapper. See the
 production deployment pattern in the [voice recipe](../../recipes/twilio-voice-brain.md)
 for a reference implementation.

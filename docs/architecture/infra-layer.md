@@ -1,4 +1,4 @@
-# GBrain Infrastructure Layer
+# PBrain Infrastructure Layer
 
 The shared foundation that all skills, recipes, and integrations build on.
 
@@ -29,7 +29,7 @@ SEARCH (hybrid, available immediately)
 
 ## Search Architecture
 
-GBrain uses Reciprocal Rank Fusion (RRF) to merge vector and keyword search:
+PBrain uses Reciprocal Rank Fusion (RRF) to merge vector and keyword search:
 
 ```
 User Query
@@ -93,13 +93,13 @@ Vector search uses HNSW index with cosine distance on content_chunks.embedding.
 
 ## The Thin Harness Principle
 
-GBrain is the deterministic layer. Skills and recipes are the latent space layer.
+PBrain is the deterministic layer. Skills and recipes are the latent space layer.
 
 See [Thin Harness, Fat Skills](../ethos/THIN_HARNESS_FAT_SKILLS.md) for the full
 architecture philosophy.
 
-- **GBrain CLI** = thin harness (same input → same output)
+- **PBrain CLI** = thin harness (same input → same output)
 - **Skills** (ingest, query, maintain, enrich, briefing, migrate, setup) = fat skills
 - **Recipes** (voice-to-brain, email-to-brain) = fat skills that install infrastructure
 
-The agent reads the skill/recipe and uses GBrain's deterministic tools to do the work.
+The agent reads the skill/recipe and uses PBrain's deterministic tools to do the work.

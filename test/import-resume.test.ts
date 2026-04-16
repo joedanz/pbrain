@@ -3,7 +3,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const CHECKPOINT_PATH = join(homedir(), '.gbrain', 'import-checkpoint.json');
+const CHECKPOINT_PATH = join(homedir(), '.pbrain', 'import-checkpoint.json');
 
 describe('import resume checkpoint', () => {
   afterEach(() => {
@@ -21,7 +21,7 @@ describe('import resume checkpoint', () => {
       timestamp: new Date().toISOString(),
     };
 
-    mkdirSync(join(homedir(), '.gbrain'), { recursive: true });
+    mkdirSync(join(homedir(), '.pbrain'), { recursive: true });
     writeFileSync(CHECKPOINT_PATH, JSON.stringify(checkpoint));
 
     const loaded = JSON.parse(readFileSync(CHECKPOINT_PATH, 'utf-8'));
@@ -39,7 +39,7 @@ describe('import resume checkpoint', () => {
       timestamp: new Date().toISOString(),
     };
 
-    mkdirSync(join(homedir(), '.gbrain'), { recursive: true });
+    mkdirSync(join(homedir(), '.pbrain'), { recursive: true });
     writeFileSync(CHECKPOINT_PATH, JSON.stringify(checkpoint));
 
     // Simulate the resume check logic from import.ts
@@ -61,7 +61,7 @@ describe('import resume checkpoint', () => {
       timestamp: new Date().toISOString(),
     };
 
-    mkdirSync(join(homedir(), '.gbrain'), { recursive: true });
+    mkdirSync(join(homedir(), '.pbrain'), { recursive: true });
     writeFileSync(CHECKPOINT_PATH, JSON.stringify(checkpoint));
 
     const cp = JSON.parse(readFileSync(CHECKPOINT_PATH, 'utf-8'));
@@ -80,7 +80,7 @@ describe('import resume checkpoint', () => {
       timestamp: new Date().toISOString(),
     };
 
-    mkdirSync(join(homedir(), '.gbrain'), { recursive: true });
+    mkdirSync(join(homedir(), '.pbrain'), { recursive: true });
     writeFileSync(CHECKPOINT_PATH, JSON.stringify(checkpoint));
 
     const cp = JSON.parse(readFileSync(CHECKPOINT_PATH, 'utf-8'));
@@ -92,7 +92,7 @@ describe('import resume checkpoint', () => {
   });
 
   test('invalid checkpoint JSON starts fresh', () => {
-    mkdirSync(join(homedir(), '.gbrain'), { recursive: true });
+    mkdirSync(join(homedir(), '.pbrain'), { recursive: true });
     writeFileSync(CHECKPOINT_PATH, 'not json');
 
     let resumeIndex = 0;

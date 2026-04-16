@@ -10,7 +10,7 @@ describe('LocalStorage', () => {
   let tmpDir: string;
 
   beforeAll(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-storage-test-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-storage-test-'));
     storage = new LocalStorage(tmpDir);
   });
 
@@ -79,7 +79,7 @@ describe('LocalStorage', () => {
 
 describe('LocalStorage path traversal', () => {
   test('blocks upload path traversal via ../', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await expect(storage.upload('../../etc/evil', Buffer.from('pwned'))).rejects.toThrow('Path traversal blocked');
@@ -90,7 +90,7 @@ describe('LocalStorage path traversal', () => {
   });
 
   test('blocks download path traversal via ../', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await expect(storage.download('../../etc/passwd')).rejects.toThrow('Path traversal blocked');
@@ -100,7 +100,7 @@ describe('LocalStorage path traversal', () => {
   });
 
   test('blocks delete path traversal via ../', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await expect(storage.delete('../../../tmp/important')).rejects.toThrow('Path traversal blocked');
@@ -110,7 +110,7 @@ describe('LocalStorage path traversal', () => {
   });
 
   test('blocks list path traversal via ../', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await expect(storage.list('../../etc')).rejects.toThrow('Path traversal blocked');
@@ -120,7 +120,7 @@ describe('LocalStorage path traversal', () => {
   });
 
   test('blocks getUrl path traversal via ../', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await expect(storage.getUrl('../../etc/passwd')).rejects.toThrow('Path traversal blocked');
@@ -130,7 +130,7 @@ describe('LocalStorage path traversal', () => {
   });
 
   test('allows legitimate nested paths', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-traversal-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-traversal-'));
     try {
       const storage = new LocalStorage(tmpDir);
       await storage.upload('pages/people/elon/avatar.png', Buffer.from('img'));
@@ -144,7 +144,7 @@ describe('LocalStorage path traversal', () => {
 
 describe('createStorage', () => {
   test('creates LocalStorage for backend: local', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-factory-test-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-factory-test-'));
     try {
       const storage = await createStorage({ backend: 'local', bucket: 'test', localPath: tmpDir });
       await storage.upload('test.txt', Buffer.from('hello'));

@@ -126,7 +126,7 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
     if (v >= LATEST_VERSION) {
       checks.push({ name: 'schema_version', status: 'ok', message: `Version ${v} (latest: ${LATEST_VERSION})` });
     } else {
-      checks.push({ name: 'schema_version', status: 'warn', message: `Version ${v}, latest is ${LATEST_VERSION}. Run gbrain init to migrate.` });
+      checks.push({ name: 'schema_version', status: 'warn', message: `Version ${v}, latest is ${LATEST_VERSION}. Run pbrain init to migrate.` });
     }
   } catch {
     checks.push({ name: 'schema_version', status: 'warn', message: 'Could not check schema version' });
@@ -139,9 +139,9 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
     if (health.embed_coverage >= 0.9) {
       checks.push({ name: 'embeddings', status: 'ok', message: `${pct}% coverage, ${health.missing_embeddings} missing` });
     } else if (health.embed_coverage > 0) {
-      checks.push({ name: 'embeddings', status: 'warn', message: `${pct}% coverage, ${health.missing_embeddings} missing. Run: gbrain embed --stale` });
+      checks.push({ name: 'embeddings', status: 'warn', message: `${pct}% coverage, ${health.missing_embeddings} missing. Run: pbrain embed --stale` });
     } else {
-      checks.push({ name: 'embeddings', status: 'warn', message: 'No embeddings yet. Run: gbrain embed --stale' });
+      checks.push({ name: 'embeddings', status: 'warn', message: 'No embeddings yet. Run: pbrain embed --stale' });
     }
   } catch {
     checks.push({ name: 'embeddings', status: 'warn', message: 'Could not check embedding health' });
@@ -153,7 +153,7 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
     if (health.dead_links === 0) {
       checks.push({ name: 'link_integrity', status: 'ok', message: 'No dead links' });
     } else {
-      checks.push({ name: 'link_integrity', status: 'warn', message: `${health.dead_links} dead link(s). Run: gbrain check-backlinks --fix` });
+      checks.push({ name: 'link_integrity', status: 'warn', message: `${health.dead_links} dead link(s). Run: pbrain check-backlinks --fix` });
     }
   } catch {
     checks.push({ name: 'link_integrity', status: 'warn', message: 'Could not check link integrity' });
@@ -177,7 +177,7 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Find the GBrain repo root by walking up from cwd looking for skills/RESOLVER.md */
+/** Find the PBrain repo root by walking up from cwd looking for skills/RESOLVER.md */
 function findRepoRoot(): string | null {
   let dir = process.cwd();
   for (let i = 0; i < 10; i++) {
@@ -248,7 +248,7 @@ function outputResults(checks: Check[], json: boolean): boolean {
     return hasFail;
   }
 
-  console.log('\nGBrain Health Check');
+  console.log('\nPBrain Health Check');
   console.log('===================');
   for (const c of checks) {
     const icon = c.status === 'ok' ? 'OK' : c.status === 'warn' ? 'WARN' : 'FAIL';

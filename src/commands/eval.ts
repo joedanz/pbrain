@@ -1,13 +1,13 @@
 /**
- * gbrain eval — Retrieval Evaluation Command
+ * pbrain eval — Retrieval Evaluation Command
  *
  * Runs search quality benchmarks against user-defined ground truth (qrels).
  * Supports single-config runs and A/B comparison mode for tuning parameters.
  *
  * Usage:
- *   gbrain eval --qrels <path|json>
- *   gbrain eval --qrels <path> --config-a <path|json> --config-b <path|json>
- *   gbrain eval --qrels <path> --strategy hybrid --rrf-k 30 --k 5
+ *   pbrain eval --qrels <path|json>
+ *   pbrain eval --qrels <path> --config-a <path|json> --config-b <path|json>
+ *   pbrain eval --qrels <path> --strategy hybrid --rrf-k 30 --k 5
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -162,7 +162,7 @@ function printSingleTable(report: EvalReport): void {
   const { config, k, queries } = report;
   const label = config.name ?? config.strategy ?? 'hybrid';
 
-  console.log(`\ngbrain eval — ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} · strategy: ${label} · k=${k}\n`);
+  console.log(`\npbrain eval — ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} · strategy: ${label} · k=${k}\n`);
 
   const COL_QUERY = 36;
   const COL_NUM = 7;
@@ -198,7 +198,7 @@ function printABTable(reportA: EvalReport, reportB: EvalReport, k: number): void
   const labelB = reportB.config.name ?? 'Config B';
   const n = reportA.queries.length;
 
-  console.log(`\ngbrain eval — ${n} quer${n === 1 ? 'y' : 'ies'} · A/B comparison · k=${k}\n`);
+  console.log(`\npbrain eval — ${n} quer${n === 1 ? 'y' : 'ies'} · A/B comparison · k=${k}\n`);
 
   const COL_QUERY = 34;
   const COL_METRIC = 8;
@@ -288,11 +288,11 @@ function truncate(s: string, max: number): string {
 
 function printHelp(): void {
   console.log(`
-gbrain eval — measure and compare retrieval quality
+pbrain eval — measure and compare retrieval quality
 
 USAGE
-  gbrain eval --qrels <path>
-  gbrain eval --qrels <path> --config-a <path> --config-b <path>
+  pbrain eval --qrels <path>
+  pbrain eval --qrels <path> --config-a <path> --config-b <path>
 
 OPTIONS
   --qrels <path|json>         Path to qrels JSON file (required)
@@ -325,9 +325,9 @@ CONFIG FORMAT
   { "name": "rrf-k-30", "strategy": "hybrid", "rrf_k": 30, "expand": false }
 
 EXAMPLES
-  gbrain eval --qrels ./my-queries.json
-  gbrain eval --qrels ./qrels.json --strategy keyword
-  gbrain eval --qrels ./qrels.json --rrf-k 30
-  gbrain eval --qrels ./qrels.json --config-a baseline.json --config-b experiment.json
+  pbrain eval --qrels ./my-queries.json
+  pbrain eval --qrels ./qrels.json --strategy keyword
+  pbrain eval --qrels ./qrels.json --rrf-k 30
+  pbrain eval --qrels ./qrels.json --config-a baseline.json --config-b experiment.json
 `.trim());
 }

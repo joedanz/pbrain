@@ -30,7 +30,7 @@ export async function runImport(engine: BrainEngine, args: string[]) {
   const dir = args.find((a, i) => !a.startsWith('--') && !flagValues.has(i));
 
   if (!dir) {
-    console.error('Usage: gbrain import <dir> [--no-embed] [--workers N] [--fresh] [--json]');
+    console.error('Usage: pbrain import <dir> [--no-embed] [--workers N] [--fresh] [--json]');
     process.exit(1);
   }
 
@@ -39,7 +39,7 @@ export async function runImport(engine: BrainEngine, args: string[]) {
   console.log(`Found ${allFiles.length} markdown files`);
 
   // Resume from checkpoint if available
-  const checkpointPath = join(homedir(), '.gbrain', 'import-checkpoint.json');
+  const checkpointPath = join(homedir(), '.pbrain', 'import-checkpoint.json');
   let files = allFiles;
   let resumeIndex = 0;
 
@@ -76,7 +76,7 @@ export async function runImport(engine: BrainEngine, args: string[]) {
     const rate = elapsed > 0 ? Math.round(processed / elapsed) : 0;
     const remaining = rate > 0 ? Math.round((files.length - processed) / rate) : 0;
     const pct = Math.round((processed / files.length) * 100);
-    console.log(`[gbrain import] ${processed}/${files.length} (${pct}%) | ${rate} files/sec | imported: ${imported} | skipped: ${skipped} | errors: ${errors} | ETA: ${remaining}s`);
+    console.log(`[pbrain import] ${processed}/${files.length} (${pct}%) | ${rate} files/sec | imported: ${imported} | skipped: ${skipped} | errors: ${errors} | ETA: ${remaining}s`);
   }
 
   async function processFile(eng: BrainEngine, filePath: string) {
@@ -111,7 +111,7 @@ export async function runImport(engine: BrainEngine, args: string[]) {
       // Save checkpoint every 100 files — track completed file set, not just a counter
       if (processed % 100 === 0) {
         try {
-          const cpDir = join(homedir(), '.gbrain');
+          const cpDir = join(homedir(), '.pbrain');
           if (!existsSync(cpDir)) { const { mkdirSync } = await import('fs'); mkdirSync(cpDir, { recursive: true }); }
           writeFileSync(checkpointPath, JSON.stringify({
             dir, totalFiles: allFiles.length,
@@ -227,22 +227,22 @@ export function collectMarkdownFiles(dir: string): string[] {
         // lstatSync, not statSync: we must NOT follow symlinks. A symlink
         // inside the brain directory can point to any file the importing
         // user can read, so a contributor to a shared brain could plant
-        // notes/innocent.md as a symlink to ~/.gbrain/config.json, /etc/passwd,
+        // notes/innocent.md as a symlink to ~/.pbrain/config.json, /etc/passwd,
         // or another sensitive file outside the brain root — and on the
-        // next `gbrain import` it would be read, chunked, embedded, and
+        // next `pbrain import` it would be read, chunked, embedded, and
         // indexed, at which point a bearer-token holder could exfiltrate
         // it via search/get_page. See L002 in report/findings.md.
         stat = lstatSync(full);
       } catch {
         // Broken symlink or permission error — skip
-        console.warn(`[gbrain import] Skipping unreadable path: ${full}`);
+        console.warn(`[pbrain import] Skipping unreadable path: ${full}`);
         continue;
       }
 
       // Skip symlinks (both file and directory targets). This also blocks
       // circular symlink DoS since we refuse to descend into linked dirs.
       if (stat.isSymbolicLink()) {
-        console.warn(`[gbrain import] Skipping symlink: ${full}`);
+        console.warn(`[pbrain import] Skipping symlink: ${full}`);
         continue;
       }
 

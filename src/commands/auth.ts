@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * GBrain token management — standalone script, no gbrain CLI dependency.
+ * PBrain token management — standalone script, no pbrain CLI dependency.
  *
  * Usage:
  *   DATABASE_URL=... bun run src/commands/auth.ts create "claude-desktop"
@@ -11,9 +11,9 @@
 import postgres from 'postgres';
 import { createHash, randomBytes } from 'crypto';
 
-const DATABASE_URL = process.env.DATABASE_URL || process.env.GBRAIN_DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL || process.env.PBRAIN_DATABASE_URL;
 if (!DATABASE_URL && process.argv[2] !== 'test') {
-  console.error('Set DATABASE_URL or GBRAIN_DATABASE_URL environment variable.');
+  console.error('Set DATABASE_URL or PBRAIN_DATABASE_URL environment variable.');
   process.exit(1);
 }
 
@@ -22,7 +22,7 @@ function hashToken(token: string): string {
 }
 
 function generateToken(): string {
-  return 'gbrain_' + randomBytes(32).toString('hex');
+  return 'pbrain_' + randomBytes(32).toString('hex');
 }
 
 async function create(name: string) {
@@ -120,7 +120,7 @@ async function test(url: string, token: string) {
         params: {
           protocolVersion: '2025-03-26',
           capabilities: {},
-          clientInfo: { name: 'gbrain-smoke-test', version: '1.0' },
+          clientInfo: { name: 'pbrain-smoke-test', version: '1.0' },
         },
         id: 1,
       }),
@@ -230,7 +230,7 @@ switch (cmd) {
     break;
   }
   default:
-    console.log(`GBrain Token Management
+    console.log(`PBrain Token Management
 
 Usage:
   bun run src/commands/auth.ts create <name>      Create a new access token

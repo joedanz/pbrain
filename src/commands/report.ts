@@ -1,13 +1,13 @@
 /**
- * gbrain report — Save a structured report to brain/reports/.
+ * pbrain report — Save a structured report to brain/reports/.
  *
  * Deterministic: zero LLM calls. Creates timestamped report pages
  * for audit trails of enrichment sweeps, maintenance runs, syncs, etc.
  *
  * Usage:
- *   gbrain report --type enrichment-sweep --title "Enrichment Sweep" --content "..."
- *   echo "report body" | gbrain report --type meeting-sync --title "Meeting Sync"
- *   gbrain report --type enrichment-sweep --dir /path/to/brain
+ *   pbrain report --type enrichment-sweep --title "Enrichment Sweep" --content "..."
+ *   echo "report body" | pbrain report --type meeting-sync --title "Meeting Sync"
+ *   pbrain report --type enrichment-sweep --dir /path/to/brain
  */
 
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
@@ -29,9 +29,9 @@ export async function runReport(args: string[]) {
   }
 
   if (!reportType) {
-    console.error('Usage: gbrain report --type <name> --title "..." --content "..." [--dir <brain>]');
+    console.error('Usage: pbrain report --type <name> --title "..." --content "..." [--dir <brain>]');
     console.error('  Or pipe content via stdin:');
-    console.error('    echo "report body" | gbrain report --type meeting-sync --title "Daily Sync"');
+    console.error('    echo "report body" | pbrain report --type meeting-sync --title "Daily Sync"');
     console.error('');
     console.error('  Common types: enrichment-sweep, meeting-sync, maintenance, backlink-check, lint');
     console.error('  Creates: brain/reports/{type}/{YYYY-MM-DD-HHMM}.md');

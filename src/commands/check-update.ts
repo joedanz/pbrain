@@ -33,17 +33,17 @@ export function isMinorOrMajorBump(current: string, latest: string): boolean {
 
 function upgradeCommandForMethod(method: string): string {
   switch (method) {
-    case 'bun': return 'bun update gbrain';
-    case 'clawhub': return 'clawhub update gbrain';
-    case 'binary': return 'Download from https://github.com/garrytan/gbrain/releases';
-    default: return 'gbrain upgrade';
+    case 'bun': return 'bun update pbrain';
+    case 'clawhub': return 'clawhub update pbrain';
+    case 'binary': return 'Download from https://github.com/joedanz/pbrain/releases';
+    default: return 'pbrain upgrade';
   }
 }
 
 async function fetchLatestRelease(): Promise<{ tag: string; published_at: string; url: string } | null> {
   try {
-    const res = await fetch('https://api.github.com/repos/garrytan/gbrain/releases/latest', {
-      headers: { 'User-Agent': `gbrain/${VERSION}` },
+    const res = await fetch('https://api.github.com/repos/joedanz/pbrain/releases/latest', {
+      headers: { 'User-Agent': `pbrain/${VERSION}` },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
@@ -60,7 +60,7 @@ async function fetchLatestRelease(): Promise<{ tag: string; published_at: string
 
 async function fetchChangelog(currentVersion: string, latestVersion: string): Promise<string> {
   try {
-    const res = await fetch('https://raw.githubusercontent.com/garrytan/gbrain/master/CHANGELOG.md', {
+    const res = await fetch('https://raw.githubusercontent.com/joedanz/pbrain/master/CHANGELOG.md', {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return '';
@@ -119,7 +119,7 @@ export function extractChangelogBetween(changelog: string, from: string, to: str
 
 export async function runCheckUpdate(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: gbrain check-update [--json]\n\nCheck for new GBrain versions.\n\nOnly reports minor/major version bumps (v0.X.0), not patches.\nFails silently on network errors.');
+    console.log('Usage: pbrain check-update [--json]\n\nCheck for new PBrain versions.\n\nOnly reports minor/major version bumps (v0.X.0), not patches.\nFails silently on network errors.');
     return;
   }
 
@@ -143,7 +143,7 @@ export async function runCheckUpdate(args: string[]) {
         error: 'no_releases',
       }, null, 2));
     } else {
-      console.log(`GBrain ${VERSION} — could not check for updates (no releases found or network unavailable).`);
+      console.log(`PBrain ${VERSION} — could not check for updates (no releases found or network unavailable).`);
     }
     return;
   }
@@ -170,10 +170,10 @@ export async function runCheckUpdate(args: string[]) {
   if (json) {
     console.log(JSON.stringify(result, null, 2));
   } else if (updateAvailable) {
-    console.log(`GBrain update available: ${VERSION} → ${latestVersion}`);
+    console.log(`PBrain update available: ${VERSION} → ${latestVersion}`);
     console.log(`Run: ${upgradeCmd}`);
     console.log(`Release: ${release.url}`);
   } else {
-    console.log(`GBrain ${VERSION} is up to date.`);
+    console.log(`PBrain ${VERSION} is up to date.`);
   }
 }

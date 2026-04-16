@@ -17,10 +17,10 @@ export async function runConfig(engine: BrainEngine, args: string[]) {
   if (action === 'show') {
     const config = loadConfig();
     if (!config) {
-      console.error('No config found. Run: gbrain init');
+      console.error('No config found. Run: pbrain init');
       process.exit(1);
     }
-    console.log('GBrain config:');
+    console.log('PBrain config:');
     for (const [k, v] of Object.entries(config)) {
       const display = typeof v === 'string' && v.includes('postgresql://')
         ? redactUrl(v)
@@ -44,7 +44,7 @@ export async function runConfig(engine: BrainEngine, args: string[]) {
     await engine.setConfig(key, value);
     console.log(`Set ${key} = ${value}`);
   } else {
-    console.error('Usage: gbrain config [show|get|set] <key> [value]');
+    console.error('Usage: pbrain config [show|get|set] <key> [value]');
     process.exit(1);
   }
 }

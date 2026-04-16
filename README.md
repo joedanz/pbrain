@@ -1,10 +1,12 @@
-# GBrain
+# PBrain
 
-Your AI agent is smart but forgetful. GBrain gives it a brain.
+> **Project Brain** — a personal knowledge brain for coding projects, software libraries, AI tools, git repos, code patterns, papers/talks/books, and tech companies.
+>
+> Forked from [**GBrain**](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan), President & CEO of Y Combinator. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full story and credits. The core engine — contract-first operations, pluggable PGLite/Postgres engines, hybrid RAG search with RRF, compiled-truth + timeline pages, the skill resolver, the autopilot daemon, the MCP server — is entirely Garry's work. PBrain adapts it for a senior software engineer instead of a venture investor.
 
-Built by the President and CEO of Y Combinator to run his actual AI agents. The production brain powering his OpenClaw and Hermes deployments: **17,888 pages, 4,383 people, 723 companies**, 21 cron jobs running autonomously, built in 12 days. The agent ingests meetings, emails, tweets, voice calls, and original ideas while you sleep. It enriches every person and company it encounters. It fixes its own citations and consolidates memory overnight. You wake up and the brain is smarter than when you went to bed.
+Your AI agent is smart but forgetful. PBrain gives it a brain — one that remembers which version of Vercel AI SDK you're on, what Convex mutation pattern you settled on last month, how Claude Opus 4.7 compares to GPT-5 for your specific task, and which library you bookmarked after that Anthropic cookbook talk. The agent ingests meetings, emails, tweets, voice calls, and original ideas while you sleep. It enriches every library, tool, company, and person it encounters. It fixes its own citations and consolidates memory overnight. You wake up and the brain is smarter than when you went to bed.
 
-GBrain is those patterns, generalized. 25 skills. Install in 30 minutes. Your agent does the work. As Garry's personal agent gets smarter, so does yours.
+PBrain is GBrain's patterns, retargeted at software engineering knowledge. 25 skills. Install in 30 minutes. Your agent does the work.
 
 > **~30 minutes to a fully working brain.** Database ready in 2 seconds (PGLite, no server). You just answer questions about API keys.
 
@@ -12,7 +14,7 @@ GBrain is those patterns, generalized. 25 skills. Install in 30 minutes. Your ag
 
 ### On an agent platform (recommended)
 
-GBrain is designed to be installed and operated by an AI agent. If you don't have one running yet:
+PBrain is designed to be installed and operated by an AI agent. If you don't have one running yet:
 
 - **[OpenClaw](https://openclaw.ai)** ... Deploy [AlphaClaw on Render](https://render.com/deploy?repo=https://github.com/chrysb/alphaclaw) (one click, 8GB+ RAM)
 - **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** ... Deploy on [Railway](https://github.com/praveen-ks-2001/hermes-agent-template) (one click)
@@ -21,18 +23,18 @@ Paste this into your agent:
 
 ```
 Retrieve and follow the instructions at:
-https://raw.githubusercontent.com/garrytan/gbrain/master/INSTALL_FOR_AGENTS.md
+https://raw.githubusercontent.com/joedanz/pbrain/master/INSTALL_FOR_AGENTS.md
 ```
 
-That's it. The agent clones the repo, installs GBrain, sets up the brain, loads 25 skills, and configures recurring jobs. You answer a few questions about API keys. ~30 minutes.
+That's it. The agent clones the repo, installs PBrain, sets up the brain, loads 25 skills, and configures recurring jobs. You answer a few questions about API keys. ~30 minutes.
 
 ### Standalone CLI (no agent)
 
 ```bash
-git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link
-gbrain init                     # local brain, ready in 2 seconds
-gbrain import ~/notes/          # index your markdown
-gbrain query "what themes show up across my notes?"
+git clone https://github.com/joedanz/pbrain.git && cd pbrain && bun install && bun link
+pbrain init                     # local brain, ready in 2 seconds
+pbrain import ~/notes/          # index your markdown
+pbrain query "what themes show up across my notes?"
 ```
 
 ```
@@ -51,12 +53,12 @@ gbrain query "what themes show up across my notes?"
 
 ### MCP server (Claude Code, Cursor, Windsurf)
 
-GBrain exposes 30+ MCP tools via stdio:
+PBrain exposes 30+ MCP tools via stdio:
 
 ```json
 {
   "mcpServers": {
-    "gbrain": { "command": "gbrain", "args": ["serve"] }
+    "pbrain": { "command": "pbrain", "args": ["serve"] }
   }
 }
 ```
@@ -68,16 +70,16 @@ Add to `~/.claude/server.json` (Claude Code), Settings > MCP Servers (Cursor), o
 ```bash
 ngrok http 8787 --url your-brain.ngrok.app
 bun run src/commands/auth.ts create "claude-desktop"
-claude mcp add gbrain -t http https://your-brain.ngrok.app/mcp -H "Authorization: Bearer TOKEN"
+claude mcp add pbrain -t http https://your-brain.ngrok.app/mcp -H "Authorization: Bearer TOKEN"
 ```
 
 Per-client guides: [`docs/mcp/`](docs/mcp/DEPLOY.md). ChatGPT requires OAuth 2.1 (not yet implemented).
 
 ## The 25 Skills
 
-GBrain ships 25 skills organized by `skills/RESOLVER.md`. The resolver tells your agent which skill to read for any task.
+PBrain ships 25 skills organized by `skills/RESOLVER.md`. The resolver tells your agent which skill to read for any task.
 
-[Skill files are code.](https://x.com/garrytan/status/2042925773300908103) They're the most powerful way to get knowledge work done. A skill file is a fat markdown document that encodes an entire workflow: when to fire, what to check, how to chain with other skills, what quality bar to enforce. The agent reads the skill and executes it. Skills can also call deterministic TypeScript code bundled in GBrain (search, import, embed, sync) for the parts that shouldn't be left to LLM judgment. [Thin harness, fat skills](docs/ethos/THIN_HARNESS_FAT_SKILLS.md): the intelligence lives in the skills, not the runtime.
+[Skill files are code.](https://x.com/garrytan/status/2042925773300908103) They're the most powerful way to get knowledge work done. A skill file is a fat markdown document that encodes an entire workflow: when to fire, what to check, how to chain with other skills, what quality bar to enforce. The agent reads the skill and executes it. Skills can also call deterministic TypeScript code bundled in PBrain (search, import, embed, sync) for the parts that shouldn't be left to LLM judgment. [Thin harness, fat skills](docs/ethos/THIN_HARNESS_FAT_SKILLS.md): the intelligence lives in the skills, not the runtime.
 
 ### Always-on
 
@@ -143,15 +145,15 @@ Cross-cutting rules in `skills/conventions/`:
 ```
 Signal arrives (meeting, email, tweet, link)
   -> Signal detector captures ideas + entities (parallel, never blocks)
-  -> Brain-ops: check the brain first (gbrain search, gbrain get)
+  -> Brain-ops: check the brain first (pbrain search, pbrain get)
   -> Respond with full context
   -> Write: update brain pages with new information + citations
-  -> Sync: gbrain indexes changes for next query
+  -> Sync: pbrain indexes changes for next query
 ```
 
 Every cycle adds knowledge. The agent enriches a person page after a meeting. Next time that person comes up, the agent already has context. The difference compounds daily.
 
-The system gets smarter on its own. Entity enrichment auto-escalates: a person mentioned once gets a stub page (Tier 3). After 3 mentions across different sources, they get web + social enrichment (Tier 2). After a meeting or 8+ mentions, full pipeline (Tier 1). The brain learns who matters without being told. Deterministic classifiers improve over time via a fail-improve loop that logs every LLM fallback and generates better regex patterns from the failures. `gbrain doctor` shows the trajectory: "intent classifier: 87% deterministic, up from 40% in week 1."
+The system gets smarter on its own. Entity enrichment auto-escalates: a person mentioned once gets a stub page (Tier 3). After 3 mentions across different sources, they get web + social enrichment (Tier 2). After a meeting or 8+ mentions, full pipeline (Tier 1). The brain learns who matters without being told. Deterministic classifiers improve over time via a fail-improve loop that logs every LLM fallback and generates better regex patterns from the failures. `pbrain doctor` shows the trajectory: "intent classifier: 87% deterministic, up from 40% in week 1."
 
 > "Prep me for my meeting with Jordan in 30 minutes"
 > ... pulls dossier, shared history, recent activity, open threads
@@ -161,7 +163,7 @@ The system gets smarter on its own. Entity enrichment auto-escalates: a person m
 
 ## Getting Data In
 
-GBrain ships integration recipes that your agent sets up for you. Each recipe tells the agent what credentials to ask for, how to validate, and what cron to register.
+PBrain ships integration recipes that your agent sets up for you. Each recipe tells the agent what credentials to ask for, how to validate, and what cron to register.
 
 | Recipe | Requires | What It Does |
 |--------|----------|-------------|
@@ -173,25 +175,25 @@ GBrain ships integration recipes that your agent sets up for you. Each recipe te
 | [Calendar-to-Brain](recipes/calendar-to-brain.md) | credential-gateway | Google Calendar to searchable daily pages |
 | [Meeting Sync](recipes/meeting-sync.md) | — | Circleback transcripts to brain pages with attendees |
 
-**Data research recipes** extract structured data from email into tracked brain pages. Built-in recipes for investor updates (MRR, ARR, runway, headcount), expense tracking, and company metrics. Create your own with `gbrain research init`.
+**Data research recipes** extract structured data from email into tracked brain pages. Built-in recipes for investor updates (MRR, ARR, runway, headcount), expense tracking, and company metrics. Create your own with `pbrain research init`.
 
-Run `gbrain integrations` to see status.
+Run `pbrain integrations` to see status.
 
-## GBrain + GStack
+## PBrain + GStack
 
-[GStack](https://github.com/garrytan/gstack) is the engine. GBrain is the mod.
+[GStack](https://github.com/garrytan/gstack) is the engine. PBrain is the mod.
 
 - **[GStack](https://github.com/garrytan/gstack)** = coding skills (ship, review, QA, investigate, office-hours, retro). 70,000+ stars, 30,000 developers per day. When your agent codes on itself, it uses GStack.
-- **GBrain** = everything-else skills (brain ops, signal detection, ingestion, enrichment, cron, reports, identity). When your agent remembers, thinks, and operates, it uses GBrain.
-- **`hosts/gbrain.ts`** = the bridge. Tells GStack's coding skills to check the brain before coding.
+- **PBrain** = everything-else skills (brain ops, signal detection, ingestion, enrichment, cron, reports, identity). When your agent remembers, thinks, and operates, it uses PBrain.
+- **`hosts/pbrain.ts`** = the bridge. Tells GStack's coding skills to check the brain before coding.
 
-`gbrain init` detects if GStack is installed and reports mod status. If GStack isn't there, it tells you how to get it.
+`pbrain init` detects if GStack is installed and reports mod status. If GStack isn't there, it tells you how to get it.
 
 ## Architecture
 
 ```
 ┌──────────────────┐    ┌───────────────┐    ┌──────────────────┐
-│   Brain Repo     │    │    GBrain     │    │    AI Agent      │
+│   Brain Repo     │    │    PBrain     │    │    AI Agent      │
 │   (git)          │    │  (retrieval)  │    │  (read/write)    │
 │                  │    │               │    │                  │
 │  markdown files  │───>│  Postgres +   │<──>│  25 skills       │
@@ -205,7 +207,7 @@ Run `gbrain integrations` to see status.
 └──────────────────┘    └───────────────┘    └──────────────────┘
 ```
 
-The repo is the system of record. GBrain is the retrieval layer. The agent reads and writes through both. Human always wins... edit any markdown file and `gbrain sync` picks up the changes.
+The repo is the system of record. PBrain is the retrieval layer. The agent reads and writes through both. Human always wins... edit any markdown file and `pbrain sync` picks up the changes.
 
 ## The Knowledge Model
 
@@ -245,7 +247,7 @@ Query
   -> Results
 ```
 
-Keyword alone misses conceptual matches. Vector alone misses exact phrases. RRF gets both. Search quality is benchmarked and reproducible: `gbrain eval --qrels queries.json` measures P@k, Recall@k, MRR, and nDCG@k. A/B test config changes before deploying them.
+Keyword alone misses conceptual matches. Vector alone misses exact phrases. RRF gets both. Search quality is benchmarked and reproducible: `pbrain eval --qrels queries.json` measures P@k, Recall@k, MRR, and nDCG@k. A/B test config changes before deploying them.
 
 ## Voice
 
@@ -257,7 +259,7 @@ Call a phone number. Your AI answers. It knows who's calling, pulls their full c
 
 > [See it in action](https://x.com/garrytan/status/2043022208512172263)
 
-The voice recipe ships with GBrain: [Voice-to-Brain](recipes/twilio-voice-brain.md). WebRTC works in a browser tab with zero setup. A real phone number is optional.
+The voice recipe ships with PBrain: [Voice-to-Brain](recipes/twilio-voice-brain.md). WebRTC works in a browser tab with zero setup. A real phone number is optional.
 
 ## Engine Architecture
 
@@ -272,25 +274,25 @@ CLI / MCP Server
 PGLiteEngine       PostgresEngine
   (default)          (Supabase)
      |                  |
-~/.gbrain/           Supabase Pro ($25/mo)
+~/.pbrain/           Supabase Pro ($25/mo)
 brain.pglite         Postgres + pgvector
 embedded PG 17.5
 
-     gbrain migrate --to supabase|pglite
+     pbrain migrate --to supabase|pglite
          (bidirectional migration)
 ```
 
-PGLite: embedded Postgres, no server, zero config. When your brain outgrows local (1000+ files, multi-device), `gbrain migrate --to supabase` moves everything.
+PGLite: embedded Postgres, no server, zero config. When your brain outgrows local (1000+ files, multi-device), `pbrain migrate --to supabase` moves everything.
 
 ## File Storage
 
-Brain repos accumulate binaries. GBrain has a three-stage migration:
+Brain repos accumulate binaries. PBrain has a three-stage migration:
 
 ```bash
-gbrain files mirror <dir>       # copy to cloud, local untouched
-gbrain files redirect <dir>     # replace local with .redirect pointers
-gbrain files clean <dir>        # remove pointers, cloud only
-gbrain files restore <dir>      # download everything back (undo)
+pbrain files mirror <dir>       # copy to cloud, local untouched
+pbrain files redirect <dir>     # replace local with .redirect pointers
+pbrain files clean <dir>        # remove pointers, cloud only
+pbrain files restore <dir>      # download everything back (undo)
 ```
 
 Storage backends: S3-compatible (AWS, R2, MinIO), Supabase Storage, or local.
@@ -299,73 +301,73 @@ Storage backends: S3-compatible (AWS, R2, MinIO), Supabase Storage, or local.
 
 ```
 SETUP
-  gbrain init [--supabase|--url]        Create brain (PGLite default)
-  gbrain migrate --to supabase|pglite   Bidirectional engine migration
-  gbrain upgrade                        Self-update with feature discovery
+  pbrain init [--supabase|--url]        Create brain (PGLite default)
+  pbrain migrate --to supabase|pglite   Bidirectional engine migration
+  pbrain upgrade                        Self-update with feature discovery
 
 PAGES
-  gbrain get <slug>                     Read a page (fuzzy slug matching)
-  gbrain put <slug> [< file.md]         Write/update (auto-versions)
-  gbrain delete <slug>                  Delete a page
-  gbrain list [--type T] [--tag T]      List with filters
+  pbrain get <slug>                     Read a page (fuzzy slug matching)
+  pbrain put <slug> [< file.md]         Write/update (auto-versions)
+  pbrain delete <slug>                  Delete a page
+  pbrain list [--type T] [--tag T]      List with filters
 
 SEARCH
-  gbrain search <query>                 Keyword search (tsvector)
-  gbrain query <question>              Hybrid search (vector + keyword + RRF)
+  pbrain search <query>                 Keyword search (tsvector)
+  pbrain query <question>              Hybrid search (vector + keyword + RRF)
 
 IMPORT
-  gbrain import <dir> [--no-embed]      Import markdown (idempotent)
-  gbrain sync [--repo <path>]           Git-to-brain incremental sync
-  gbrain export [--dir ./out/]          Export to markdown
+  pbrain import <dir> [--no-embed]      Import markdown (idempotent)
+  pbrain sync [--repo <path>]           Git-to-brain incremental sync
+  pbrain export [--dir ./out/]          Export to markdown
 
 FILES
-  gbrain files list|upload|sync|verify  File storage operations
+  pbrain files list|upload|sync|verify  File storage operations
 
 EMBEDDINGS
-  gbrain embed [<slug>|--all|--stale]   Generate/refresh embeddings
+  pbrain embed [<slug>|--all|--stale]   Generate/refresh embeddings
 
 LINKS + GRAPH
-  gbrain link|unlink|backlinks|graph    Cross-reference management
+  pbrain link|unlink|backlinks|graph    Cross-reference management
 
 ADMIN
-  gbrain doctor [--json] [--fast]       Health checks (resolver, skills, DB, embeddings)
-  gbrain doctor --fix                   Auto-fix resolver issues
-  gbrain stats                          Brain statistics
-  gbrain serve                          MCP server (stdio)
-  gbrain integrations                   Integration recipe dashboard
-  gbrain check-backlinks check|fix      Back-link enforcement
-  gbrain lint [--fix]                   LLM artifact detection
-  gbrain transcribe <audio>             Transcribe audio (Groq Whisper)
-  gbrain research init <name>           Scaffold a data-research recipe
-  gbrain research list                  Show available recipes
+  pbrain doctor [--json] [--fast]       Health checks (resolver, skills, DB, embeddings)
+  pbrain doctor --fix                   Auto-fix resolver issues
+  pbrain stats                          Brain statistics
+  pbrain serve                          MCP server (stdio)
+  pbrain integrations                   Integration recipe dashboard
+  pbrain check-backlinks check|fix      Back-link enforcement
+  pbrain lint [--fix]                   LLM artifact detection
+  pbrain transcribe <audio>             Transcribe audio (Groq Whisper)
+  pbrain research init <name>           Scaffold a data-research recipe
+  pbrain research list                  Show available recipes
 ```
 
-Run `gbrain --help` for the full reference.
+Run `pbrain --help` for the full reference.
 
-## Origin Story
+## Origin
 
-I was setting up my [OpenClaw](https://openclaw.ai) agent and started a markdown brain repo. One page per person, one page per company, compiled truth on top, timeline on the bottom. Within a week: 10,000+ files, 3,000+ people, 13 years of calendar data, 280+ meeting transcripts, 300+ captured ideas.
+PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by Garry Tan. GBrain was built by Garry in 12 days to run his personal AI agents — ingesting his meetings, emails, voice calls, and reading notes, enriching every person and company he encountered, producing compiled-truth + timeline pages with source citations. GBrain's production brain powers 17,888 pages, 4,383 people, 723 companies, and 21 autonomous cron jobs across his OpenClaw and Hermes deployments.
 
-The agent runs while I sleep. The dream cycle scans every conversation, enriches missing entities, fixes broken citations, consolidates memory. I wake up and the brain is smarter than when I went to sleep.
+PBrain adapts that architecture for a different subject: software engineering. Same compiled-truth + timeline pages, same autopilot daemon, same hybrid RAG search — but tracking libraries you depend on, AI tools and models you evaluate, git repos you reference, code patterns you reuse, and tech companies (Anthropic, OpenAI, xAI, Vercel, Convex) as technical organizations rather than investment targets.
 
-The skills in this repo are those patterns, generalized. What took 11 days to build by hand ships as a mod you install in 30 minutes.
+See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full attribution. Thank you to Garry Tan and all GBrain contributors.
 
 ## Docs
 
 **For agents:**
 - **[skills/RESOLVER.md](skills/RESOLVER.md)** ... Start here. The skill dispatcher.
 - [Individual skill files](skills/) ... 25 standalone instruction sets
-- [GBRAIN_SKILLPACK.md](docs/GBRAIN_SKILLPACK.md) ... Legacy reference architecture
+- [PBRAIN_SKILLPACK.md](docs/PBRAIN_SKILLPACK.md) ... Legacy reference architecture
 - [Getting Data In](docs/integrations/README.md) ... Integration recipes and data flow
-- [GBRAIN_VERIFY.md](docs/GBRAIN_VERIFY.md) ... Installation verification
+- [PBRAIN_VERIFY.md](docs/PBRAIN_VERIFY.md) ... Installation verification
 
 **For humans:**
-- [GBRAIN_RECOMMENDED_SCHEMA.md](docs/GBRAIN_RECOMMENDED_SCHEMA.md) ... Brain repo directory structure
+- [PBRAIN_RECOMMENDED_SCHEMA.md](docs/PBRAIN_RECOMMENDED_SCHEMA.md) ... Brain repo directory structure
 - [Thin Harness, Fat Skills](docs/ethos/THIN_HARNESS_FAT_SKILLS.md) ... Architecture philosophy
 - [ENGINES.md](docs/ENGINES.md) ... Pluggable engine interface
 
 **Reference:**
-- [GBRAIN_V0.md](docs/GBRAIN_V0.md) ... Full product spec
+- [PBRAIN_V0.md](docs/PBRAIN_V0.md) ... Full product spec
 - [CHANGELOG.md](CHANGELOG.md) ... Version history
 
 ## Contributing

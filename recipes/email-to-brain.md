@@ -99,7 +99,7 @@ Every email gets a baked-in Gmail link: `[Open in Gmail](https://mail.google.com
 
 ## Prerequisites
 
-1. **GBrain installed and configured** (`gbrain doctor` passes)
+1. **PBrain installed and configured** (`pbrain doctor` passes)
 2. **Node.js 18+** (for the collector script)
 3. **Gmail access** via one of:
    - ClawVisor (recommended: E2E encrypted credential gateway)
@@ -145,12 +145,12 @@ Tell the user:
 2. Click **'+ CREATE CREDENTIALS'** > **'OAuth client ID'**
 3. If prompted, configure the OAuth consent screen:
    - User type: **External** (or Internal for Google Workspace)
-   - App name: 'GBrain Email' (anything works)
+   - App name: 'PBrain Email' (anything works)
    - Scopes: add **'Gmail API .../auth/gmail.readonly'**
    - Test users: add your own email address
 4. Create the OAuth client ID:
    - Application type: **Desktop app**
-   - Name: 'GBrain'
+   - Name: 'PBrain'
 5. Copy the **Client ID** and **Client Secret**
 6. Also enable the Gmail API:
    Go to https://console.cloud.google.com/apis/library/gmail.googleapis.com
@@ -169,7 +169,7 @@ Then run the OAuth flow to get tokens:
 # 1. Opens browser to Google consent URL with gmail.readonly scope
 # 2. User grants access
 # 3. Script receives auth code, exchanges for access + refresh token
-# 4. Stores tokens in ~/.gbrain/google-tokens.json
+# 4. Stores tokens in ~/.pbrain/google-tokens.json
 # 5. Auto-refreshes on expiry
 ```
 
@@ -212,12 +212,12 @@ Read the digest. Confirm it contains real emails with working Gmail links.
 This is YOUR job (the agent). Read the digest. For each email:
 
 1. **Detect entities**: who sent it? Who is mentioned? What companies?
-2. **Check the brain**: `gbrain search "sender name"` — do we have a page?
+2. **Check the brain**: `pbrain search "sender name"` — do we have a page?
 3. **Update brain pages**: if sender has a brain page, append a timeline entry:
    `- YYYY-MM-DD | Email from {sender}: {subject} [Source: Gmail, {date}]`
 4. **Create new pages**: if sender is notable and has no page, create one
 5. **Extract action items**: if the email requires a response or action, log it
-6. **Sync**: run `gbrain sync --no-pull --no-embed` to index changes
+6. **Sync**: run `pbrain sync --no-pull --no-embed` to index changes
 
 ### Step 5: Set Up Cron
 
@@ -233,8 +233,8 @@ and run the enrichment flow from Step 4.
 ### Step 6: Log Setup Completion
 
 ```bash
-mkdir -p ~/.gbrain/integrations/email-to-brain
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok"}' >> ~/.gbrain/integrations/email-to-brain/heartbeat.jsonl
+mkdir -p ~/.pbrain/integrations/email-to-brain
+echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok"}' >> ~/.pbrain/integrations/email-to-brain/heartbeat.jsonl
 ```
 
 ## Implementation Guide

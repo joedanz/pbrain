@@ -1,12 +1,12 @@
 import { execSync } from 'child_process';
-import { readdirSync, lstatSync, existsSync, copyFileSync, mkdirSync, readFileSync } from 'fs';
+import { readdirSync, lstatSync, existsSync, copyFileSync, mkdirSync, readFileSync, renameSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-import { saveConfig, type GBrainConfig } from '../core/config.ts';
+import { saveConfig, type PBrainConfig } from '../core/config.ts';
 import { createEngine } from '../core/engine-factory.ts';
 
 export async function runInit(args: string[]) {
@@ -21,6 +21,8 @@ export async function runInit(args: string[]) {
   const pathIndex = args.indexOf('--path');
   const customPath = pathIndex !== -1 ? args[pathIndex + 1] : null;
 
+  await maybeMigrateGBrainConfigDir({ isNonInteractive, jsonOutput });
+
   // Explicit PGLite mode
   if (isPGLite || (!isSupabase && !manualUrl && !isNonInteractive)) {
     // Smart detection: scan for .md files unless --pglite flag forces it
@@ -30,8 +32,8 @@ export async function runInit(args: string[]) {
         console.log(`Found ~${fileCount} .md files. For a brain this size, Supabase gives faster`);
         console.log('search and remote access ($25/mo). PGLite works too but search will be slower at scale.');
         console.log('');
-        console.log('  gbrain init --supabase   Set up with Supabase (recommended for large brains)');
-        console.log('  gbrain init --pglite     Use local PGLite anyway');
+        console.log('  pbrain init --supabase   Set up with Supabase (recommended for large brains)');
+        console.log('  pbrain init --pglite     Use local PGLite anyway');
         console.log('');
         // Default to PGLite, let the user choose Supabase if they want
       }
@@ -45,11 +47,11 @@ export async function runInit(args: string[]) {
   if (manualUrl) {
     databaseUrl = manualUrl;
   } else if (isNonInteractive) {
-    const envUrl = process.env.GBRAIN_DATABASE_URL || process.env.DATABASE_URL;
+    const envUrl = process.env.PBRAIN_DATABASE_URL || process.env.DATABASE_URL;
     if (envUrl) {
       databaseUrl = envUrl;
     } else {
-      console.error('--non-interactive requires --url <connection_string> or GBRAIN_DATABASE_URL env var');
+      console.error('--non-interactive requires --url <connection_string> or PBRAIN_DATABASE_URL env var');
       process.exit(1);
     }
   } else {
@@ -60,14 +62,14 @@ export async function runInit(args: string[]) {
 }
 
 async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null }) {
-  const dbPath = opts.customPath || join(homedir(), '.gbrain', 'brain.pglite');
+  const dbPath = opts.customPath || join(homedir(), '.pbrain', 'brain.pglite');
   console.log(`Setting up local brain with PGLite (no server needed)...`);
 
   const engine = await createEngine({ engine: 'pglite' });
   await engine.connect({ database_path: dbPath, engine: 'pglite' });
   await engine.initSchema();
 
-  const config: GBrainConfig = {
+  const config: PBrainConfig = {
     engine: 'pglite',
     database_path: dbPath,
     ...(opts.apiKey ? { openai_api_key: opts.apiKey } : {}),
@@ -82,9 +84,9 @@ async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; cu
   } else {
     console.log(`\nBrain ready at ${dbPath}`);
     console.log(`${stats.page_count} pages. Engine: PGLite (local Postgres).`);
-    console.log('Next: gbrain import <dir>');
+    console.log('Next: pbrain import <dir>');
     console.log('');
-    console.log('When you outgrow local: gbrain migrate --to supabase');
+    console.log('When you outgrow local: pbrain migrate --to supabase');
     reportModStatus();
   }
 }
@@ -139,13 +141,13 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
   console.log('Running schema migration...');
   await engine.initSchema();
 
-  const config: GBrainConfig = {
+  const config: PBrainConfig = {
     engine: 'postgres',
     database_url: databaseUrl,
     ...(opts.apiKey ? { openai_api_key: opts.apiKey } : {}),
   };
   saveConfig(config);
-  console.log('Config saved to ~/.gbrain/config.json');
+  console.log('Config saved to ~/.pbrain/config.json');
 
   const stats = await engine.getStats();
   await engine.disconnect();
@@ -154,7 +156,7 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
     console.log(JSON.stringify({ status: 'success', engine: 'postgres', pages: stats.page_count }));
   } else {
     console.log(`\nBrain ready. ${stats.page_count} pages. Engine: Postgres (Supabase).`);
-    console.log('Next: gbrain import <dir>');
+    console.log('Next: pbrain import <dir>');
     reportModStatus();
   }
 }
@@ -192,7 +194,7 @@ async function supabaseWizard(): Promise<string> {
     execSync('bunx supabase --version', { stdio: 'pipe' });
     console.log('Supabase CLI detected.');
     console.log('To auto-provision, run: bunx supabase login && bunx supabase projects create');
-    console.log('Then use: gbrain init --url <your-connection-string>');
+    console.log('Then use: pbrain init --url <your-connection-string>');
   } catch {
     console.log('Supabase CLI not found.');
   }
@@ -207,6 +209,37 @@ async function supabaseWizard(): Promise<string> {
     process.exit(1);
   }
   return url;
+}
+
+/**
+ * One-time migration: if ~/.gbrain/ exists from a previous GBrain install and
+ * ~/.pbrain/ doesn't yet, offer to rename it. Non-destructive — requires consent
+ * in interactive mode; skipped silently in --non-interactive or --json mode.
+ */
+async function maybeMigrateGBrainConfigDir(
+  opts: { isNonInteractive: boolean; jsonOutput: boolean }
+): Promise<void> {
+  const legacyDir = join(homedir(), '.gbrain');
+  const newDir = join(homedir(), '.pbrain');
+  if (!existsSync(legacyDir) || existsSync(newDir)) return;
+
+  if (opts.isNonInteractive || opts.jsonOutput) {
+    console.error(`Found legacy ~/.gbrain/ — rerun \`pbrain init\` interactively to migrate, or rename manually.`);
+    return;
+  }
+
+  console.log('');
+  console.log('Found a legacy ~/.gbrain/ directory from a previous GBrain install.');
+  console.log('PBrain uses ~/.pbrain/ instead.');
+  const answer = await readLine('Rename ~/.gbrain/ → ~/.pbrain/ now? [Y/n]: ');
+  const normalized = (answer || '').trim().toLowerCase();
+  if (normalized === '' || normalized === 'y' || normalized === 'yes') {
+    renameSync(legacyDir, newDir);
+    console.log(`Renamed ~/.gbrain → ~/.pbrain`);
+  } else {
+    console.log(`Skipped. PBrain will use a fresh ~/.pbrain/. Your old ~/.gbrain/ is untouched.`);
+  }
+  console.log('');
 }
 
 function readLine(prompt: string): Promise<string> {
@@ -262,8 +295,8 @@ export function detectGStack(): { found: boolean; path: string | null; host: str
  * into the agent workspace. Uses minimal defaults, not the soul-audit interview.
  */
 export function installDefaultTemplates(workspaceDir: string): string[] {
-  const gbrainRoot = dirname(dirname(__dirname)); // up from src/commands/ to repo root
-  const templatesDir = join(gbrainRoot, 'templates');
+  const pbrainRoot = dirname(dirname(__dirname)); // up from src/commands/ to repo root
+  const templatesDir = join(pbrainRoot, 'templates');
   const installed: string[] = [];
 
   const templates = [
@@ -291,8 +324,8 @@ export function installDefaultTemplates(workspaceDir: string): string[] {
  */
 export function reportModStatus(): void {
   const gstack = detectGStack();
-  const gbrainRoot = dirname(dirname(__dirname));
-  const skillsDir = join(gbrainRoot, 'skills');
+  const pbrainRoot = dirname(dirname(__dirname));
+  const skillsDir = join(pbrainRoot, 'skills');
 
   let skillCount = 0;
   try {
@@ -303,7 +336,7 @@ export function reportModStatus(): void {
   } catch { /* manifest not found */ }
 
   console.log('');
-  console.log('--- GBrain Mod Status ---');
+  console.log('--- PBrain Mod Status ---');
   console.log(`Skills: ${skillCount} loaded`);
   console.log(`GStack: ${gstack.found ? `found (${gstack.host})` : 'not found'}`);
   if (!gstack.found) {
@@ -312,6 +345,6 @@ export function reportModStatus(): void {
     console.log('  cd ~/.claude/skills/gstack && ./setup');
   }
   console.log('Resolver: skills/RESOLVER.md');
-  console.log('Soul audit: run `gbrain soul-audit` to customize agent identity');
+  console.log('Soul audit: run `pbrain soul-audit` to customize agent identity');
   console.log('');
 }

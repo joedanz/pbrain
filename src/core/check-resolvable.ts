@@ -3,7 +3,7 @@
  *
  * Three call sites:
  * 1. `bun test` — unit tests import and assert on checkResolvable()
- * 2. `gbrain doctor` — runtime health check with actionable agent guidance
+ * 2. `pbrain doctor` — runtime health check with actionable agent guidance
  * 3. skill-creator skill — mandatory post-creation validation gate
  *
  * @param skillsDir — the `skills/` directory (NOT repo root). Parser joins

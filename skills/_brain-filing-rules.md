@@ -77,7 +77,7 @@ silently pick one.
 
 Every ingested item should have its raw source preserved for provenance.
 
-**Size routing (automatic via `gbrain files upload-raw`):**
+**Size routing (automatic via `pbrain files upload-raw`):**
 - **< 100 MB text/PDF**: stays in the brain repo (git-tracked) in a `.raw/`
   sidecar directory alongside the brain page
 - **>= 100 MB OR media files** (video, audio, images): uploaded to cloud
@@ -87,7 +87,7 @@ Every ingested item should have its raw source preserved for provenance.
 
 **Upload command:**
 ```bash
-gbrain files upload-raw <file> --page <page-slug> --type <type>
+pbrain files upload-raw <file> --page <page-slug> --type <type>
 ```
 Returns JSON: `{storage: "git"}` for small files, `{storage: "supabase", storagePath, reference}` for cloud.
 
@@ -106,8 +106,8 @@ type: transcript
 
 **Accessing stored files:**
 ```bash
-gbrain files signed-url <storage-path>    # Generate 1-hour signed URL
-gbrain files restore <dir>                # Download back to local
+pbrain files signed-url <storage-path>    # Generate 1-hour signed URL
+pbrain files restore <dir>                # Download back to local
 ```
 
 This ensures any derived brain page can be traced back to its original source,

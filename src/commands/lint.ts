@@ -1,5 +1,5 @@
 /**
- * gbrain lint — Deterministic brain page quality checker.
+ * pbrain lint — Deterministic brain page quality checker.
  *
  * Zero LLM calls. Catches common quality issues:
  * - LLM preamble artifacts ("Of course! Here is...")
@@ -10,10 +10,10 @@
  * - Wrapping code fences from LLM output
  *
  * Usage:
- *   gbrain lint <dir>              # report issues
- *   gbrain lint <dir> --fix        # auto-fix what's fixable
- *   gbrain lint <dir> --fix --dry-run  # preview fixes
- *   gbrain lint <file.md>          # lint single file
+ *   pbrain lint <dir>              # report issues
+ *   pbrain lint <dir> --fix        # auto-fix what's fixable
+ *   pbrain lint <dir> --fix --dry-run  # preview fixes
+ *   pbrain lint <file.md>          # lint single file
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync, lstatSync, existsSync } from 'fs';
@@ -187,7 +187,7 @@ export async function runLint(args: string[]) {
   const dryRun = args.includes('--dry-run');
 
   if (!target) {
-    console.error('Usage: gbrain lint <dir|file.md> [--fix] [--dry-run]');
+    console.error('Usage: pbrain lint <dir|file.md> [--fix] [--dry-run]');
     console.error('  --fix      Auto-fix fixable issues (LLM preambles, code fences)');
     console.error('  --dry-run  Preview fixes without writing');
     process.exit(1);

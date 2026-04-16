@@ -100,7 +100,7 @@ Extract people, companies, concepts from the incoming signal.
 ### Step 2: Check brain state
 
 For each entity:
-- `gbrain search "name"` -- does a page already exist?
+- `pbrain search "name"` -- does a page already exist?
 - **If yes:** UPDATE path (add new signal, update compiled truth if material)
 - **If no:** CREATE path (check notability gate first, then create)
 
@@ -123,7 +123,7 @@ Don't just capture facts. Capture texture:
 Priority order -- stop when you have enough signal for the entity's tier.
 
 **4a. Brain cross-reference (always, all tiers)**
-- `gbrain search "name"` and `gbrain query "what do we know about name"`
+- `pbrain search "name"` and `pbrain query "what do we know about name"`
 - Check related pages: company pages for person enrichment and vice versa
 - This is free and often the richest source
 
@@ -154,7 +154,7 @@ Priority order -- stop when you have enough signal for the entity's tier.
 
 ### Step 5: Save raw data (preserves provenance)
 
-Store raw API responses via `put_raw_data` in gbrain:
+Store raw API responses via `put_raw_data` in pbrain:
 ```json
 {
   "source": "crustdata",
@@ -340,11 +340,11 @@ Both page types have bidirectional back-links to every entity they mention.
 
 ## Tools Used
 
-- Read a page from gbrain (get_page)
-- Store/update a page in gbrain (put_page)
-- Add a timeline entry in gbrain (add_timeline_entry)
-- List pages in gbrain by type (list_pages)
-- Store raw API data in gbrain (put_raw_data)
-- Retrieve raw data from gbrain (get_raw_data)
-- Link entities in gbrain (add_link)
-- Check backlinks in gbrain (get_backlinks)
+- Read a page from pbrain (get_page)
+- Store/update a page in pbrain (put_page)
+- Add a timeline entry in pbrain (add_timeline_entry)
+- List pages in pbrain by type (list_pages)
+- Store raw API data in pbrain (put_raw_data)
+- Retrieve raw data from pbrain (get_raw_data)
+- Link entities in pbrain (add_link)
+- Check backlinks in pbrain (get_backlinks)

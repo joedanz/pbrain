@@ -1,32 +1,75 @@
 # Changelog
 
-All notable changes to GBrain will be documented in this file.
+All notable changes to PBrain will be documented in this file.
+
+> **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[1.0.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
+
+## [1.0.0] - Unreleased
+
+The first PBrain release. Adaptation work is phased across four PRs merged to master incrementally; no intermediate tags or GitHub releases are cut. `v1.0.0` will be tagged only after all four phases merge.
+
+### Phase 1 — Rebrand (merged)
+
+#### Forked
+- **Project renamed GBrain → PBrain (Project Brain).** Fork of [garrytan/gbrain](https://github.com/garrytan/gbrain) at v0.10.1. Retargets the same architecture from VC/founder knowledge management to software-engineering knowledge management (coding projects, libraries, AI tools, git repos, code patterns, papers/talks/books, tech companies).
+- **Attribution preserved.** Original copyright and LICENSE unchanged. New `NOTICE` file and `docs/ATTRIBUTION.md` credit Garry Tan and all GBrain contributors as the origin of every core engineering decision (contract-first ops, pluggable engines, hybrid RAG, compiled truth, skill resolver, autopilot, MCP server).
+
+#### Changed
+- **Binary:** `gbrain` → `pbrain`. The CLI command, all build artifacts (`bin/pbrain-darwin-arm64`, `bin/pbrain-linux-x64`), and MCP server name are now `pbrain`.
+- **Config directory:** `~/.gbrain/` → `~/.pbrain/`. Includes `config.json`, `indexes/`, `update-state.json`. Migration shim in `pbrain init` detects an existing `~/.gbrain/` and offers a one-time consented rename.
+- **Environment variables:** `GBRAIN_DATABASE_URL` → `PBRAIN_DATABASE_URL`. The standard `DATABASE_URL` fallback still works (unchanged). All other `GBRAIN_*` env vars similarly renamed to `PBRAIN_*`.
+- **TypeScript type:** `GBrainConfig` → `PBrainConfig`.
+- **Doc filenames:** `docs/GBRAIN_RECOMMENDED_SCHEMA.md` → `docs/PBRAIN_RECOMMENDED_SCHEMA.md`, `docs/GBRAIN_SKILLPACK.md` → `docs/PBRAIN_SKILLPACK.md`, `docs/GBRAIN_V0.md` → `docs/PBRAIN_V0.md`, `docs/GBRAIN_VERIFY.md` → `docs/PBRAIN_VERIFY.md`.
+- **Release check URL:** `pbrain upgrade` / `pbrain check-update` now polls `api.github.com/repos/joedanz/pbrain/releases/latest`, not the upstream GBrain repo.
+- **README masthead** rewritten to credit GBrain and Garry Tan directly, replace the Garry-persona builder story with PBrain's engineering focus, and point install URLs at `github.com/joedanz/pbrain`.
+
+#### Not changed (yet)
+- **Schema.** Phase 1 is rebrand-only: directory taxonomy, skills, and page templates are still GBrain-shaped (VC-flavored). Phase 2 drops `deals/`/`hiring/`/`civic/`/`org/`/`media/`/`personal/`/`household/`, adds `libraries/`/`ai-tools/`/`repos/`/`patterns/`/`papers/`/`talks/`/`books/`, and re-skins `companies/` for tech organizations.
+- **Storage model.** Still DB-first with one-way markdown import. Phase 3 inverts this: markdown files on disk become the source of truth, PGLite becomes a rebuildable index, optimized for use as an Obsidian vault.
+- **Version bump.** `package.json` stays at `0.10.1` through Phase 1–3; only bumped to `1.0.0` when Phase 4 merges and the first PBrain release is tagged.
+
+#### Migration path
+Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate binary and a separate config directory. GBrain v0.10.1 and PBrain v1.0.0 are distinct products.
+
+### Phase 2 — Schema & skills adaptation (not yet started)
+
+_Planned: drop VC directory taxonomy, add coding/AI directories, re-skin `companies/` template, swap VC examples in 27 skill files for coding/AI examples._
+
+### Phase 3 — Markdown-first storage (not yet started)
+
+_Planned: invert DB-first to markdown-first. PGLite becomes an index rebuilt from files on disk. `[[wikilinks]]` + `#tag` + YAML `tags:` emission. Atomic writes + 60s cooldown for Obsidian-concurrent-edit safety. New `src/core/atomic-write.ts`, `src/core/wikilink.ts`, `src/core/tag-footer.ts`, `src/core/fs-watcher.ts`._
+
+### Phase 4 — Obsidian polish + doctor checks (not yet started)
+
+_Planned: `pbrain doctor --integrations`, `docs/integrations/obsidian.md` setup guide with Dataview examples, `recipes/obsidian-vault.yaml`. Tag `v1.0.0` and cut first release._
+
+---
 
 ## [0.10.1] - 2026-04-15
 
 ### Fixed
 
-- **`gbrain sync --watch` actually works now.** The watch loop existed but was never called because the CLI routed sync through the operation layer (single-pass only). Now sync routes through the CLI path that knows about `--watch` and `--interval`. Your cron workaround is no longer needed.
+- **`pbrain sync --watch` actually works now.** The watch loop existed but was never called because the CLI routed sync through the operation layer (single-pass only). Now sync routes through the CLI path that knows about `--watch` and `--interval`. Your cron workaround is no longer needed.
 
-- **Sync auto-embeds your pages.** After syncing, gbrain now embeds the changed pages automatically. No more "I synced but search can't find my new page." Opt out with `--no-embed`. Large syncs (100+ pages) defer embedding to `gbrain embed --stale`.
+- **Sync auto-embeds your pages.** After syncing, pbrain now embeds the changed pages automatically. No more "I synced but search can't find my new page." Opt out with `--no-embed`. Large syncs (100+ pages) defer embedding to `pbrain embed --stale`.
 
 - **First sync no longer repeats forever.** `performFullSync` wasn't saving its checkpoint. Fixed: sync state persists after full import so the next sync is incremental.
 
 - **`dead_links` metric is consistent across engines.** Postgres was counting empty-content chunks instead of dangling links. Now both engines count the same thing: links pointing to non-existent pages.
 
-- **Doctor recommends the right embed command.** Was suggesting `gbrain embed refresh` (doesn't exist). Now correctly says `gbrain embed --stale`.
+- **Doctor recommends the right embed command.** Was suggesting `pbrain embed refresh` (doesn't exist). Now correctly says `pbrain embed --stale`.
 
 ### Added
 
-- **`gbrain extract links|timeline|all`** builds your link graph and structured timeline from existing markdown. Scans for markdown links, frontmatter fields (company, investors, attendees), and See Also sections. Infers link types from directory structure. Parses both bullet (`- **YYYY-MM-DD** | Source — Summary`) and header (`### YYYY-MM-DD — Title`) timeline formats. Runs automatically after every sync.
+- **`pbrain extract links|timeline|all`** builds your link graph and structured timeline from existing markdown. Scans for markdown links, frontmatter fields (company, investors, attendees), and See Also sections. Infers link types from directory structure. Parses both bullet (`- **YYYY-MM-DD** | Source — Summary`) and header (`### YYYY-MM-DD — Title`) timeline formats. Runs automatically after every sync.
 
-- **`gbrain features --json --auto-fix`** scans your brain and tells you what you're not using, with your own numbers. Priority 1 (data quality): missing embeddings, dead links. Priority 2 (unused features): zero links, zero timeline, low coverage, unconfigured integrations. Agents run `--auto-fix` to handle everything automatically.
+- **`pbrain features --json --auto-fix`** scans your brain and tells you what you're not using, with your own numbers. Priority 1 (data quality): missing embeddings, dead links. Priority 2 (unused features): zero links, zero timeline, low coverage, unconfigured integrations. Agents run `--auto-fix` to handle everything automatically.
 
-- **`gbrain autopilot --install`** sets up a persistent daemon that runs sync, extract, and embed in a continuous loop. Health-based scheduling: brain score >= 90 slows down, < 70 speeds up. Installs as a launchd service (macOS) or crontab entry (Linux). One command, brain maintains itself forever.
+- **`pbrain autopilot --install`** sets up a persistent daemon that runs sync, extract, and embed in a continuous loop. Health-based scheduling: brain score >= 90 slows down, < 70 speeds up. Installs as a launchd service (macOS) or crontab entry (Linux). One command, brain maintains itself forever.
 
-- **Brain health score (0-100)** in `gbrain health` and `gbrain doctor`. Weighted composite of embed coverage, link density, timeline coverage, orphan pages, and dead links. Agents use it as a health gate.
+- **Brain health score (0-100)** in `pbrain health` and `pbrain doctor`. Weighted composite of embed coverage, link density, timeline coverage, orphan pages, and dead links. Agents use it as a health gate.
 
-- **`gbrain embed --slugs`** embeds specific pages by slug. Used internally by sync auto-embed to target just the changed pages.
+- **`pbrain embed --slugs`** embeds specific pages by slug. Used internally by sync auto-embed to target just the changed pages.
 
 - **Instruction layer for agents.** RESOLVER.md routing entries, maintain skill sections, and setup skill phase for extract, features, and autopilot. Without these, agents would never discover the new commands.
 
@@ -46,7 +89,7 @@ All notable changes to GBrain will be documented in this file.
 
 - **Conventions directory codifies operational discipline.** Brain-first lookup protocol, citation quality standards, model routing table, test-before-bulk rule, and cross-modal review pairs. These are the hard-won patterns that prevent bad bulk runs and silent failures.
 
-- **`gbrain init` detects GStack and reports mod status.** After brain setup, init now shows how many skills are loaded, whether GStack is installed, and where to get it. GStack detection uses `gstack-global-discover` with fallback to known host paths.
+- **`pbrain init` detects GStack and reports mod status.** After brain setup, init now shows how many skills are loaded, whether GStack is installed, and where to get it. GStack detection uses `gstack-global-discover` with fallback to known host paths.
 
 - **Conformance standard for all skills.** Every skill now has YAML frontmatter (name, version, description, triggers, tools, mutating) plus Contract, Anti-Patterns, and Output Format sections. Two new test files validate conformance across all 25 skills.
 
@@ -63,7 +106,7 @@ All notable changes to GBrain will be documented in this file.
 | **meeting-ingestion** | Transcripts become brain pages. Every attendee gets enriched. Every company discussed gets a timeline entry. | A meeting is NOT fully ingested until every entity is propagated. This is the skill that turns a transcript into 10 updated brain pages. |
 | **citation-fixer** | Scans brain pages for missing or malformed `[Source: ...]` citations. Fixes formatting to match the standard. | Without citations, you can't trace facts back to where they came from. Six months later, "who said this?" has an answer. |
 | **repo-architecture** | Where new brain files go. Decision protocol: primary subject determines directory, not format or source. | Prevents the #1 misfiling pattern: dumping everything in `sources/` because it came from a URL. |
-| **skill-creator** | Create new skills following the conformance standard. MECE check against existing skills. Updates manifest and resolver. | Users who need a capability GBrain doesn't have can create it themselves. The skill teaches the agent how to extend itself. |
+| **skill-creator** | Create new skills following the conformance standard. MECE check against existing skills. Updates manifest and resolver. | Users who need a capability PBrain doesn't have can create it themselves. The skill teaches the agent how to extend itself. |
 | **daily-task-manager** | Add, complete, defer, remove, review tasks with priority levels (P0-P3). Stored as a searchable brain page. | Your tasks live in the brain, not a separate app. The agent can cross-reference tasks with meeting notes and people pages. |
 | **daily-task-prep** | Morning preparation. Calendar lookahead with brain context per attendee, open threads from yesterday, active task review. | Walk into every meeting with full context on every person in the room, automatically. |
 | **cross-modal-review** | Spawn a different AI model to review the agent's work before committing. Refusal routing: if one model refuses, silently switch. | Two models agreeing is stronger signal than one model being thorough. Refusal routing means the user never sees "I can't do that." |
@@ -75,13 +118,13 @@ All notable changes to GBrain will be documented in this file.
 
 ### Infrastructure (new in v0.10.0)
 
-- **Your brain now self-validates its own skill routing.** `checkResolvable()` verifies every skill is reachable from RESOLVER.md, detects MECE overlaps, flags missing triggers, and catches DRY violations. Runs from `bun test`, `gbrain doctor`, and the skill-creator skill. Every issue comes with a machine-readable fix object the agent can act on.
+- **Your brain now self-validates its own skill routing.** `checkResolvable()` verifies every skill is reachable from RESOLVER.md, detects MECE overlaps, flags missing triggers, and catches DRY violations. Runs from `bun test`, `pbrain doctor`, and the skill-creator skill. Every issue comes with a machine-readable fix object the agent can act on.
 
-- **`gbrain doctor` got serious.** 8 health checks now (up from 5), plus a composite health score (0-100). Filesystem checks (resolver, conformance) run even without a database. `--fast` skips DB checks. `--json` output includes structured `issues` array with action strings so agents can parse and auto-fix.
+- **`pbrain doctor` got serious.** 8 health checks now (up from 5), plus a composite health score (0-100). Filesystem checks (resolver, conformance) run even without a database. `--fast` skips DB checks. `--json` output includes structured `issues` array with action strings so agents can parse and auto-fix.
 
 - **Batch operations won't melt your machine anymore.** Adaptive load-aware throttling checks CPU and memory before each batch item. Exponential backoff with a 20-attempt safety cap. Active hours multiplier slows batch work during the day. Two concurrent batch process limit.
 
-- **Your agent's classifiers get smarter automatically.** Fail-improve loop: try deterministic code first, fall back to LLM, log every fallback. Over time, the logs reveal which regex patterns are missing. Auto-generates test cases from successful LLM results. Tracks deterministic hit rate in `gbrain doctor` output.
+- **Your agent's classifiers get smarter automatically.** Fail-improve loop: try deterministic code first, fall back to LLM, log every fallback. Over time, the logs reveal which regex patterns are missing. Auto-generates test cases from successful LLM results. Tracks deterministic hit rate in `pbrain doctor` output.
 
 - **Voice notes just work.** Groq Whisper transcription (with OpenAI fallback) via `transcribe_audio` operation. Files over 25MB get ffmpeg-segmented automatically. Transcripts flow through the standard import pipeline, entities get extracted, back-links get created.
 
@@ -100,17 +143,17 @@ All notable changes to GBrain will be documented in this file.
 ### Added
 
 - **Search understands what you're asking. +21% page coverage, +29% signal, 100% source accuracy.** A zero-latency intent classifier reads your query and picks the right search mode. "Who is Alice?" surfaces your compiled truth assessment. "When did we last meet?" surfaces timeline entries with dates. No LLM call, just pattern matching. Your agent sees 8.7 relevant pages per query instead of 7.2, and two thirds of returned chunks are now distilled assessments instead of half. Entity lookups always lead with compiled truth. Temporal queries always find the dates. Benchmarked against 29 pages, 20 queries with graded relevance (run `bun run test/benchmark-search-quality.ts` to reproduce). Inspired by Ramp Labs' "Latent Briefing" paper (April 2026).
-- **`gbrain query --detail low/medium/high`.** Agents can control how deep search goes. `low` returns compiled truth only. `medium` (default) returns everything with dedup. `high` returns all chunks uncapped. Auto-escalates from low to high if no results found. MCP picks it up automatically.
-- **`gbrain eval` measures search quality.** Full retrieval evaluation harness with P@k, R@k, MRR, nDCG@k metrics. A/B comparison mode for parameter tuning: `gbrain eval --qrels queries.json --config-a baseline.json --config-b boosted.json`. Contributed by @4shut0sh.
+- **`pbrain query --detail low/medium/high`.** Agents can control how deep search goes. `low` returns compiled truth only. `medium` (default) returns everything with dedup. `high` returns all chunks uncapped. Auto-escalates from low to high if no results found. MCP picks it up automatically.
+- **`pbrain eval` measures search quality.** Full retrieval evaluation harness with P@k, R@k, MRR, nDCG@k metrics. A/B comparison mode for parameter tuning: `pbrain eval --qrels queries.json --config-a baseline.json --config-b boosted.json`. Contributed by @4shut0sh.
 - **CJK queries expand correctly.** Chinese, Japanese, and Korean text was silently skipping query expansion because word count used space-delimited splitting. Now counts characters for CJK. Contributed by @YIING99.
-- **Health checks speak a typed language now.** Recipe `health_checks` use a typed DSL (`http`, `env_exists`, `command`, `any_of`) instead of raw shell strings. No more `execSync(untrustedYAML)`. Your agent runs `gbrain integrations doctor` and gets structured results, not shell injection risk. All 7 first-party recipes migrated. String health checks still work (with deprecation warning) for backward compat.
+- **Health checks speak a typed language now.** Recipe `health_checks` use a typed DSL (`http`, `env_exists`, `command`, `any_of`) instead of raw shell strings. No more `execSync(untrustedYAML)`. Your agent runs `pbrain integrations doctor` and gets structured results, not shell injection risk. All 7 first-party recipes migrated. String health checks still work (with deprecation warning) for backward compat.
 
 ### Fixed
 
 - **Your storage backend can't be tricked into reading `/etc/passwd`.** `LocalStorage` now validates every path stays within the storage root. `../../etc/passwd` gets "Path traversal blocked" instead of your system files. All 6 methods covered (upload, download, delete, exists, list, getUrl).
 - **MCP callers can't read arbitrary files via `file_url`.** `resolveFile()` now validates the requested path stays within the brain root before touching the filesystem. Previously, `../../etc/passwd` would read any file the process could access.
 - **`.supabase` marker files can't escape their scope.** Marker prefix validation now rejects `../`, absolute paths, and bare `..`. A crafted `.supabase` file in a shared brain repo can't make storage requests outside the intended prefix.
-- **File queries can't blow up memory.** The slug-filtered `file_list` MCP operation now has the same `LIMIT 100` as the unfiltered branch. Also fixed the CLI `gbrain files list` and `gbrain files verify` commands.
+- **File queries can't blow up memory.** The slug-filtered `file_list` MCP operation now has the same `LIMIT 100` as the unfiltered branch. Also fixed the CLI `pbrain files list` and `pbrain files verify` commands.
 - **Symlinks in brain directories can't exfiltrate files.** All 4 file walkers in `files.ts` plus the `init.ts` size counter now use `lstatSync` and skip symlinks. Broken symlinks and `node_modules` directories are also skipped.
 - **Recipe health checks can't inject shell commands.** Non-embedded (user-created) recipes with shell metacharacters in health_check strings are blocked. First-party recipes are trusted but migrated to the typed DSL.
 
@@ -118,7 +161,7 @@ All notable changes to GBrain will be documented in this file.
 
 ### Fixed
 
-- **Fresh local installs initialize cleanly again.** `gbrain init` now creates the local PGLite data directory before taking its advisory lock, so first-run setup no longer misreports a missing directory as a lock timeout.
+- **Fresh local installs initialize cleanly again.** `pbrain init` now creates the local PGLite data directory before taking its advisory lock, so first-run setup no longer misreports a missing directory as a lock timeout.
 
 ## [0.9.1] - 2026-04-11
 
@@ -131,17 +174,17 @@ All notable changes to GBrain will be documented in this file.
 - **PGLite stops crashing when two processes touch the same brain.** File-based advisory lock using atomic `mkdir` with PID tracking and 5-minute stale detection. Clear error messages tell you which process holds the lock and how to recover.
 - **12 data integrity fixes landed.** Orphan chunks cleaned up on empty pages. Write operations (`addLink`, `addTag`, `addTimelineEntry`, `putRawData`, `createVersion`) now throw when the target page doesn't exist instead of silently no-opping. Health metrics (`stale_pages`, `dead_links`, `orphan_pages`) now measure real problems instead of always returning 0. Keyword search moved from JS-side sort-and-splice to a SQL CTE with `LIMIT`. MCP server validates params before dispatch.
 - **Stale embeddings can't lie to you anymore.** When chunk text changes but embedding fails, the old vector is now NULL'd out instead of preserved. Previously, search could return results based on outdated vectors attached to new text.
-- **Embedding failures are no longer silent.** The `catch { /* non-fatal */ }` is gone. You now get `[gbrain] embedding failed for slug (N chunks): error message` in stderr. Still non-fatal, but you know what happened.
+- **Embedding failures are no longer silent.** The `catch { /* non-fatal */ }` is gone. You now get `[pbrain] embedding failed for slug (N chunks): error message` in stderr. Still non-fatal, but you know what happened.
 - **O(n^2) chunk lookup in `embedPage` is gone.** Replaced `find() + indexOf()` with a single `Map` lookup. Matches the pattern `embedAll` already uses.
 - **Stdin bombs blocked.** `parseOpArgs` now caps stdin at 5 MB before the full buffer is consumed.
 
 ### Added
 
-- **`gbrain embed --all` is 30x faster.** Sliding worker pool with 20 concurrent workers (tunable via `GBRAIN_EMBED_CONCURRENCY`). A 20,000-chunk corpus that took 2.5 hours now finishes in ~8 minutes.
+- **`pbrain embed --all` is 30x faster.** Sliding worker pool with 20 concurrent workers (tunable via `PBRAIN_EMBED_CONCURRENCY`). A 20,000-chunk corpus that took 2.5 hours now finishes in ~8 minutes.
 - **Search pagination.** Both `search` and `query` now accept `--offset` for paginating through results. Combined with the 100-result ceiling, you can now page through large result sets.
-- **`gbrain ask` is an alias for `gbrain query`.** CLI-only, doesn't appear in MCP tools-json.
+- **`pbrain ask` is an alias for `pbrain query`.** CLI-only, doesn't appear in MCP tools-json.
 - **Content hash now covers all page fields.** Title, type, and frontmatter changes trigger re-import. First sync after upgrade will re-import all pages (one-time, expected).
-- **Migration file for v0.9.1.** Auto-update agent knows to expect the full re-import and will run `gbrain embed --all` afterward.
+- **Migration file for v0.9.1.** Auto-update agent knows to expect the full re-import and will run `pbrain embed --all` afterward.
 - **`pgcrypto` extension added to schema.** Fallback for `gen_random_uuid()` on Postgres < 13.
 
 ### Changed
@@ -153,12 +196,12 @@ All notable changes to GBrain will be documented in this file.
 
 ### Added
 
-- **Large files don't bloat your git repo anymore.** `gbrain files upload-raw`
+- **Large files don't bloat your git repo anymore.** `pbrain files upload-raw`
   auto-routes by size: text and PDFs under 100 MB stay in git, everything larger
   (or any media file) goes to Supabase Storage with a `.redirect.yaml` pointer
   left in the repo. Files over 100 MB use TUS resumable upload (6 MB chunks with
   retry and backoff) so a flaky connection doesn't lose a 2 GB video upload.
-  `gbrain files signed-url` generates 1-hour access links for private buckets.
+  `pbrain files signed-url` generates 1-hour access links for private buckets.
 
 - **The full file migration lifecycle works end to end.** `mirror` uploads to
   cloud and keeps local copies. `redirect` replaces local files with
@@ -180,7 +223,7 @@ All notable changes to GBrain will be documented in this file.
   data sources, validation rules, and bulk enrichment safety.
 
 - **Ingest handles everything.** Articles, videos, podcasts, PDFs, screenshots,
-  meeting transcripts, social media. Each with a workflow that uses real gbrain
+  meeting transcripts, social media. Each with a workflow that uses real pbrain
   commands (`upload-raw`, `signed-url`) instead of theoretical patterns.
 
 - **Citation requirements across all skills.** Every fact needs inline
@@ -191,12 +234,12 @@ All notable changes to GBrain will be documented in this file.
 
 - **Voice calls don't crash on em dashes anymore.** Unicode sanitization for Twilio
   WebSocket, PII scrub, identity-first prompt, DIY STT+LLM+TTS pipeline option,
-  Smart VAD default, auto-upload call audio via `gbrain files upload-raw`.
+  Smart VAD default, auto-upload call audio via `pbrain files upload-raw`.
 
 - **X-to-Brain gets eyes.** Image OCR, Filtered Stream real-time monitoring,
   6-dimension tweet rating rubric, outbound tweet monitoring, cron staggering.
 
-- **Share brain pages without exposing the brain.** `gbrain publish` generates
+- **Share brain pages without exposing the brain.** `pbrain publish` generates
   beautiful, self-contained HTML from any brain page. Strips private data
   (frontmatter, citations, confirmations, brain links, timeline) automatically.
   Optional AES-256-GCM password gate with client-side decryption, no server
@@ -215,18 +258,18 @@ All notable changes to GBrain will be documented in this file.
 - **Redirect format** upgraded from `.redirect` (5 fields) to `.redirect.yaml`
   (10 fields: target, bucket, storage_path, size, size_human, hash, mime,
   uploaded, source_url, type).
-- **All skills** updated to reference actual `gbrain files` commands instead of
+- **All skills** updated to reference actual `pbrain files` commands instead of
   theoretical patterns.
-- **Back-link enforcer closes the loop.** `gbrain check-backlinks check` scans your
-  brain for entity mentions without back-links. `gbrain check-backlinks fix` creates
+- **Back-link enforcer closes the loop.** `pbrain check-backlinks check` scans your
+  brain for entity mentions without back-links. `pbrain check-backlinks fix` creates
   them. The Iron Law of Back-Linking is in every skill, now the code enforces it.
 
-- **Page linter catches LLM slop.** `gbrain lint` flags "Of course! Here is..."
+- **Page linter catches LLM slop.** `pbrain lint` flags "Of course! Here is..."
   preambles, wrapping code fences, placeholder dates, missing frontmatter, broken
-  citations, and empty sections. `gbrain lint --fix` auto-strips the fixable ones.
+  citations, and empty sections. `pbrain lint --fix` auto-strips the fixable ones.
   Every brain that uses AI for ingestion accumulates this. Now it's one command.
 
-- **Audit trail for everything.** `gbrain report --type enrichment-sweep` saves
+- **Audit trail for everything.** `pbrain report --type enrichment-sweep` saves
   timestamped reports to `brain/reports/{type}/YYYY-MM-DD-HHMM.md`. The maintain
   skill references this for enrichment sweeps, meeting syncs, and maintenance runs.
 
@@ -250,21 +293,21 @@ All notable changes to GBrain will be documented in this file.
 
 ### Removed
 
-- **Supabase Edge Function MCP deployment.** `scripts/deploy-remote.sh`, `supabase/functions/gbrain-mcp/`, `src/edge-entry.ts`, `.env.production.example`, `docs/mcp/CHATGPT.md` all removed. The Edge Function never worked reliably. Self-hosted + ngrok is the path.
+- **Supabase Edge Function MCP deployment.** `scripts/deploy-remote.sh`, `supabase/functions/pbrain-mcp/`, `src/edge-entry.ts`, `.env.production.example`, `docs/mcp/CHATGPT.md` all removed. The Edge Function never worked reliably. Self-hosted + ngrok is the path.
 
 ## [0.7.0] - 2026-04-11
 
 ### Added
 
-- **Your brain now runs locally with zero infrastructure.** PGLite (Postgres 17.5 compiled to WASM) gives you the exact same search quality as Supabase, same pgvector HNSW, same pg_trgm fuzzy matching, same tsvector full-text search. No server, no subscription, no API keys needed for keyword search. `gbrain init` and you're running in 2 seconds.
-- **Smart init defaults to local.** `gbrain init` now creates a PGLite brain by default. If your repo has 1000+ markdown files, it suggests Supabase for scale. `--supabase` and `--pglite` flags let you choose explicitly.
-- **Migrate between engines anytime.** `gbrain migrate --to supabase` transfers your entire brain (pages, chunks, embeddings, tags, links, timeline) to remote Postgres with manifest-based resume. `gbrain migrate --to pglite` goes the other way. Embeddings copy directly, no re-embedding needed.
+- **Your brain now runs locally with zero infrastructure.** PGLite (Postgres 17.5 compiled to WASM) gives you the exact same search quality as Supabase, same pgvector HNSW, same pg_trgm fuzzy matching, same tsvector full-text search. No server, no subscription, no API keys needed for keyword search. `pbrain init` and you're running in 2 seconds.
+- **Smart init defaults to local.** `pbrain init` now creates a PGLite brain by default. If your repo has 1000+ markdown files, it suggests Supabase for scale. `--supabase` and `--pglite` flags let you choose explicitly.
+- **Migrate between engines anytime.** `pbrain migrate --to supabase` transfers your entire brain (pages, chunks, embeddings, tags, links, timeline) to remote Postgres with manifest-based resume. `pbrain migrate --to pglite` goes the other way. Embeddings copy directly, no re-embedding needed.
 - **Pluggable engine factory.** `createEngine()` dynamically loads the right engine from config. PGLite WASM is never loaded for Postgres users.
 - **Search works without OpenAI.** `hybridSearch` now checks for `OPENAI_API_KEY` before attempting embeddings. No key = keyword-only search. No more crashes when you just want to search your local brain.
-- **Your brain gets new senses automatically.** Integration recipes teach your agent how to wire up voice calls, email, Twitter, and calendar into your brain. Run `gbrain integrations` to see what's available. Your agent reads the recipe, asks for API keys, validates each one, and sets everything up. Markdown is code -- the recipe IS the installer.
+- **Your brain gets new senses automatically.** Integration recipes teach your agent how to wire up voice calls, email, Twitter, and calendar into your brain. Run `pbrain integrations` to see what's available. Your agent reads the recipe, asks for API keys, validates each one, and sets everything up. Markdown is code -- the recipe IS the installer.
 - **Voice-to-brain: phone calls create brain pages.** The first recipe: Twilio + OpenAI Realtime voice agent. Call a number, talk, and a structured brain page appears with entity detection, cross-references, and a summary posted to your messaging app. Opinionated defaults: caller screening, brain-first lookup, quiet hours, thinking sounds. The smoke test calls YOU (outbound) so you experience the magic immediately.
-- **`gbrain integrations` command.** Six subcommands for managing integration recipes: `list` (dashboard of senses + reflexes), `show` (recipe details), `status` (credential checks with direct links to get missing keys), `doctor` (health checks), `stats` (signal analytics), `test` (recipe validation). `--json` on every subcommand for agent-parseable output. No database connection needed.
-- **Health heartbeat.** Integrations log events to `~/.gbrain/integrations/<id>/heartbeat.jsonl`. Status checks detect stale integrations and include diagnostic steps.
+- **`pbrain integrations` command.** Six subcommands for managing integration recipes: `list` (dashboard of senses + reflexes), `show` (recipe details), `status` (credential checks with direct links to get missing keys), `doctor` (health checks), `stats` (signal analytics), `test` (recipe validation). `--json` on every subcommand for agent-parseable output. No database connection needed.
+- **Health heartbeat.** Integrations log events to `~/.pbrain/integrations/<id>/heartbeat.jsonl`. Status checks detect stale integrations and include diagnostic steps.
 - **17 individually linkable SKILLPACK guides.** The 1,281-line monolith is now broken into standalone guides at `docs/guides/`, organized by category. Each guide is individually searchable and linkable. The SKILLPACK index stays at the same URL (backward compatible).
 - **"Getting Data In" documentation.** New `docs/integrations/` with a landing page, recipe format documentation, credential gateway guide, and meeting webhook guide. Explains the deterministic collector pattern: code for data, LLMs for judgment.
 - **Architecture and philosophy docs.** `docs/architecture/infra-layer.md` documents the shared foundation (import, chunk, embed, search). `docs/ethos/THIN_HARNESS_FAT_SKILLS.md` is Garry's essay on the architecture philosophy with an agent decision guide. `docs/designs/HOMEBREW_FOR_PERSONAL_AI.md` maps the 10-star vision.
@@ -282,8 +325,8 @@ All notable changes to GBrain will be documented in this file.
 
 - **Import no longer silently drops files with "..." in the name.** The path traversal check rejected any filename containing two consecutive dots, killing 1.2% of files in real-world corpora (YouTube transcripts, TED talks, podcast titles). Now only rejects actual traversal patterns like `../`. Community fix wave, 8 contributors.
 - **Import no longer crashes on JavaScript/TypeScript projects.** The file walker crashed on `node_modules` directories and broken symlinks. Now skips `node_modules` and handles broken symlinks gracefully with a warning.
-- **`gbrain init` exits cleanly after setup.** Previously hung forever because stdin stayed open. Now pauses stdin after reading input.
-- **pgvector extension auto-created during init.** No more copy-pasting SQL into the Supabase editor. `gbrain init` now runs `CREATE EXTENSION IF NOT EXISTS vector` automatically, with a clear fallback message if it can't.
+- **`pbrain init` exits cleanly after setup.** Previously hung forever because stdin stayed open. Now pauses stdin after reading input.
+- **pgvector extension auto-created during init.** No more copy-pasting SQL into the Supabase editor. `pbrain init` now runs `CREATE EXTENSION IF NOT EXISTS vector` automatically, with a clear fallback message if it can't.
 - **Supabase connection string hint matches current dashboard UI.** Updated navigation path to match the 2026 Supabase dashboard layout.
 - **Hermes Agent link fixed in README.** Pointed to the correct NousResearch GitHub repo.
 
@@ -298,7 +341,7 @@ All notable changes to GBrain will be documented in this file.
 
 ### Contributors
 
-Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain better:
+Thank you to everyone who reported bugs, submitted fixes, and helped make PBrain better:
 
 - **@orendi84** — slug validator ellipsis fix (PR #31)
 - **@mattbratos** — import walker resilience + MDX support (PRs #26, #27)
@@ -313,7 +356,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Added
 
-- **Access your brain from any AI client.** Deploy GBrain as a serverless remote MCP endpoint on your existing Supabase instance. Works with Claude Desktop, Claude Code, Cowork, and Perplexity Computer. One URL, bearer token auth, zero new infrastructure. Clone the repo, fill in 3 env vars, run `scripts/deploy-remote.sh`, done.
+- **Access your brain from any AI client.** Deploy PBrain as a serverless remote MCP endpoint on your existing Supabase instance. Works with Claude Desktop, Claude Code, Cowork, and Perplexity Computer. One URL, bearer token auth, zero new infrastructure. Clone the repo, fill in 3 env vars, run `scripts/deploy-remote.sh`, done.
 - **Per-client setup guides** in `docs/mcp/` for Claude Code, Claude Desktop, Cowork, Perplexity, and ChatGPT (coming soon, requires OAuth 2.1). Also documents Tailscale Funnel and ngrok as self-hosted alternatives.
 - **Token management** via standalone `src/commands/auth.ts`. Create, list, revoke per-client bearer tokens. Includes smoke test: `auth.ts test <url> --token <token>` verifies the full pipeline (initialize + tools/list + get_stats) in 3 seconds.
 - **Usage logging** via `mcp_request_log` table. Every remote tool call logs token name, operation, latency, and status for debugging and security auditing.
@@ -321,7 +364,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Fixed
 
-- **MCP server actually connects now.** Handler registration used string literals (`'tools/list' as any`) instead of SDK typed schemas. Replaced with `ListToolsRequestSchema` and `CallToolRequestSchema`. Without this fix, `gbrain serve` silently failed to register handlers. (Issue #9)
+- **MCP server actually connects now.** Handler registration used string literals (`'tools/list' as any`) instead of SDK typed schemas. Replaced with `ListToolsRequestSchema` and `CallToolRequestSchema`. Without this fix, `pbrain serve` silently failed to register handlers. (Issue #9)
 - **Search results no longer flooded by one large page.** Keyword search returned ALL chunks from matching pages. Now returns one best chunk per page via `DISTINCT ON`. (Issue #22)
 - **Search dedup no longer collapses to one chunk per page.** Layer 1 kept only the single highest-scoring chunk per slug. Now keeps top 3, letting later dedup layers (text similarity, cap per page) do their job. (Issue #22)
 - **Transactions no longer corrupt shared state.** Both `PostgresEngine.transaction()` and `db.withTransaction()` swapped the shared connection reference, breaking under concurrent use. Now uses scoped engine via `Object.create` with no shared state mutation. (Issue #22)
@@ -332,7 +375,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 - **S3 storage backend authenticates requests.** `signedFetch()` was just unsigned `fetch()`. Replaced with `@aws-sdk/client-s3` for proper SigV4 signing. Supports R2/MinIO via `forcePathStyle`. (Issue #22)
 - **Parallel import uses thread-safe queue.** `queue.shift()` had race conditions under parallel workers. Now uses an atomic index counter. Checkpoint preserved on errors for safe resume. (Issue #22)
 - **redirect verifies remote existence before deleting local files.** Previously deleted local files unconditionally. Now checks storage backend before removing. (Issue #22)
-- **`gbrain call` respects dry_run.** `handleToolCall()` hardcoded `dryRun: false`. Now reads from params. (Issue #22)
+- **`pbrain call` respects dry_run.** `handleToolCall()` hardcoded `dryRun: false`. Now reads from params. (Issue #22)
 
 ### Changed
 
@@ -353,8 +396,8 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 ### Added
 
 - **Your brain never falls behind.** Live sync keeps the vector DB current with your brain repo automatically. Set up a cron, use `--watch`, hook into GitHub webhooks, or use git hooks. Your agent picks whatever fits its environment. Edit a markdown file, push, and within minutes it's searchable. No more stale embeddings serving wrong answers.
-- **Know your install actually works.** New verification runbook (`docs/GBRAIN_VERIFY.md`) catches the silent failures that used to go unnoticed: the pooler bug that skips pages, missing embeddings, stale sync. The real test: push a correction, wait, search for it. If the old text comes back, sync is broken and the runbook tells you exactly why.
-- **New installs set up live sync automatically.** The setup skill now includes live sync (Phase H) and full verification (Phase I) as mandatory steps. Agents that install GBrain will configure automatic sync and verify it works before declaring setup complete.
+- **Know your install actually works.** New verification runbook (`docs/PBRAIN_VERIFY.md`) catches the silent failures that used to go unnoticed: the pooler bug that skips pages, missing embeddings, stale sync. The real test: push a correction, wait, search for it. If the old text comes back, sync is broken and the runbook tells you exactly why.
+- **New installs set up live sync automatically.** The setup skill now includes live sync (Phase H) and full verification (Phase I) as mandatory steps. Agents that install PBrain will configure automatic sync and verify it works before declaring setup complete.
 - **Fixes the silent page-skip bug.** If your Supabase connection uses the Transaction mode pooler, sync silently skips most pages. The new docs call this out as a hard prerequisite with a clear fix (switch to Session mode). The verification runbook catches it by comparing page count against file count.
 
 ## [0.4.2] - 2026-04-10
@@ -376,12 +419,12 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Added
 
-- `gbrain check-update` command with `--json` output. Checks GitHub Releases for new versions, compares semver (minor+ only, skips patches), fetches and parses changelog diffs. Fail-silent on network errors.
+- `pbrain check-update` command with `--json` output. Checks GitHub Releases for new versions, compares semver (minor+ only, skips patches), fetches and parses changelog diffs. Fail-silent on network errors.
 - SKILLPACK Section 17: Auto-Update Notifications. Full agent playbook for the update lifecycle: check, notify, consent, upgrade, skills refresh, schema sync, report. Never auto-upgrades without user permission.
-- Standalone SKILLPACK self-update for users who load the skillpack directly without the gbrain CLI. Version markers in SKILLPACK and RECOMMENDED_SCHEMA headers, with raw GitHub URL fetching.
+- Standalone SKILLPACK self-update for users who load the skillpack directly without the pbrain CLI. Version markers in SKILLPACK and RECOMMENDED_SCHEMA headers, with raw GitHub URL fetching.
 - Step 7 in the OpenClaw install paste: daily update checks, default-on. User opts into being notified about updates, not into automatic installs.
 - Setup skill Phase G: conditional auto-update offer for manual install users.
-- Schema state tracking via `~/.gbrain/update-state.json`. Tracks which recommended schema directories the user adopted, declined, or added custom. Future upgrades suggest new additions without re-suggesting declined items.
+- Schema state tracking via `~/.pbrain/update-state.json`. Tracks which recommended schema directories the user adopted, declined, or added custom. Future upgrades suggest new additions without re-suggesting declined items.
 - `skills/migrations/` directory convention for version-specific post-upgrade agent directives.
 - 20 unit tests and 5 E2E tests for the check-update command, covering version comparison, changelog extraction, CLI wiring, and real GitHub API interaction.
 - E2E test DB lifecycle documentation in CLAUDE.md: spin up, run tests, tear down. No orphaned containers.
@@ -398,14 +441,14 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Added
 
-- `gbrain doctor` command with `--json` output. Checks pgvector extension, RLS policies, schema version, embedding coverage, and connection health. Agents can self-diagnose issues.
-- Pluggable storage backends: S3, Supabase Storage, and local filesystem. Choose where binary files live independently of the database. Configured via `gbrain init` or environment variables.
+- `pbrain doctor` command with `--json` output. Checks pgvector extension, RLS policies, schema version, embedding coverage, and connection health. Agents can self-diagnose issues.
+- Pluggable storage backends: S3, Supabase Storage, and local filesystem. Choose where binary files live independently of the database. Configured via `pbrain init` or environment variables.
 - Parallel import with per-worker engine instances. Large brain imports now use multiple database connections concurrently instead of a single serial pipeline.
-- Import resume checkpoints. If `gbrain import` is interrupted, it picks up where it left off instead of re-importing everything.
-- Automatic schema migration runner. On connect, gbrain detects the current schema version and applies any pending migrations without manual intervention.
+- Import resume checkpoints. If `pbrain import` is interrupted, it picks up where it left off instead of re-importing everything.
+- Automatic schema migration runner. On connect, pbrain detects the current schema version and applies any pending migrations without manual intervention.
 - Row-Level Security (RLS) enabled on all tables with `BYPASSRLS` safety check. Every query goes through RLS policies.
-- `--json` flag on `gbrain init` and `gbrain import` for machine-readable output. Agents can parse structured results instead of scraping CLI text.
-- File migration CLI (`gbrain files migrate`) for moving files between storage backends. Two-way-door: test with `--dry-run`, migrate incrementally.
+- `--json` flag on `pbrain init` and `pbrain import` for machine-readable output. Agents can parse structured results instead of scraping CLI text.
+- File migration CLI (`pbrain files migrate`) for moving files between storage backends. Two-way-door: test with `--dry-run`, migrate incrementally.
 - Bulk chunk INSERT for faster page writes. Chunks are inserted in a single statement instead of one-at-a-time.
 - Supabase smart URL parsing: automatically detects and converts IPv6-only pooler URLs to the correct connection format.
 - 56 new unit tests covering doctor, storage backends, file migration, import resume, slug validation, setup branching, Supabase admin, and YAML parsing. Test suite grew from 9 to 19 test files.
@@ -415,7 +458,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 - `validateSlug` now accepts any filename characters (spaces, unicode, special chars) instead of rejecting non-alphanumeric slugs. Apple Notes and other real-world filenames import cleanly.
 - Import resilience: files over 5MB are skipped with a warning instead of crashing the pipeline. Errors in individual files no longer abort the entire import.
-- `gbrain init` detects IPv6-only Supabase URLs and adds the required `pgvector` check during setup.
+- `pbrain init` detects IPv6-only Supabase URLs and adds the required `pgvector` check during setup.
 - E2E test fixture counts, CLI argument parsing, and doctor exit codes cleaned up.
 
 ### Changed
@@ -437,8 +480,8 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 - 10 new operations wired up: `put_raw_data`, `get_raw_data`, `resolve_slugs`, `get_chunks`, `log_ingest`, `get_ingest_log`, `file_list`, `file_upload`, `file_url`.
 - OpenClaw bundle plugin manifest (`openclaw.plugin.json`) with config schema, MCP server config, and skill listing.
 - GitHub Actions CI: test on push/PR, multi-platform release builds (macOS arm64 + Linux x64) on version tags.
-- `gbrain init --non-interactive` flag for plugin mode (accepts config via flags/env vars, no TTY required).
-- Post-upgrade version verification in `gbrain upgrade`.
+- `pbrain init --non-interactive` flag for plugin mode (accepts config via flags/env vars, no TTY required).
+- Post-upgrade version verification in `pbrain upgrade`.
 - Parity test (`test/parity.test.ts`) verifies structural contract between operations, CLI, and MCP.
 - New `setup` skill replacing `install`: auto-provision Supabase via CLI, AGENTS.md injection, target TTHW < 2 min.
 - E2E test suite against real Postgres+pgvector. 13 realistic fixtures (miniature brain with people, companies, deals, meetings, concepts), 14 test suites covering all operations, search quality benchmarks, idempotency stress tests, schema validation, and full setup journey verification.
@@ -457,7 +500,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 - `tools-json` output now generated FROM operations[]. Third contract surface eliminated.
 - All 7 skills rewritten with tool-agnostic language. Works with both CLI and MCP plugin contexts.
 - File schema: `storage_url` column dropped, `storage_path` is the only identifier. URLs generated on demand via `file_url` operation.
-- Config loading: env vars (`GBRAIN_DATABASE_URL`, `DATABASE_URL`, `OPENAI_API_KEY`) override config file values. Plugin config injected via env vars.
+- Config loading: env vars (`PBRAIN_DATABASE_URL`, `DATABASE_URL`, `OPENAI_API_KEY`) override config file values. Plugin config injected via env vars.
 
 ### Removed
 
@@ -474,7 +517,7 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Added
 
-- Recommended brain schema doc (`docs/GBRAIN_RECOMMENDED_SCHEMA.md`): full MECE directory structure, compiled truth + timeline pages, enrichment pipeline, resolver decision tree, skill architecture, and cron job recommendations. The OpenClaw paste now links to this as step 5.
+- Recommended brain schema doc (`docs/PBRAIN_RECOMMENDED_SCHEMA.md`): full MECE directory structure, compiled truth + timeline pages, enrichment pipeline, resolver decision tree, skill architecture, and cron job recommendations. The OpenClaw paste now links to this as step 5.
 
 ### Changed
 
@@ -485,13 +528,13 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 
 ### Added
 
-- You can now keep your brain current with `gbrain sync`, which uses git's own diff machinery to process only what changed. No more 30-second full directory walks when 3 files changed.
-- Watch mode (`gbrain sync --watch`) polls for changes and syncs automatically. Set it and forget it.
-- Binary file management with `gbrain files` commands (list, upload, sync, verify). Store images, PDFs, and audio in Supabase Storage instead of clogging your git repo.
+- You can now keep your brain current with `pbrain sync`, which uses git's own diff machinery to process only what changed. No more 30-second full directory walks when 3 files changed.
+- Watch mode (`pbrain sync --watch`) polls for changes and syncs automatically. Set it and forget it.
+- Binary file management with `pbrain files` commands (list, upload, sync, verify). Store images, PDFs, and audio in Supabase Storage instead of clogging your git repo.
 - Install skill (`skills/install/SKILL.md`) that walks you through setup from scratch, including Supabase CLI magic path for zero-copy-paste onboarding.
-- Import and sync now share a checkpoint. Run `gbrain import`, then `gbrain sync`, and it picks up right where import left off. Zero gap.
+- Import and sync now share a checkpoint. Run `pbrain import`, then `pbrain sync`, and it picks up right where import left off. Zero gap.
 - Tag reconciliation on reimport. If you remove a tag from your markdown, it actually gets removed from the database now.
-- `gbrain config show` redacts database passwords so you can safely share your config.
+- `pbrain config show` redacts database passwords so you can safely share your config.
 - `updateSlug` engine method preserves page identity (page_id, chunks, embeddings) across renames. Zero re-embedding cost.
 - `sync_brain` MCP tool returns structured results so agents know exactly what changed.
 - 20 new sync tests (39 total across 3 test files)
@@ -518,4 +561,4 @@ Thank you to everyone who reported bugs, submitted fixes, and helped make GBrain
 - Slug validation to prevent path traversal on export
 - 6 fat markdown skills: ingest, query, maintain, enrich, briefing, migrate
 - ClawHub manifest for skill distribution
-- Full design docs: GBRAIN_V0 spec, pluggable engine architecture, SQLite engine plan
+- Full design docs: PBRAIN_V0 spec, pluggable engine architecture, SQLite engine plan

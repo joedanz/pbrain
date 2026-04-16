@@ -1,8 +1,8 @@
 /**
  * StorageBackend — pluggable interface for binary file storage.
  *
- * GBrain is agnostic about where files live. The setup skill picks
- * the backend (Supabase Storage or S3/R2/MinIO), gbrain doesn't care.
+ * PBrain is agnostic about where files live. The setup skill picks
+ * the backend (Supabase Storage or S3/R2/MinIO), pbrain doesn't care.
  */
 
 export interface StorageBackend {
@@ -44,7 +44,7 @@ export async function createStorage(config: StorageConfig): Promise<StorageBacke
     }
     case 'local': {
       const { LocalStorage } = await import('./storage/local.ts');
-      return new LocalStorage(config.localPath || '/tmp/gbrain-storage');
+      return new LocalStorage(config.localPath || '/tmp/pbrain-storage');
     }
     default:
       throw new Error(`Unknown storage backend: ${config.backend}`);

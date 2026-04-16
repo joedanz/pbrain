@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { collectMarkdownFiles } from '../src/commands/import.ts';
 
-// These tests exercise the filesystem walker that feeds `gbrain import`.
+// These tests exercise the filesystem walker that feeds `pbrain import`.
 // They target L002 (report/findings.md): a malicious symlink inside a shared
 // brain directory must not cause the walker to read files outside the brain
 // root. See src/commands/import.ts:collectMarkdownFiles.
@@ -15,8 +15,8 @@ describe('collectMarkdownFiles — symlink containment', () => {
 
   beforeEach(() => {
     // Fresh directories per test so symlinks can't cross-contaminate runs.
-    root = mkdtempSync(join(tmpdir(), 'gbrain-walker-root-'));
-    secretDir = mkdtempSync(join(tmpdir(), 'gbrain-walker-secret-'));
+    root = mkdtempSync(join(tmpdir(), 'pbrain-walker-root-'));
+    secretDir = mkdtempSync(join(tmpdir(), 'pbrain-walker-secret-'));
   });
 
   afterEach(() => {

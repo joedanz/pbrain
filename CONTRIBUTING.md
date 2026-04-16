@@ -1,10 +1,10 @@
-# Contributing to GBrain
+# Contributing to PBrain
 
 ## Setup
 
 ```bash
-git clone https://github.com/garrytan/gbrain.git
-cd gbrain
+git clone https://github.com/joedanz/pbrain.git
+cd pbrain
 bun install
 bun test
 ```
@@ -57,7 +57,7 @@ bun test test/markdown.test.ts    # specific unit test
 
 # E2E tests (requires Postgres with pgvector)
 docker compose -f docker-compose.test.yml up -d
-DATABASE_URL=postgresql://postgres:postgres@localhost:5434/gbrain_test bun run test:e2e
+DATABASE_URL=postgresql://postgres:postgres@localhost:5434/pbrain_test bun run test:e2e
 
 # Or use your own Postgres / Supabase
 DATABASE_URL=postgresql://... bun run test:e2e
@@ -66,12 +66,12 @@ DATABASE_URL=postgresql://... bun run test:e2e
 ## Building
 
 ```bash
-bun build --compile --outfile bin/gbrain src/cli.ts
+bun build --compile --outfile bin/pbrain src/cli.ts
 ```
 
 ## Adding a new operation
 
-GBrain uses a contract-first architecture. Add your operation to one file and it
+PBrain uses a contract-first architecture. Add your operation to one file and it
 automatically appears in the CLI, MCP server, and tools-json:
 
 1. Add your operation to `src/core/operations.ts` (define params, handler, cliHints)

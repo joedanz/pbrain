@@ -1,6 +1,6 @@
 # Remote MCP Deployment Options
 
-GBrain's MCP server runs via `gbrain serve` (stdio transport). To make it
+PBrain's MCP server runs via `pbrain serve` (stdio transport). To make it
 accessible from other devices and AI clients, you need an HTTP wrapper and
 a public tunnel. Here are your options.
 
@@ -59,6 +59,6 @@ Both run Bun natively. No bundling, no Deno, no cold start, no timeout limits.
 | All 30 operations | Yes | Yes | Yes |
 | Setup time | 5 min | 10 min | 15 min |
 
-**Note:** `gbrain serve --http` (built-in HTTP transport) is planned but not yet
-implemented. Currently, remote MCP requires a custom HTTP wrapper around `gbrain serve`.
+**Note:** `pbrain serve --http` (built-in HTTP transport) is planned but not yet
+implemented. Currently, remote MCP requires a custom HTTP wrapper around `pbrain serve`.
 See [DEPLOY.md](DEPLOY.md) for details.

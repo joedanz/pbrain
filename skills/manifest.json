@@ -1,5 +1,5 @@
 {
-  "name": "gbrain",
+  "name": "pbrain",
   "version": "0.10.0",
   "conformance_version": "1.0.0",
   "description": "Personal knowledge brain with hybrid RAG search — GStack mod for agent platforms",
@@ -37,7 +37,7 @@
     {
       "name": "setup",
       "path": "setup/SKILL.md",
-      "description": "Set up GBrain: auto-provision Supabase or PGLite, AGENTS.md injection, first import"
+      "description": "Set up PBrain: auto-provision Supabase or PGLite, AGENTS.md injection, first import"
     },
     {
       "name": "publish",
@@ -132,11 +132,11 @@
   ],
   "dependencies": {
     "runtime": "bun",
-    "package": "gbrain"
+    "package": "pbrain"
   },
   "setup": {
     "skill": "setup",
-    "description": "Auto-provision Supabase or PGLite and configure GBrain (< 2 min)"
+    "description": "Auto-provision Supabase or PGLite and configure PBrain (< 2 min)"
   },
   "recipes_dir": "recipes/",
   "resolver": "RESOLVER.md",

@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { acquireLock, releaseLock, type LockHandle } from '../src/core/pglite-lock';
 
-const TEST_DIR = join(tmpdir(), 'gbrain-lock-test-' + process.pid);
+const TEST_DIR = join(tmpdir(), 'pbrain-lock-test-' + process.pid);
 
 describe('pglite-lock', () => {
   beforeEach(() => {
@@ -20,10 +20,10 @@ describe('pglite-lock', () => {
   test('acquires and releases lock', async () => {
     const lock = await acquireLock(TEST_DIR);
     expect(lock.acquired).toBe(true);
-    expect(existsSync(join(TEST_DIR, '.gbrain-lock'))).toBe(true);
+    expect(existsSync(join(TEST_DIR, '.pbrain-lock'))).toBe(true);
 
     await releaseLock(lock);
-    expect(existsSync(join(TEST_DIR, '.gbrain-lock'))).toBe(false);
+    expect(existsSync(join(TEST_DIR, '.pbrain-lock'))).toBe(false);
   });
 
   test('creates missing data directory before acquiring lock', async () => {
@@ -32,10 +32,10 @@ describe('pglite-lock', () => {
     const lock = await acquireLock(missingDataDir);
     expect(lock.acquired).toBe(true);
     expect(existsSync(missingDataDir)).toBe(true);
-    expect(existsSync(join(missingDataDir, '.gbrain-lock'))).toBe(true);
+    expect(existsSync(join(missingDataDir, '.pbrain-lock'))).toBe(true);
 
     await releaseLock(lock);
-    expect(existsSync(join(missingDataDir, '.gbrain-lock'))).toBe(false);
+    expect(existsSync(join(missingDataDir, '.pbrain-lock'))).toBe(false);
   });
 
   test('prevents concurrent lock acquisition', async () => {
@@ -50,7 +50,7 @@ describe('pglite-lock', () => {
 
   test('detects and cleans stale lock from dead process', async () => {
     // Simulate a stale lock from a dead process
-    const lockDir = join(TEST_DIR, '.gbrain-lock');
+    const lockDir = join(TEST_DIR, '.pbrain-lock');
     mkdirSync(lockDir);
     writeFileSync(join(lockDir, 'lock'), JSON.stringify({
       pid: 999999999, // Non-existent PID
@@ -76,7 +76,7 @@ describe('pglite-lock', () => {
 
   test('lock file contains PID and command', async () => {
     const lock = await acquireLock(TEST_DIR);
-    const lockData = JSON.parse(readFileSync(join(TEST_DIR, '.gbrain-lock', 'lock'), 'utf-8'));
+    const lockData = JSON.parse(readFileSync(join(TEST_DIR, '.pbrain-lock', 'lock'), 'utf-8'));
 
     expect(lockData.pid).toBe(process.pid);
     expect(lockData.acquired_at).toBeDefined();
@@ -91,7 +91,7 @@ describe('pglite-lock', () => {
 
     // Simulate DB already closed
     await releaseLock(lock);
-    expect(existsSync(join(TEST_DIR, '.gbrain-lock'))).toBe(false);
+    expect(existsSync(join(TEST_DIR, '.pbrain-lock'))).toBe(false);
 
     // Second acquisition should work
     const lock2 = await acquireLock(TEST_DIR);

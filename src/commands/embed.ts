@@ -23,7 +23,7 @@ export async function runEmbed(engine: BrainEngine, args: string[]) {
     if (slug) {
       await embedPage(engine, slug);
     } else {
-      console.error('Usage: gbrain embed [<slug>|--all|--stale|--slugs s1 s2 ...]');
+      console.error('Usage: pbrain embed [<slug>|--all|--stale|--slugs s1 s2 ...]');
       process.exit(1);
     }
   }
@@ -93,8 +93,8 @@ async function embedAll(engine: BrainEngine, staleOnly: boolean) {
   // Default 20: keeps us well under OpenAI's embedding RPM limit
   // (3000+/min for tier 1 = 50+/sec, 20 parallel is safely below) and
   // avoids overwhelming postgres connection pools. Users can tune via
-  // GBRAIN_EMBED_CONCURRENCY env var based on their tier/infra.
-  const CONCURRENCY = parseInt(process.env.GBRAIN_EMBED_CONCURRENCY || '20', 10);
+  // PBRAIN_EMBED_CONCURRENCY env var based on their tier/infra.
+  const CONCURRENCY = parseInt(process.env.PBRAIN_EMBED_CONCURRENCY || '20', 10);
 
   async function embedOnePage(page: typeof pages[number]) {
     const chunks = await engine.getChunks(page.slug);

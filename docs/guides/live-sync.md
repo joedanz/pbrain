@@ -7,7 +7,7 @@ Every markdown change in the brain repo is searchable within minutes, automatica
 ## What the User Gets
 
 Without this: you correct a hallucination in a brain page, but the vector DB
-keeps serving the old text because nobody ran `gbrain sync`. Stale search
+keeps serving the old text because nobody ran `pbrain sync`. Stale search
 results erode trust. The brain becomes unreliable.
 
 With this: edits show up in search within minutes. The vector DB stays current
@@ -23,8 +23,8 @@ function` and **silently skip most pages**. This is the number one cause of
 "sync ran but nothing happened."
 
 Fix: use the **Session mode** pooler string (port 6543, Session mode) or the
-direct connection (port 5432, IPv6-only). Verify by running `gbrain sync` and
-checking that the page count in `gbrain stats` matches the syncable file count
+direct connection (port 5432, IPv6-only). Verify by running `pbrain sync` and
+checking that the page count in `pbrain stats` matches the syncable file count
 in the repo.
 
 ### The Primitives
@@ -32,15 +32,15 @@ in the repo.
 Always chain sync + embed:
 
 ```bash
-gbrain sync --repo /path/to/brain && gbrain embed --stale
+pbrain sync --repo /path/to/brain && pbrain embed --stale
 ```
 
-- `gbrain sync --repo <path>` -- one-shot incremental sync. Detects changes via
+- `pbrain sync --repo <path>` -- one-shot incremental sync. Detects changes via
   `git diff`, imports only what changed. For small changesets (<= 100 files),
   embeddings are generated inline during import.
-- `gbrain embed --stale` -- backfill embeddings for any chunks that don't have
+- `pbrain embed --stale` -- backfill embeddings for any chunks that don't have
   them. Safety net for large syncs (>100 files) or prior `--no-embed` runs.
-- `gbrain sync --watch --repo <path>` -- foreground polling loop, every 60s
+- `pbrain sync --watch --repo <path>` -- foreground polling loop, every 60s
   (configurable with `--interval N`). Embeds inline for small changesets. Exits
   after 5 consecutive failures, so run under a process manager or pair with a
   cron fallback.
@@ -50,22 +50,22 @@ gbrain sync --repo /path/to/brain && gbrain embed --stale
 Run every 5-30 minutes. Works with any cron scheduler.
 
 ```bash
-gbrain sync --repo /data/brain && gbrain embed --stale
+pbrain sync --repo /data/brain && pbrain embed --stale
 ```
 
 **OpenClaw:**
 ```
-Name: gbrain-auto-sync
+Name: pbrain-auto-sync
 Schedule: */15 * * * *
-Prompt: "Run: gbrain sync --repo /data/brain && gbrain embed --stale
+Prompt: "Run: pbrain sync --repo /data/brain && pbrain embed --stale
   Log the result. If sync fails with .begin() is not a function,
   the DATABASE_URL is using Transaction mode pooler."
 ```
 
 **Hermes:**
 ```
-/cron add "*/15 * * * *" "Run gbrain sync --repo /data/brain &&
-  gbrain embed --stale. Log the result." --name "gbrain-auto-sync"
+/cron add "*/15 * * * *" "Run pbrain sync --repo /data/brain &&
+  pbrain embed --stale. Log the result." --name "pbrain-auto-sync"
 ```
 
 ### Approach 2: Long-Lived Watcher
@@ -75,7 +75,7 @@ auto-restarts on exit. Pair with a cron fallback since `--watch` exits
 on repeated failures.
 
 ```bash
-gbrain sync --watch --repo /data/brain
+pbrain sync --watch --repo /data/brain
 ```
 
 ### Approach 3: Git Hook / Webhook
@@ -83,7 +83,7 @@ gbrain sync --watch --repo /data/brain
 Triggers sync on push events for instant sync (<5s).
 
 - **GitHub webhook:** Set up the webhook to call
-  `gbrain sync --repo /data/brain && gbrain embed --stale`.
+  `pbrain sync --repo /data/brain && pbrain embed --stale`.
   Verify `X-Hub-Signature-256` against a shared secret.
 - **Git post-receive hook:** If the brain repo is on the same machine.
 
@@ -101,8 +101,8 @@ hashes match. If both a cron and `--watch` fire simultaneously, no conflict.
 
 ## Tricky Spots
 
-1. **Always chain sync + embed.** Running `gbrain sync` without
-   `gbrain embed --stale` leaves new chunks without embeddings. They exist
+1. **Always chain sync + embed.** Running `pbrain sync` without
+   `pbrain embed --stale` leaves new chunks without embeddings. They exist
    in the database but are invisible to vector search. Always run both
    commands together. The `&&` ensures embed only runs if sync succeeds.
 
@@ -120,19 +120,19 @@ hashes match. If both a cron and `--watch` fire simultaneously, no conflict.
 
 1. **Edit a file and search for the change.** Edit a brain markdown file,
    commit, and push. Wait for the next sync cycle (cron interval or `--watch`
-   poll). Run `gbrain search "<text from the edit>"`. The updated content
+   poll). Run `pbrain search "<text from the edit>"`. The updated content
    should appear in results. If it returns old content, sync failed.
 
-2. **Compare page count to file count.** Run `gbrain stats` and count the
+2. **Compare page count to file count.** Run `pbrain stats` and count the
    syncable markdown files in the brain repo. The page count in the database
    should match. If they diverge, files are being silently skipped (likely
    a Transaction mode pooler issue).
 
-3. **Check embedded chunk count.** In `gbrain stats`, the embedded chunk
+3. **Check embedded chunk count.** In `pbrain stats`, the embedded chunk
    count should be close to the total chunk count. A large gap means
-   `gbrain embed --stale` isn't running after sync, leaving chunks invisible
+   `pbrain embed --stale` isn't running after sync, leaving chunks invisible
    to vector search.
 
 ---
 
-*Part of the [GBrain Skillpack](../GBRAIN_SKILLPACK.md).*
+*Part of the [PBrain Skillpack](../PBRAIN_SKILLPACK.md).*

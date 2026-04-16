@@ -23,7 +23,7 @@ fixed. You wake up and the brain is smarter than when you went to sleep.
 | 3x/day (weekdays) | Meeting sync | Full ingestion + attendee propagation | [meeting-sync](../../recipes/meeting-sync.md) |
 | Weekly | Calendar sync | Daily files + attendee enrichment | [calendar-to-brain](../../recipes/calendar-to-brain.md) |
 | Daily AM | Morning briefing | Search calendar attendees, deal status, active threads | [briefing skill](../../skills/briefing/SKILL.md) |
-| Weekly | Brain maintenance | `gbrain doctor`, embed stale, orphan detection | [maintain skill](../../skills/maintain/SKILL.md) |
+| Weekly | Brain maintenance | `pbrain doctor`, embed stale, orphan detection | [maintain skill](../../skills/maintain/SKILL.md) |
 | Nightly | Dream cycle | Entity sweep, enrich thin spots, fix citations | See below |
 
 ## Implementation: Setting Up Cron Jobs
@@ -42,7 +42,7 @@ fixed. You wake up and the brain is smarter than when you went to sleep.
 0 10 * * 0 cd /path/to/calendar-sync && node calendar-sync.mjs --start $(date -v-7d +%Y-%m-%d) --end $(date +%Y-%m-%d)
 
 # Brain health — weekly Mondays at 6 AM
-0 6 * * 1 gbrain doctor --json >> /tmp/gbrain-health.log 2>&1 && gbrain embed --stale
+0 6 * * 1 pbrain doctor --json >> /tmp/pbrain-health.log 2>&1 && pbrain embed --stale
 
 # Dream cycle — nightly at 2 AM
 0 2 * * * /path/to/dream-cycle.sh
@@ -74,7 +74,7 @@ infer your current location and timezone. All times shown in YOUR local timezone
 // Hold the notification, fold into morning briefing
 
 get_user_timezone():
-  calendar = gbrain search "flight" --type calendar --recent 7d
+  calendar = pbrain search "flight" --type calendar --recent 7d
   if recent_flight:
     return infer_timezone(flight.destination)
   return config.default_timezone  // fallback: US/Pacific
@@ -97,7 +97,7 @@ dream_cycle():
   for message in conversations:
     entities = detect_entities(message)
     for entity in entities:
-      page = gbrain search "{entity.name}"
+      page = pbrain search "{entity.name}"
       if not page:
         create_page(entity)        // new entity, create + enrich
       elif page.is_thin():
@@ -106,7 +106,7 @@ dream_cycle():
         update_timeline(entity)    // existing page, add today's mentions
 
   // Phase 2: Fix Broken Citations
-  pages = gbrain list --type person --limit 100
+  pages = pbrain list --type person --limit 100
   for page in pages:
     for entry in page.timeline:
       if not entry.has_source_attribution():
@@ -120,8 +120,8 @@ dream_cycle():
     promote_to_memory(pattern)     // ephemeral → durable knowledge
 
   // Phase 4: Sync
-  gbrain sync --no-pull --no-embed
-  gbrain embed --stale
+  pbrain sync --no-pull --no-embed
+  pbrain embed --stale
 ```
 
 ### Setting Up the Dream Cycle
@@ -133,7 +133,7 @@ deep, REM) run automatically during quiet hours.
 ```bash
 /cron add "0 2 * * *" "Dream cycle: search today's sessions for
   entities I mentioned. For each person, company, or idea: check
-  if a brain page exists (gbrain search), create or update it if
+  if a brain page exists (pbrain search), create or update it if
   thin. Fix any broken citations. Then consolidate: read MEMORY.md,
   promote important signals, remove stale entries."
   --name "nightly-dream-cycle"
@@ -151,10 +151,10 @@ echo "Dream cycle starting at $(date)"
 # Read today's conversation logs, extract entities, update brain
 
 # Phase 2: Citation hygiene
-gbrain doctor --json | jq '.checks[] | select(.status=="warn")'
+pbrain doctor --json | jq '.checks[] | select(.status=="warn")'
 
 # Phase 3: Embed any stale content
-gbrain embed --stale
+pbrain embed --stale
 
 echo "Dream cycle complete at $(date)"
 ```
@@ -186,8 +186,8 @@ echo "Dream cycle complete at $(date)"
    got enriched and broken citations were fixed.
 3. **Email collector cron:** Wait 30 minutes. Check `data/digests/` for new digest.
 4. **Morning briefing:** Check that held messages appear in the briefing.
-5. **Health check:** Run `gbrain doctor --json`. All checks should pass.
+5. **Health check:** Run `pbrain doctor --json`. All checks should pass.
 
 ---
 
-*Part of the [GBrain Skillpack](../GBRAIN_SKILLPACK.md). See also: [Quiet Hours](quiet-hours.md), [Operational Disciplines](operational-disciplines.md)*
+*Part of the [PBrain Skillpack](../PBRAIN_SKILLPACK.md). See also: [Quiet Hours](quiet-hours.md), [Operational Disciplines](operational-disciplines.md)*
