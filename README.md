@@ -167,6 +167,7 @@ PBrain ships integration recipes that your agent sets up for you. Each recipe te
 
 | Recipe | Requires | What It Does |
 |--------|----------|-------------|
+| [Obsidian Vault](recipes/obsidian-vault.md) | — | Point PBrain at an Obsidian vault (or open your brain folder as one) |
 | [Public Tunnel](recipes/ngrok-tunnel.md) | — | Fixed URL for MCP + voice (ngrok Hobby $8/mo) |
 | [Credential Gateway](recipes/credential-gateway.md) | — | Gmail + Calendar access |
 | [Voice-to-Brain](recipes/twilio-voice-brain.md) | ngrok-tunnel | Phone calls to brain pages (Twilio + OpenAI Realtime) |
@@ -178,6 +179,20 @@ PBrain ships integration recipes that your agent sets up for you. Each recipe te
 **Data research recipes** extract structured data from email into tracked brain pages. Built-in recipes for investor updates (MRR, ARR, runway, headcount), expense tracking, and company metrics. Create your own with `pbrain research init`.
 
 Run `pbrain integrations` to see status.
+
+## Obsidian
+
+PBrain is an Obsidian-compatible vault out of the box. Every page PBrain writes is standard markdown with `[[wikilinks]]`, YAML frontmatter (`tags:`, `aliases:`), and inline `#tag` footers — so Obsidian's graph view, backlinks pane, and Dataview plugin read PBrain's output natively. No Obsidian-specific code in PBrain, no conversion step.
+
+```bash
+pbrain init --brain-path ~/ObsidianVault/MyBrain
+pbrain index
+pbrain doctor --integrations
+```
+
+`pbrain doctor --integrations` validates brain-folder writability, no broken `[[wikilinks]]`, parseable `tags:` frontmatter, no duplicate slugs (Obsidian wikilink collisions), and no leftover `.pbrain-tmp-*` sentinels.
+
+Writes are atomic and respect a 60-second cooldown on files you're actively editing in Obsidian, so PBrain's autopilot never clobbers your in-progress edits. Setup guide and Dataview query examples: [docs/integrations/obsidian.md](docs/integrations/obsidian.md).
 
 ## PBrain + GStack
 

@@ -2,6 +2,8 @@ import type { BrainEngine } from '../core/engine.ts';
 import * as db from '../core/db.ts';
 import { LATEST_VERSION } from '../core/migrate.ts';
 import { checkResolvable } from '../core/check-resolvable.ts';
+import { checkIntegrations } from '../core/doctor-integrations.ts';
+import { loadConfig } from '../core/config.ts';
 import { join } from 'path';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 
@@ -20,7 +22,33 @@ export interface Check {
 export async function runDoctor(engine: BrainEngine | null, args: string[]) {
   const jsonOutput = args.includes('--json');
   const fastMode = args.includes('--fast');
+  const integrationsOnly = args.includes('--integrations');
   const checks: Check[] = [];
+
+  if (integrationsOnly) {
+    const cfg = loadConfig();
+    const report = checkIntegrations(cfg?.brain_path);
+    if (jsonOutput) {
+      console.log(JSON.stringify({ schema_version: 1, ...report }, null, 2));
+    } else {
+      console.log('\nPBrain Integration Health');
+      console.log('=========================');
+      console.log(`  brain_path: ${report.brain_path || '(unset)'}`);
+      console.log(`  pages scanned: ${report.stats.pages_scanned}`);
+      console.log(`  wikilinks checked: ${report.stats.wikilinks_checked}`);
+      console.log(`  leftover .pbrain-tmp-* files: ${report.stats.leftover_tmp}`);
+      if (report.ok) {
+        console.log('\n  [OK] All integration checks passed.');
+      } else {
+        console.log(`\n  ${report.issues.length} issue(s):`);
+        for (const iss of report.issues) {
+          console.log(`  [${iss.type.toUpperCase()}] ${iss.path}`);
+          console.log(`    ${iss.detail}`);
+        }
+      }
+    }
+    process.exit(report.ok ? 0 : 1);
+  }
 
   // --- Filesystem checks (always run, no DB needed) ---
 

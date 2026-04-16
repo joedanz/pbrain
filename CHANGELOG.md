@@ -4,9 +4,9 @@ All notable changes to PBrain will be documented in this file.
 
 > **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[1.0.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-04-16
 
-The first PBrain release. Adaptation work is phased across four PRs merged to master incrementally; no intermediate tags or GitHub releases are cut. `v1.0.0` will be tagged only after all four phases merge.
+The first PBrain release. Adaptation work was phased across four PRs merged to master incrementally; this release tags the final state after all four phases merged.
 
 ### Attribution
 
@@ -81,9 +81,24 @@ The inversion: files on disk are authoritative; the database is a rebuildable in
 #### Migration
 - `skills/migrations/v2.0.0.md` documents the config shape change, new index default, and write primitives. Non-destructive — no existing content is touched.
 
-### Phase 4 — Obsidian polish + doctor checks (not yet started)
+### Phase 4 — Obsidian polish + doctor checks (merged)
 
-_Planned: `pbrain doctor --integrations`, `docs/integrations/obsidian.md` setup guide with Dataview examples, `recipes/obsidian-vault.yaml`. Tag `v1.0.0` and cut first release._
+Final phase — tags `v1.0.0` and cuts the first PBrain release.
+
+#### Doctor
+- `pbrain doctor --integrations` validates the brain folder as an Obsidian-compatible vault. Checks `brain_path` exists and is writable, every YAML frontmatter block parses, every `[[wikilink]]` resolves to a known slug or alias, no duplicate slugs across directories (Obsidian wikilink collision prevention), and no leftover `.pbrain-tmp-*` sentinels from crashed atomic writes.
+- Exits non-zero if any issue is found. `--json` for structured output. Filesystem-only — no database required.
+- New module `src/core/doctor-integrations.ts` holds the check logic so tests can exercise it without spawning the CLI.
+
+#### Docs
+- `docs/integrations/obsidian.md` — complete setup guide covering both paths (point PBrain at an existing vault, or open a brain folder as a new vault), Dataview query examples against PBrain's frontmatter, cloud-sync notes, and troubleshooting.
+- Main `README.md` gained a dedicated **Obsidian** section documenting that PBrain is an Obsidian-compatible vault out of the box — no plugins required to read PBrain's output.
+
+#### Recipe
+- `recipes/obsidian-vault.md` — new self-installing recipe. Agent-executable setup: pick a path, `pbrain init --brain-path`, `pbrain index`, `pbrain doctor --integrations`. Listed as the first infra recipe in `docs/integrations/README.md`.
+
+#### Version
+- `package.json` bumped from `0.10.1` to `1.0.0`. Tagged `v1.0.0`, first PBrain GitHub release cut.
 
 ---
 

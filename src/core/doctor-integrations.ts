@@ -1,0 +1,219 @@
+/**
+ * Integration health checks: validate that a PBrain brain folder is still a
+ * well-formed Obsidian-compatible vault.
+ *
+ * Runs filesystem-only — no database required. Called by `pbrain doctor --integrations`.
+ *
+ * Checks:
+ *   1. brain_path exists and is writable
+ *   2. No leftover `.pbrain-tmp-*` sentinels (crashed atomic writes)
+ *   3. Every YAML frontmatter block parses
+ *   4. Every `[[wikilink]]` resolves to a known slug or alias
+ *   5. No duplicate slugs across directories (Obsidian wikilink collision)
+ */
+
+import matter from 'gray-matter';
+import { readFileSync, existsSync, statSync, accessSync, constants, readdirSync, lstatSync } from 'fs';
+import { join, relative } from 'path';
+import { parseWikilinks, resolveWikilink } from './wikilink.ts';
+
+export interface IntegrationIssue {
+  type: 'missing_brain' | 'unwritable_brain' | 'leftover_tmp' | 'yaml_error' | 'broken_wikilink' | 'duplicate_slug';
+  path: string;
+  detail: string;
+}
+
+export interface IntegrationReport {
+  brain_path: string;
+  ok: boolean;
+  stats: {
+    pages_scanned: number;
+    wikilinks_checked: number;
+    leftover_tmp: number;
+  };
+  issues: IntegrationIssue[];
+}
+
+/**
+ * Walk the brain folder and collect every .md file plus any .pbrain-tmp-* sentinels.
+ * Symlinks are skipped for the same reason collectMarkdownFiles() skips them.
+ */
+function walk(root: string): { pages: string[]; tmpFiles: string[] } {
+  const pages: string[] = [];
+  const tmpFiles: string[] = [];
+
+  function recurse(dir: string) {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry === 'node_modules') continue;
+      const full = join(dir, entry);
+      let stat;
+      try {
+        stat = lstatSync(full);
+      } catch {
+        continue;
+      }
+      if (stat.isSymbolicLink()) continue;
+
+      // .pbrain-tmp-* sentinels: leftover from a crashed atomic write
+      if (entry.startsWith('.pbrain-tmp-')) {
+        tmpFiles.push(full);
+        continue;
+      }
+      if (entry.startsWith('.')) continue;
+
+      if (stat.isDirectory()) {
+        recurse(full);
+      } else if (entry.endsWith('.md') || entry.endsWith('.mdx')) {
+        pages.push(full);
+      }
+    }
+  }
+
+  recurse(root);
+  return { pages: pages.sort(), tmpFiles };
+}
+
+/** Convert an absolute file path under brainPath to a slug (drop `.md`, use forward slashes). */
+function pathToSlug(absPath: string, brainPath: string): string {
+  const rel = relative(brainPath, absPath).replace(/\\/g, '/');
+  return rel.replace(/\.(md|mdx)$/, '');
+}
+
+export function checkIntegrations(brainPath: string | undefined | null): IntegrationReport {
+  const issues: IntegrationIssue[] = [];
+  const report: IntegrationReport = {
+    brain_path: brainPath || '',
+    ok: true,
+    stats: { pages_scanned: 0, wikilinks_checked: 0, leftover_tmp: 0 },
+    issues,
+  };
+
+  if (!brainPath) {
+    issues.push({
+      type: 'missing_brain',
+      path: '',
+      detail: 'brain_path not configured. Run `pbrain init` to pick a brain folder.',
+    });
+    report.ok = false;
+    return report;
+  }
+
+  if (!existsSync(brainPath)) {
+    issues.push({
+      type: 'missing_brain',
+      path: brainPath,
+      detail: 'Brain folder does not exist.',
+    });
+    report.ok = false;
+    return report;
+  }
+
+  try {
+    const s = statSync(brainPath);
+    if (!s.isDirectory()) {
+      issues.push({ type: 'missing_brain', path: brainPath, detail: 'Brain path is not a directory.' });
+      report.ok = false;
+      return report;
+    }
+  } catch (e) {
+    issues.push({ type: 'missing_brain', path: brainPath, detail: (e as Error).message });
+    report.ok = false;
+    return report;
+  }
+
+  try {
+    accessSync(brainPath, constants.W_OK);
+  } catch {
+    issues.push({ type: 'unwritable_brain', path: brainPath, detail: 'Brain folder is not writable.' });
+    report.ok = false;
+  }
+
+  const { pages, tmpFiles } = walk(brainPath);
+  report.stats.pages_scanned = pages.length;
+  report.stats.leftover_tmp = tmpFiles.length;
+
+  for (const tmp of tmpFiles) {
+    issues.push({
+      type: 'leftover_tmp',
+      path: tmp,
+      detail: 'Leftover atomic-write sentinel from a crashed write. Safe to delete.',
+    });
+  }
+
+  const knownSlugs = new Set<string>();
+  const tailIndex = new Map<string, string[]>();
+  const aliases = new Map<string, string>();
+  const pageBodies = new Map<string, { body: string; slug: string }>();
+
+  for (const p of pages) {
+    const slug = pathToSlug(p, brainPath);
+    knownSlugs.add(slug);
+    const tail = slug.split('/').pop() || slug;
+    const list = tailIndex.get(tail) || [];
+    list.push(slug);
+    tailIndex.set(tail, list);
+
+    let parsed: matter.GrayMatterFile<string>;
+    try {
+      parsed = matter(readFileSync(p, 'utf-8'));
+    } catch (e) {
+      issues.push({
+        type: 'yaml_error',
+        path: p,
+        detail: `YAML frontmatter unparseable: ${(e as Error).message}`,
+      });
+      continue;
+    }
+
+    const aliasField = parsed.data?.aliases;
+    if (Array.isArray(aliasField)) {
+      for (const a of aliasField) {
+        if (typeof a === 'string' && a.trim()) aliases.set(a.trim(), slug);
+      }
+    }
+
+    const tagsField = parsed.data?.tags;
+    if (tagsField !== undefined && !Array.isArray(tagsField) && typeof tagsField !== 'string') {
+      issues.push({
+        type: 'yaml_error',
+        path: p,
+        detail: `tags: frontmatter is ${typeof tagsField}, expected list or string.`,
+      });
+    }
+
+    pageBodies.set(p, { body: parsed.content, slug });
+  }
+
+  for (const [tail, slugs] of tailIndex) {
+    if (slugs.length > 1) {
+      issues.push({
+        type: 'duplicate_slug',
+        path: slugs.join(', '),
+        detail: `Multiple files share the tail "${tail}" — Obsidian wikilinks [[${tail}]] are ambiguous.`,
+      });
+    }
+  }
+
+  for (const [absPath, { body, slug }] of pageBodies) {
+    const links = parseWikilinks(body);
+    report.stats.wikilinks_checked += links.length;
+    for (const link of links) {
+      if (resolveWikilink(link.slug, knownSlugs, aliases) === null) {
+        issues.push({
+          type: 'broken_wikilink',
+          path: absPath,
+          detail: `${slug}.md → [[${link.slug}]] does not resolve.`,
+        });
+      }
+    }
+  }
+
+  report.ok = issues.length === 0;
+  return report;
+}
