@@ -11,6 +11,14 @@ export interface PBrainConfig {
   engine: 'postgres' | 'pglite';
   database_url?: string;
   database_path?: string;
+  /**
+   * Absolute path to the markdown brain folder (files are authoritative,
+   * DB is the rebuildable index). Any filesystem path works: local, cloud-
+   * synced mounts (GDrive Desktop, iCloud), or an Obsidian vault.
+   * Kept OUTSIDE the brain folder so binary index files don't corrupt under
+   * cloud sync — the index lives at `~/.pbrain/indexes/<name>.pglite`.
+   */
+  brain_path?: string;
   openai_api_key?: string;
   anthropic_api_key?: string;
 }

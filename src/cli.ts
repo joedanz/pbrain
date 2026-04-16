@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -301,8 +301,21 @@ async function handleCliOnly(command: string, args: string[]) {
   const engine = await connectEngine();
   try {
     switch (command) {
-      case 'import': {
+      case 'import':
+      case 'index': {
+        // `index` is the Phase 3 name that signals files-on-disk are the
+        // source of truth and the DB is a rebuildable index. `import` stays
+        // as an alias so existing scripts keep working.
         const { runImport } = await import('./commands/import.ts');
+        // If no positional directory was passed, fall back to config.brain_path
+        // so `pbrain index` by itself indexes the brain the user configured.
+        if (args.length === 0 || args[0].startsWith('--')) {
+          const { loadConfig: loadCfg } = await import('./core/config.ts');
+          const cfg = loadCfg();
+          if (cfg?.brain_path) {
+            args = [cfg.brain_path, ...args];
+          }
+        }
         await runImport(engine, args);
         break;
       }

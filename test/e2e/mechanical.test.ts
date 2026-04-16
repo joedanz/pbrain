@@ -570,7 +570,7 @@ describeE2E('E2E: Setup Journey', () => {
     });
     const stdout = new TextDecoder().decode(result.stdout);
     expect(result.exitCode).toBe(0);
-    expect(stdout).toContain('Brain ready');
+    expect(stdout).toContain('Brain index ready');
   }, 30_000);
 
   test('pbrain import imports fixtures via CLI', () => {

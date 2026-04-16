@@ -56,9 +56,26 @@ Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is 
 #### Migration
 - `skills/migrations/v1.1.0.md` documents the taxonomy change for the eventual v1.0.0 auto-update: non-destructive (no content is touched), updates routing only, rollback-safe.
 
-### Phase 3 — Markdown-first storage (not yet started)
+### Phase 3 — Markdown-first storage (merged)
 
-_Planned: invert DB-first to markdown-first. PGLite becomes an index rebuilt from files on disk. `[[wikilinks]]` + `#tag` + YAML `tags:` emission. Atomic writes + 60s cooldown for Obsidian-concurrent-edit safety. New `src/core/atomic-write.ts`, `src/core/wikilink.ts`, `src/core/tag-footer.ts`, `src/core/fs-watcher.ts`._
+The inversion: files on disk are authoritative; the database is a rebuildable index on top of them. Obsidian compatibility is first-class.
+
+#### Config
+- `PBrainConfig` gains an optional `brain_path` field — the absolute path to your markdown brain folder. Works with any filesystem: local, Google Drive Desktop, iCloud, existing Obsidian vaults.
+- `pbrain init` prompts for brain path interactively, or takes `--brain-path <dir>` / `PBRAIN_BRAIN_PATH` env var for scripts. Non-interactive flows without a brain path still work — the field is optional.
+- New installs land the PGLite index at `~/.pbrain/indexes/default.pglite` instead of `~/.pbrain/brain.pglite`. Keeps binary index files out of cloud-synced brain folders. Existing installs keep using the legacy path — no migration required.
+
+#### Write primitives
+- `src/core/atomic-write.ts` — all PBrain file writes go through `atomicWriteFileSync` (write to `.pbrain-tmp-<uuid>`, `fsync`, rename). Obsidian never sees a half-written file.
+- `src/core/wikilink.ts` — emit `[[slug]]`, parse, resolve against known slugs and `aliases:` frontmatter. Exports `toPlainMarkdown` for downstream tools that don't resolve wikilinks.
+- `src/core/tag-footer.ts` — writes tags in two places: YAML frontmatter (Dataview, parsers) and an inline `<!-- pbrain-tags -->\n#tag #tag` footer (Obsidian tag pane, GitHub render). Idempotent re-writes.
+- `src/core/page-writer.ts` — single chokepoint combining atomic writes + 60-second modification cooldown + tag-footer + frontmatter serialization. If a target file was modified in the last minute, the write defers instead of clobbering the user's in-flight Obsidian edit.
+
+#### CLI
+- `pbrain index` is the new verb for rebuilding the index from your brain folder. `pbrain import` stays as an alias — existing scripts keep working. When `brain_path` is set, `pbrain index` with no positional arg walks the configured folder.
+
+#### Migration
+- `skills/migrations/v2.0.0.md` documents the config shape change, new index default, and write primitives. Non-destructive — no existing content is touched.
 
 ### Phase 4 — Obsidian polish + doctor checks (not yet started)
 
