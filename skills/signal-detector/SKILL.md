@@ -65,7 +65,7 @@ meetings, and concepts. An original without cross-links is a dead original.
 
 1. Extract entity mentions (people, companies, media titles)
 2. For each entity:
-   - `gbrain search "name"` — does a page exist?
+   - `pbrain search "name"` — does a page exist?
    - If NO page → check notability. If notable, create page with enrichment.
    - If page exists but THIN → trigger enrich
    - If page exists and RICH → no action

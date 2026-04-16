@@ -116,7 +116,7 @@ describe('pathToSlug', () => {
   });
 
   test('handles nested paths', () => {
-    expect(pathToSlug('projects/gbrain/spec.md')).toBe('projects/gbrain/spec');
+    expect(pathToSlug('projects/pbrain/spec.md')).toBe('projects/pbrain/spec');
   });
 
   test('adds repo prefix when provided', () => {

@@ -38,12 +38,12 @@ export async function performSync(engine: BrainEngine, opts: SyncOpts): Promise<
   // Resolve repo path
   const repoPath = opts.repoPath || await engine.getConfig('sync.repo_path');
   if (!repoPath) {
-    throw new Error('No repo path specified. Use --repo or run gbrain init with --repo first.');
+    throw new Error('No repo path specified. Use --repo or run pbrain init with --repo first.');
   }
 
   // Validate git repo
   if (!existsSync(join(repoPath, '.git'))) {
-    throw new Error(`Not a git repository: ${repoPath}. GBrain sync requires a git-initialized repo.`);
+    throw new Error(`Not a git repository: ${repoPath}. PBrain sync requires a git-initialized repo.`);
   }
 
   // Git pull (unless --no-pull)
@@ -262,7 +262,7 @@ export async function performSync(engine: BrainEngine, opts: SyncOpts): Promise<
       await runEmbed(engine, ['--slugs', ...pagesAffected]);
     } catch { /* embedding is best-effort */ }
   } else if (noEmbed || totalChanges > 100) {
-    console.log(`Text imported. Run 'gbrain embed --stale' to generate embeddings.`);
+    console.log(`Text imported. Run 'pbrain embed --stale' to generate embeddings.`);
   }
 
   return {

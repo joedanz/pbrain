@@ -13,8 +13,8 @@ describe('file migration lifecycle', () => {
   let storage: LocalStorage;
 
   beforeAll(() => {
-    brainDir = mkdtempSync(join(tmpdir(), 'gbrain-migration-'));
-    storageDir = mkdtempSync(join(tmpdir(), 'gbrain-migration-storage-'));
+    brainDir = mkdtempSync(join(tmpdir(), 'pbrain-migration-'));
+    storageDir = mkdtempSync(join(tmpdir(), 'pbrain-migration-storage-'));
     storage = new LocalStorage(storageDir);
 
     // Create test files

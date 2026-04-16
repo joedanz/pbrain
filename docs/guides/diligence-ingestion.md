@@ -12,7 +12,7 @@ were the key metrics from Acme Corp's Series A deck?"
 
 With this: every data room document is extracted, diarized, cross-referenced to
 the company page, and searchable. Index.md gives you the bull/bear case at a
-glance. `gbrain query "Acme Corp revenue growth"` finds the exact chart.
+glance. `pbrain query "Acme Corp revenue growth"` finds the exact chart.
 
 ## Implementation
 
@@ -133,7 +133,7 @@ A good diligence page reads like an intelligence assessment:
 ## How to Verify
 
 1. **Search for key metrics.** After ingestion, run
-   `gbrain search "revenue growth"` or `gbrain search "{company name} CAC"`.
+   `pbrain search "revenue growth"` or `pbrain search "{company name} CAC"`.
    The diarized content should appear in results. If it doesn't, the sync
    or embedding step was missed.
 
@@ -148,4 +148,4 @@ A good diligence page reads like an intelligence assessment:
 
 ---
 
-*Part of the [GBrain Skillpack](../GBRAIN_SKILLPACK.md).*
+*Part of the [PBrain Skillpack](../PBRAIN_SKILLPACK.md).*

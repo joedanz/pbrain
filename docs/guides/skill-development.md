@@ -128,4 +128,4 @@ A skill is ready when:
 
 ---
 
-*Part of the [GBrain Skillpack](../GBRAIN_SKILLPACK.md).*
+*Part of the [PBrain Skillpack](../PBRAIN_SKILLPACK.md).*

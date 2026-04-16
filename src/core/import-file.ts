@@ -88,7 +88,7 @@ export async function importFromContent(
         chunks[i].token_count = Math.ceil(chunks[i].chunk_text.length / 4);
       }
     } catch (e: unknown) {
-      console.warn(`[gbrain] embedding failed for ${slug} (${chunks.length} chunks): ${e instanceof Error ? e.message : String(e)}`);
+      console.warn(`[pbrain] embedding failed for ${slug} (${chunks.length} chunks): ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -133,7 +133,7 @@ export async function importFromContent(
  * is only accepted when it matches `slugifyPath(relativePath)`. A mismatch is
  * rejected rather than silently honored — otherwise a file at `notes/random.md`
  * could declare `slug: people/elon` in frontmatter and overwrite the legitimate
- * `people/elon` page on the next `gbrain sync` or `gbrain import`. In shared
+ * `people/elon` page on the next `pbrain sync` or `pbrain import`. In shared
  * brains where PRs are mergeable, this is a silent page-hijack primitive.
  */
 export async function importFromFile(

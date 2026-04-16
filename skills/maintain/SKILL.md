@@ -38,31 +38,31 @@ This skill guarantees:
 
 ## Phases
 
-1. **Run health check.** Check gbrain health to get the dashboard.
+1. **Run health check.** Check pbrain health to get the dashboard.
 2. **Check each dimension:**
 
 ### Stale pages
 Pages where compiled_truth is older than the latest timeline entry. The assessment hasn't been updated to reflect recent evidence.
 - Check the health output for stale page count
-- For each stale page: read the page from gbrain, review timeline, determine if compiled_truth needs rewriting
+- For each stale page: read the page from pbrain, review timeline, determine if compiled_truth needs rewriting
 
 ### Orphan pages
 Pages with zero inbound links. Nobody references them.
 - Review orphans: are they genuinely isolated or just missing links?
-- Add links in gbrain from related pages or flag for deletion
+- Add links in pbrain from related pages or flag for deletion
 
 ### Dead links
 Links pointing to pages that don't exist.
-- Remove dead links in gbrain
+- Remove dead links in pbrain
 
 ### Missing cross-references
 Pages that mention entity names but don't have formal links.
-- Read compiled_truth from gbrain, extract entity mentions, create links in gbrain
+- Read compiled_truth from pbrain, extract entity mentions, create links in pbrain
 
 ### Link graph extraction
 If link_count is 0 or low relative to page_count, run batch extraction:
 ```bash
-gbrain extract links --dir ~/brain
+pbrain extract links --dir ~/brain
 ```
 This scans all markdown files for entity references, See Also sections, and
 frontmatter fields, then creates typed links in the database.
@@ -70,19 +70,19 @@ frontmatter fields, then creates typed links in the database.
 ### Timeline extraction
 If timeline_entry_count is 0, extract structured timeline from markdown:
 ```bash
-gbrain extract timeline --dir ~/brain
+pbrain extract timeline --dir ~/brain
 ```
 Parses `- **YYYY-MM-DD** | Source — Summary` and `### YYYY-MM-DD — Title` formats.
-Note: extracted entries improve structured queries (`gbrain timeline`), not vector search.
+Note: extracted entries improve structured queries (`pbrain timeline`), not vector search.
 
 ### Autopilot check
 Verify autopilot is running:
 ```bash
-gbrain autopilot --status
+pbrain autopilot --status
 ```
 If not running, install it:
 ```bash
-gbrain autopilot --install --repo ~/brain
+pbrain autopilot --install --repo ~/brain
 ```
 Autopilot runs sync, extract, and embed in a continuous loop with adaptive scheduling.
 
@@ -98,7 +98,7 @@ Check that the back-linking iron law is being followed:
 Check for common misfiling patterns (see `skills/_brain-filing-rules.md`):
 - Content with clear primary subjects filed in `sources/` instead of the
   appropriate directory (people/, companies/, concepts/, etc.)
-- Use gbrain search to find pages in `sources/` that reference specific
+- Use pbrain search to find pages in `sources/` that reference specific
   people, companies, or concepts -- these may be misfiled
 - Flag misfiled pages for review or re-filing
 
@@ -111,27 +111,27 @@ Spot-check pages for missing `[Source: ...]` citations:
 
 ### Tag consistency
 Inconsistent tagging (e.g., "vc" vs "venture-capital", "ai" vs "artificial-intelligence").
-- Standardize to the most common variant using gbrain tag operations
+- Standardize to the most common variant using pbrain tag operations
 
 ### Embedding freshness
 Chunks without embeddings, or chunks embedded with an old model.
 - For large embedding refreshes (>1000 chunks), use nohup:
-  `nohup gbrain embed refresh > /tmp/gbrain-embed.log 2>&1 &`
-- Then check progress: `tail -1 /tmp/gbrain-embed.log`
+  `nohup pbrain embed refresh > /tmp/pbrain-embed.log 2>&1 &`
+- Then check progress: `tail -1 /tmp/pbrain-embed.log`
 
 ### Security (RLS verification)
-Run `gbrain doctor --json` and check the RLS status.
-All tables should show RLS enabled. If not, run `gbrain init` again.
+Run `pbrain doctor --json` and check the RLS status.
+All tables should show RLS enabled. If not, run `pbrain init` again.
 
 ### Schema health
-Check that the schema version is up to date. `gbrain doctor --json` reports
-the current version vs expected. If behind, `gbrain init` runs migrations
+Check that the schema version is up to date. `pbrain doctor --json` reports
+the current version vs expected. If behind, `pbrain init` runs migrations
 automatically.
 
 ### File storage health
 Check the integrity of stored files and redirect pointers:
-- Run `gbrain files verify` to check all DB records have valid data
-- Run `gbrain files status` to see migration state (local, mirrored, redirected)
+- Run `pbrain files verify` to check all DB records have valid data
+- Run `pbrain files status` to see migration state (local, mirrored, redirected)
 - Check for orphan `.redirect.yaml` pointers that reference missing storage files
 - Check for large binary files (>= 100 MB) still in git that should be in cloud storage
 - If storage backend is configured: verify redirect pointers resolve (download test)
@@ -150,37 +150,37 @@ queries across difficulty tiers:
 - **Tier 3 (semantic):** queries with no exact keyword match -- needs embeddings
 - **Tier 4 (cross-domain):** relational/connection queries -- only semantic handles
 
-Compare results from `gbrain search` (keyword) vs `gbrain query` (hybrid).
+Compare results from `pbrain search` (keyword) vs `pbrain query` (hybrid).
 Quality matters more than speed (2.5s right > 200ms wrong).
 
 When to run benchmarks:
 - After major brain imports or re-imports
-- After gbrain version upgrades
+- After pbrain version upgrades
 - After embedding regeneration
 - Monthly to track quality drift
 
 ## Heartbeat Integration
 
-For production agents running on a schedule, integrate gbrain health checks into
+For production agents running on a schedule, integrate pbrain health checks into
 your operational heartbeat.
 
 ### On every heartbeat (hourly or per-session)
 
-Run `gbrain doctor --json` and check for degradation. Report any failing checks
+Run `pbrain doctor --json` and check for degradation. Report any failing checks
 to the user. Key signals: connection health, schema version, RLS status, embedding
 staleness.
 
 ### Weekly maintenance
 
-Run `gbrain embed --stale` to refresh embeddings for pages that have changed since
+Run `pbrain embed --stale` to refresh embeddings for pages that have changed since
 their last embedding. For large brains (>5000 pages), run this with nohup:
 ```bash
-nohup gbrain embed --stale > /tmp/gbrain-embed.log 2>&1 &
+nohup pbrain embed --stale > /tmp/pbrain-embed.log 2>&1 &
 ```
 
 ### Daily verification
 
-Verify sync is running: check `gbrain stats` and confirm `last_sync` is within
+Verify sync is running: check `pbrain stats` and confirm `last_sync` is within
 the last 24 hours. If sync has stopped, the brain is drifting from the repo.
 
 ### Stale compiled truth detection
@@ -205,7 +205,7 @@ This creates an audit trail for brain health over time.
 
 - Never delete pages without confirmation
 - Log all changes via timeline entries
-- Check gbrain health before and after to show improvement
+- Check pbrain health before and after to show improvement
 
 ## Anti-Patterns
 
@@ -253,12 +253,12 @@ The maintenance report follows this structure:
 
 ## Tools Used
 
-- Check gbrain health (get_health)
-- List pages in gbrain with filters (list_pages)
-- Read a page from gbrain (get_page)
-- Check backlinks in gbrain (get_backlinks)
-- Link entities in gbrain (add_link)
-- Remove links in gbrain (remove_link)
-- Tag a page in gbrain (add_tag)
-- Remove a tag in gbrain (remove_tag)
-- View timeline in gbrain (get_timeline)
+- Check pbrain health (get_health)
+- List pages in pbrain with filters (list_pages)
+- Read a page from pbrain (get_page)
+- Check backlinks in pbrain (get_backlinks)
+- Link entities in pbrain (add_link)
+- Remove links in pbrain (remove_link)
+- Tag a page in pbrain (add_tag)
+- Remove a tag in pbrain (remove_tag)
+- View timeline in pbrain (get_timeline)

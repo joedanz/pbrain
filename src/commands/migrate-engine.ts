@@ -2,13 +2,13 @@
  * Engine migration: transfer brain data between PGLite and Postgres.
  *
  * Usage:
- *   gbrain migrate --to supabase [--url <connection_string>]
- *   gbrain migrate --to pglite [--path <db_path>]
- *   gbrain migrate --to <engine> --force  (overwrite non-empty target)
+ *   pbrain migrate --to supabase [--url <connection_string>]
+ *   pbrain migrate --to pglite [--path <db_path>]
+ *   pbrain migrate --to <engine> --force  (overwrite non-empty target)
  */
 
 import { createEngine } from '../core/engine-factory.ts';
-import { loadConfig, saveConfig, toEngineConfig, type GBrainConfig } from '../core/config.ts';
+import { loadConfig, saveConfig, toEngineConfig, type PBrainConfig } from '../core/config.ts';
 import type { BrainEngine } from '../core/engine.ts';
 import type { EngineConfig } from '../core/types.ts';
 import { homedir } from 'os';
@@ -25,7 +25,7 @@ interface MigrateOpts {
 function parseArgs(args: string[]): MigrateOpts {
   const toIdx = args.indexOf('--to');
   if (toIdx === -1 || !args[toIdx + 1]) {
-    throw new Error('Usage: gbrain migrate --to <supabase|pglite> [--url <url>] [--path <path>] [--force]');
+    throw new Error('Usage: pbrain migrate --to <supabase|pglite> [--url <url>] [--path <path>] [--force]');
   }
 
   const targetRaw = args[toIdx + 1];
@@ -46,7 +46,7 @@ function parseArgs(args: string[]): MigrateOpts {
 }
 
 function getManifestPath(): string {
-  return join(homedir(), '.gbrain', 'migrate-manifest.json');
+  return join(homedir(), '.pbrain', 'migrate-manifest.json');
 }
 
 interface MigrateManifest {
@@ -78,7 +78,7 @@ export async function runMigrateEngine(sourceEngine: BrainEngine, args: string[]
   const opts = parseArgs(args);
   const config = loadConfig();
   if (!config) {
-    console.error('No brain configured. Run: gbrain init');
+    console.error('No brain configured. Run: pbrain init');
     process.exit(1);
   }
 
@@ -91,13 +91,13 @@ export async function runMigrateEngine(sourceEngine: BrainEngine, args: string[]
   // Build target config
   const targetConfig: EngineConfig = { engine: opts.targetEngine };
   if (opts.targetEngine === 'postgres') {
-    targetConfig.database_url = opts.targetUrl || process.env.GBRAIN_DATABASE_URL || process.env.DATABASE_URL;
+    targetConfig.database_url = opts.targetUrl || process.env.PBRAIN_DATABASE_URL || process.env.DATABASE_URL;
     if (!targetConfig.database_url) {
       console.error('Target is Supabase but no connection string provided. Use: --url <connection_string>');
       process.exit(1);
     }
   } else {
-    targetConfig.database_path = opts.targetPath || join(homedir(), '.gbrain', 'brain.pglite');
+    targetConfig.database_path = opts.targetPath || join(homedir(), '.pbrain', 'brain.pglite');
   }
 
   // Connect to target
@@ -226,7 +226,7 @@ export async function runMigrateEngine(sourceEngine: BrainEngine, args: string[]
   }
 
   // Update local config
-  const newConfig: GBrainConfig = {
+  const newConfig: PBrainConfig = {
     engine: opts.targetEngine,
     ...(opts.targetEngine === 'postgres'
       ? { database_url: targetConfig.database_url }

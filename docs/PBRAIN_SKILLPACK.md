@@ -1,13 +1,13 @@
 <!-- skillpack-version: 0.7.0 -->
-<!-- source: https://raw.githubusercontent.com/garrytan/gbrain/master/docs/GBRAIN_SKILLPACK.md -->
-# GBrain Skillpack: Reference Architecture for AI Agents
+<!-- source: https://raw.githubusercontent.com/joedanz/pbrain/master/docs/PBRAIN_SKILLPACK.md -->
+# PBrain Skillpack: Reference Architecture for AI Agents
 
-This is a reference architecture for how a production AI agent uses gbrain as its
+This is a reference architecture for how a production AI agent uses pbrain as its
 knowledge backbone. Based on patterns from a real deployment with 14,700+ brain
 files, 40+ skills, and 20+ cron jobs running continuously.
 
 **The memex vision, realized.** Vannevar Bush imagined a device where an individual
-stores everything, mechanized so it may be consulted with exceeding speed. GBrain is
+stores everything, mechanized so it may be consulted with exceeding speed. PBrain is
 that device, except the memex builds itself. The agent detects entities, enriches
 pages, creates cross-references, and maintains compiled truth automatically.
 
@@ -63,7 +63,7 @@ How to structure your system.
 | [Two-Repo Architecture](guides/repo-architecture.md) | Agent repo vs brain repo, boundary rules, decision tree |
 | [Sub-Agent Model Routing](guides/sub-agent-routing.md) | Which model for which task, signal detector pattern, cost optimization |
 | [The Three Search Modes](guides/search-modes.md) | Keyword, hybrid, direct. When to use each |
-| [Brain vs Agent Memory](guides/brain-vs-memory.md) | 3 layers: GBrain (world knowledge), agent memory, session |
+| [Brain vs Agent Memory](guides/brain-vs-memory.md) | 3 layers: PBrain (world knowledge), agent memory, session |
 
 ## Integrations
 
@@ -90,22 +90,22 @@ Keeping it running and up to date.
 
 ---
 
-## Appendix: GBrain CLI Quick Reference
+## Appendix: PBrain CLI Quick Reference
 
 | Command | Purpose |
 |---------|---------|
-| `gbrain search "term"` | Keyword search across all brain pages |
-| `gbrain query "question"` | Hybrid search (vector + keyword + RRF) |
-| `gbrain get <slug>` | Read a specific brain page by slug |
-| `gbrain sync` | Sync local markdown repo to gbrain index |
-| `gbrain import <path>` | Import files into the brain |
-| `gbrain embed --stale` | Re-embed pages with stale or missing embeddings |
-| `gbrain integrations` | Manage integration recipes (senses + reflexes) |
-| `gbrain stats` | Show brain statistics (page count, last sync, etc.) |
-| `gbrain doctor` | Diagnose brain health issues |
-| `gbrain check-update` | Check for new versions and integration recipes |
+| `pbrain search "term"` | Keyword search across all brain pages |
+| `pbrain query "question"` | Hybrid search (vector + keyword + RRF) |
+| `pbrain get <slug>` | Read a specific brain page by slug |
+| `pbrain sync` | Sync local markdown repo to pbrain index |
+| `pbrain import <path>` | Import files into the brain |
+| `pbrain embed --stale` | Re-embed pages with stale or missing embeddings |
+| `pbrain integrations` | Manage integration recipes (senses + reflexes) |
+| `pbrain stats` | Show brain statistics (page count, last sync, etc.) |
+| `pbrain doctor` | Diagnose brain health issues |
+| `pbrain check-update` | Check for new versions and integration recipes |
 
-Run `gbrain --help` for the full command reference.
+Run `pbrain --help` for the full command reference.
 
 ---
 
@@ -115,5 +115,5 @@ Run `gbrain --help` for the full command reference.
 - [Thin Harness, Fat Skills](ethos/THIN_HARNESS_FAT_SKILLS.md) — Architecture philosophy
 - [Markdown Skills as Recipes](ethos/MARKDOWN_SKILLS_AS_RECIPES.md) — Why markdown is code and your agent is a package manager
 - [Homebrew for Personal AI](designs/HOMEBREW_FOR_PERSONAL_AI.md) — The 10-star vision
-- [Recommended Schema](GBRAIN_RECOMMENDED_SCHEMA.md) — Directory structure for your brain repo
-- [Verification Runbook](GBRAIN_VERIFY.md) — End-to-end installation verification
+- [Recommended Schema](PBRAIN_RECOMMENDED_SCHEMA.md) — Directory structure for your brain repo
+- [Verification Runbook](PBRAIN_VERIFY.md) — End-to-end installation verification

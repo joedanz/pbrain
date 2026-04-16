@@ -6,7 +6,7 @@
 
 ## What this PR does
 
-GBrain stores knowledge in brain pages. Each page has two sections: **compiled truth**
+PBrain stores knowledge in brain pages. Each page has two sections: **compiled truth**
 (your distilled assessment of a person, company, or concept) and **timeline** (dated
 entries like meeting notes, announcements, funding rounds).
 
@@ -144,7 +144,7 @@ broader context for the same query.
 5. **Cosine re-scoring** — re-ranks chunks against the actual query embedding
 6. **RRF normalization** — scores normalized to 0-1 before boosting
 7. **CJK word count fix** — Chinese/Japanese/Korean queries now expand correctly
-8. **Eval harness** — `gbrain eval --qrels` with P@k, R@k, MRR, nDCG@k + A/B comparison
+8. **Eval harness** — `pbrain eval --qrels` with P@k, R@k, MRR, nDCG@k + A/B comparison
 9. **This benchmark** — 29 pages, 20 queries, reproducible, no private data
 
 ## How to reproduce

@@ -1,4 +1,4 @@
-# GBrain Skill Resolver
+# PBrain Skill Resolver
 
 This is the dispatcher. Skills are the implementation. **Read the skill file before acting.** If two skills could match, read both. They are designed to chain (e.g., ingest then enrich for each entity).
 
@@ -59,12 +59,12 @@ This is the dispatcher. Skills are the implementation. **Read the skill file bef
 
 | Trigger | Skill |
 |---------|-------|
-| "Set up GBrain", first boot | `skills/setup/SKILL.md` |
+| "Set up PBrain", first boot | `skills/setup/SKILL.md` |
 | "Migrate from Obsidian/Notion/Logseq" | `skills/migrate/SKILL.md` |
 | Brain health check, maintenance run | `skills/maintain/SKILL.md` |
 | "Extract links", "build link graph", "populate timeline" | `skills/maintain/SKILL.md` (extraction sections) |
-| "Brain health", "what features am I missing", "brain score" | Run `gbrain features --json` |
-| "Set up autopilot", "run brain maintenance", "keep brain updated" | Run `gbrain autopilot --install --repo ~/brain` |
+| "Brain health", "what features am I missing", "brain score" | Run `pbrain features --json` |
+| "Set up autopilot", "run brain maintenance", "keep brain updated" | Run `pbrain autopilot --install --repo ~/brain` |
 | Agent identity, "who am I", customize agent | `skills/soul-audit/SKILL.md` |
 
 ## Identity & access (always-on)

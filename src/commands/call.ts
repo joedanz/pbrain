@@ -6,7 +6,7 @@ export async function runCall(engine: BrainEngine, args: string[]) {
   const jsonStr = args[1];
 
   if (!tool) {
-    console.error('Usage: gbrain call <tool> \'<json>\'');
+    console.error('Usage: pbrain call <tool> \'<json>\'');
     process.exit(1);
   }
 

@@ -8,7 +8,7 @@ import { tmpdir } from 'os';
 // the file creation pattern directly.
 
 describe('report output format', () => {
-  const testDir = join(tmpdir(), `gbrain-report-test-${Date.now()}`);
+  const testDir = join(tmpdir(), `pbrain-report-test-${Date.now()}`);
 
   test('creates report directory structure', () => {
     const reportDir = join(testDir, 'reports', 'test-type');

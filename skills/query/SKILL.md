@@ -43,10 +43,10 @@ This skill guarantees:
    - Semantic query for conceptual questions
    - Structured queries (list by type, backlinks) for relational questions
 2. **Execute searches:**
-   - Keyword search gbrain for FTS matches (search)
-   - Hybrid search gbrain for semantic+keyword with expansion (query)
-   - List pages in gbrain by type or check backlinks for structural queries
-3. **Read top results.** Read the top 3-5 pages from gbrain to get full context.
+   - Keyword search pbrain for FTS matches (search)
+   - Hybrid search pbrain for semantic+keyword with expansion (query)
+   - List pages in pbrain by type or check backlinks for structural queries
+3. **Read top results.** Read the top 3-5 pages from pbrain to get full context.
 4. **Synthesize answer** with citations. Every claim traces back to a specific page slug.
 5. **Flag gaps.** If the brain doesn't have info, say "the brain doesn't have information on X" rather than hallucinating.
 
@@ -80,9 +80,9 @@ Answers should include:
 Search returns **chunks**, not full pages. Read the excerpts first before deciding
 whether to load a full page.
 
-- `gbrain search` / `gbrain query` return ranked chunks with context snippets.
+- `pbrain search` / `pbrain query` return ranked chunks with context snippets.
   These are often enough to answer the question directly.
-- Only use `gbrain get <slug>` to load the full page when a chunk confirms the
+- Only use `pbrain get <slug>` to load the full page when a chunk confirms the
   page is relevant and you need more context (e.g., compiled truth, timeline).
 - **"Tell me about X"** -- get the full page (the user wants the complete picture).
 - **"Did anyone mention Y?"** -- search results are enough (the user wants a yes/no with evidence).
@@ -110,18 +110,18 @@ When referencing brain pages in your answer, propagate inline citations:
 ## Search Quality Awareness
 
 If search results seem off (wrong results, missing known pages, irrelevant hits):
-- Run `gbrain doctor --json` to check index health
+- Run `pbrain doctor --json` to check index health
 - Check embedding coverage -- partial embeddings degrade hybrid search
-- Compare keyword search (`gbrain search`) vs hybrid search (`gbrain query`)
+- Compare keyword search (`pbrain search`) vs hybrid search (`pbrain query`)
   for the same query to isolate whether the issue is embedding-related
 - Report search quality issues in the maintain workflow (see maintain skill)
 
 ## Tools Used
 
-- Keyword search gbrain (search)
-- Hybrid search gbrain (query)
-- Read a page from gbrain (get_page)
-- List pages in gbrain with filters (list_pages)
-- Check backlinks in gbrain (get_backlinks)
-- Traverse the link graph in gbrain (traverse_graph)
-- View timeline entries in gbrain (get_timeline)
+- Keyword search pbrain (search)
+- Hybrid search pbrain (query)
+- Read a page from pbrain (get_page)
+- List pages in pbrain with filters (list_pages)
+- Check backlinks in pbrain (get_backlinks)
+- Traverse the link graph in pbrain (traverse_graph)
+- View timeline entries in pbrain (get_timeline)

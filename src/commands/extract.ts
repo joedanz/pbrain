@@ -1,10 +1,10 @@
 /**
- * gbrain extract — Extract links and timeline entries from brain markdown files.
+ * pbrain extract — Extract links and timeline entries from brain markdown files.
  *
  * Subcommands:
- *   gbrain extract links [--dir <brain>] [--dry-run] [--json]
- *   gbrain extract timeline [--dir <brain>] [--dry-run] [--json]
- *   gbrain extract all [--dir <brain>] [--dry-run] [--json]
+ *   pbrain extract links [--dir <brain>] [--dry-run] [--json]
+ *   pbrain extract timeline [--dir <brain>] [--dry-run] [--json]
+ *   pbrain extract all [--dir <brain>] [--dry-run] [--json]
  */
 
 import { readFileSync, readdirSync, lstatSync, existsSync } from 'fs';
@@ -182,7 +182,7 @@ export async function runExtract(engine: BrainEngine, args: string[]) {
   const jsonMode = args.includes('--json');
 
   if (!subcommand || !['links', 'timeline', 'all'].includes(subcommand)) {
-    console.error('Usage: gbrain extract <links|timeline|all> [--dir <brain-dir>] [--dry-run] [--json]');
+    console.error('Usage: pbrain extract <links|timeline|all> [--dir <brain-dir>] [--dry-run] [--json]');
     process.exit(1);
   }
 

@@ -1,6 +1,6 @@
-# Connect GBrain to Claude Cowork
+# Connect PBrain to Claude Cowork
 
-Two ways to get GBrain into Cowork sessions:
+Two ways to get PBrain into Cowork sessions:
 
 ## Option 1: Remote (via self-hosted server + tunnel)
 
@@ -20,14 +20,14 @@ must be publicly reachable (ngrok, Tailscale Funnel, or cloud-hosted).
 
 ## Option 2: Local Bridge (via Claude Desktop)
 
-If you already have GBrain configured in Claude Desktop (via `gbrain serve`
+If you already have PBrain configured in Claude Desktop (via `pbrain serve`
 stdio or a remote integration), Cowork gets access automatically. Claude
 Desktop bridges local MCP servers into Cowork via its SDK layer.
 
-This means: if `gbrain serve` is running and configured in Claude Desktop,
+This means: if `pbrain serve` is running and configured in Claude Desktop,
 you don't need a separate server for Cowork.
 
 ## Which to use?
 
 - **Remote server:** works even when your laptop is closed, available to all org members
-- **Local Bridge:** zero extra setup if Claude Desktop already has GBrain, but requires your machine to be running
+- **Local Bridge:** zero extra setup if Claude Desktop already has PBrain, but requires your machine to be running

@@ -1,5 +1,5 @@
 <!-- schema-version: 0.5.0 -->
-<!-- source: https://raw.githubusercontent.com/garrytan/gbrain/master/docs/GBRAIN_RECOMMENDED_SCHEMA.md -->
+<!-- source: https://raw.githubusercontent.com/joedanz/pbrain/master/docs/PBRAIN_RECOMMENDED_SCHEMA.md -->
 # Brain: The LLM-Maintained Knowledge Base
 
 A system prompt for any AI agent that wants to build and maintain a personal knowledge base. This describes the pattern, the architecture, and the operational discipline that makes it work.
@@ -884,7 +884,7 @@ When you mention someone or something in conversation:
 
 **log.md** — chronological record of ingests and updates. Append-only.
 
-At scale (500+ pages), add search tooling (embeddings, BM25, or tools like gbrain). At moderate scale, grep works well.
+At scale (500+ pages), add search tooling (embeddings, BM25, or tools like pbrain). At moderate scale, grep works well.
 
 ### Write hotspots and concurrency
 

@@ -18,7 +18,7 @@ import { autoDetectDetail } from './intent.ts';
 
 const RRF_K = 60;
 const COMPILED_TRUTH_BOOST = 2.0;
-const DEBUG = process.env.GBRAIN_SEARCH_DEBUG === '1';
+const DEBUG = process.env.PBRAIN_SEARCH_DEBUG === '1';
 
 export interface HybridSearchOpts extends SearchOpts {
   expansion?: boolean;

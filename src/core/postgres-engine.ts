@@ -15,7 +15,7 @@ import type {
   IngestLogEntry, IngestLogInput,
   EngineConfig,
 } from './types.ts';
-import { GBrainError } from './types.ts';
+import { PBrainError } from './types.ts';
 import * as db from './db.ts';
 import { validateSlug, contentHash, rowToPage, rowToChunk, rowToSearchResult } from './utils.ts';
 
@@ -33,7 +33,7 @@ export class PostgresEngine implements BrainEngine {
     if (config.poolSize) {
       // Instance-level connection for worker isolation
       const url = config.database_url;
-      if (!url) throw new GBrainError('No database URL', 'database_url is missing', 'Provide --url');
+      if (!url) throw new PBrainError('No database URL', 'database_url is missing', 'Provide --url');
       this._sql = postgres(url, {
         max: config.poolSize,
         idle_timeout: 20,
@@ -185,7 +185,7 @@ export class PostgresEngine implements BrainEngine {
     const excludeSlugs = opts?.exclude_slugs;
 
     if (opts?.limit && opts.limit > MAX_SEARCH_LIMIT) {
-      console.warn(`[gbrain] Warning: search limit clamped from ${opts.limit} to ${MAX_SEARCH_LIMIT}`);
+      console.warn(`[pbrain] Warning: search limit clamped from ${opts.limit} to ${MAX_SEARCH_LIMIT}`);
     }
 
     const detailLow = opts?.detail === 'low';
@@ -236,7 +236,7 @@ export class PostgresEngine implements BrainEngine {
     const detailLow = opts?.detail === 'low';
 
     if (opts?.limit && opts.limit > MAX_SEARCH_LIMIT) {
-      console.warn(`[gbrain] Warning: search limit clamped from ${opts.limit} to ${MAX_SEARCH_LIMIT}`);
+      console.warn(`[pbrain] Warning: search limit clamped from ${opts.limit} to ${MAX_SEARCH_LIMIT}`);
     }
 
     const vecStr = '[' + Array.from(embedding).join(',') + ']';

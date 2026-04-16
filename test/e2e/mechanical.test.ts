@@ -433,7 +433,7 @@ describeE2E('E2E: Files', () => {
 
   test('file_upload stores metadata + file_list shows it', async () => {
     // Create a temp file
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gbrain-e2e-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'pbrain-e2e-'));
     const tmpFile = join(tmpDir, 'test-doc.pdf');
     writeFileSync(tmpFile, 'fake pdf content');
 
@@ -451,7 +451,7 @@ describeE2E('E2E: Files', () => {
 
       // Verify file_url returns URI format
       const url = await callOp('file_url', { storage_path: result.storage_path }) as any;
-      expect(url.url).toContain('gbrain:files/');
+      expect(url.url).toContain('pbrain:files/');
     } finally {
       rmSync(tmpDir, { recursive: true });
     }
@@ -561,7 +561,7 @@ describeE2E('E2E: Setup Journey', () => {
   const cliCwd = join(import.meta.dir, '../..');
   const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL! });
 
-  test('gbrain init --non-interactive connects and initializes', () => {
+  test('pbrain init --non-interactive connects and initializes', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'init', '--non-interactive', '--url', process.env.DATABASE_URL!],
       cwd: cliCwd,
@@ -573,7 +573,7 @@ describeE2E('E2E: Setup Journey', () => {
     expect(stdout).toContain('Brain ready');
   }, 30_000);
 
-  test('gbrain import imports fixtures via CLI', () => {
+  test('pbrain import imports fixtures via CLI', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'import', '--no-embed', FIXTURES_PATH],
       cwd: cliCwd,
@@ -585,7 +585,7 @@ describeE2E('E2E: Setup Journey', () => {
     expect(stdout).toContain('imported');
   }, 60_000);
 
-  test('gbrain search returns results via CLI', () => {
+  test('pbrain search returns results via CLI', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'search', 'NovaMind'],
       cwd: cliCwd,
@@ -597,7 +597,7 @@ describeE2E('E2E: Setup Journey', () => {
     expect(stdout.length).toBeGreaterThan(0);
   }, 30_000);
 
-  test('gbrain stats shows page count via CLI', () => {
+  test('pbrain stats shows page count via CLI', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'stats'],
       cwd: cliCwd,
@@ -607,7 +607,7 @@ describeE2E('E2E: Setup Journey', () => {
     expect(result.exitCode).toBe(0);
   }, 30_000);
 
-  test('gbrain health runs via CLI', () => {
+  test('pbrain health runs via CLI', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'health'],
       cwd: cliCwd,
@@ -628,7 +628,7 @@ describeE2E('E2E: Init Edge Cases', () => {
   test('init --non-interactive without URL fails gracefully', () => {
     const env = { ...process.env };
     delete env.DATABASE_URL;
-    delete env.GBRAIN_DATABASE_URL;
+    delete env.PBRAIN_DATABASE_URL;
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'init', '--non-interactive'],
       cwd: join(import.meta.dir, '../..'),
@@ -781,7 +781,7 @@ describeE2E('E2E: RLS Verification', () => {
   });
   afterAll(teardownDB);
 
-  test('RLS is enabled on all gbrain tables', async () => {
+  test('RLS is enabled on all pbrain tables', async () => {
     const conn = getConn();
     const tables = await conn.unsafe(`
       SELECT tablename, rowsecurity FROM pg_tables
@@ -819,9 +819,9 @@ describeE2E('E2E: Doctor Command', () => {
   afterAll(teardownDB);
 
   const cliCwd = join(import.meta.dir, '../..');
-  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, GBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
+  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
 
-  test('gbrain doctor exits 0 on healthy DB', () => {
+  test('pbrain doctor exits 0 on healthy DB', () => {
     // Init first so config exists for CLI
     Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'init', '--non-interactive', '--url', process.env.DATABASE_URL!],
@@ -836,7 +836,7 @@ describeE2E('E2E: Doctor Command', () => {
     expect(result.exitCode).toBe(0);
   }, 60_000);
 
-  test('gbrain doctor --json produces valid JSON', () => {
+  test('pbrain doctor --json produces valid JSON', () => {
     const result = Bun.spawnSync({
       cmd: ['bun', 'run', 'src/cli.ts', 'doctor', '--json'],
       cwd: cliCwd,
@@ -864,7 +864,7 @@ describeE2E('E2E: Parallel Import', () => {
   afterAll(teardownDB);
 
   const cliCwd = join(import.meta.dir, '../..');
-  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, GBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
+  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL! });
 
   function initCli() {
     Bun.spawnSync({

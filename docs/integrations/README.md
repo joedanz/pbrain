@@ -1,6 +1,6 @@
 # Getting Data Into Your Brain
 
-GBrain is the retrieval layer. But retrieval is only as good as what you put in.
+PBrain is the retrieval layer. But retrieval is only as good as what you put in.
 This directory covers how to get data flowing into your brain automatically.
 
 ## How Data Flows In
@@ -14,7 +14,7 @@ Agent analyzes it (LLM, judgment, entity detection)
   ↓
 Brain pages created/updated (compiled truth + timeline)
   ↓
-GBrain indexes it (chunking, embedding, search-ready)
+PBrain indexes it (chunking, embedding, search-ready)
   ↓
 Next query is smarter (the compounding effect)
 ```
@@ -24,7 +24,7 @@ Next query is smarter (the compounding effect)
 ### Self-Installing Recipes
 
 These are integration recipes your agent can set up for you. Run
-`gbrain integrations` to see what's available and their status.
+`pbrain integrations` to see what's available and their status.
 
 | Recipe | Category | Requires | What It Does | Setup Time |
 |--------|----------|----------|-------------|------------|

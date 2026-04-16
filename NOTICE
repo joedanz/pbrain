@@ -1,0 +1,31 @@
+PBrain
+======
+
+PBrain is a fork of GBrain, created and maintained by Garry Tan.
+
+Original work:
+  GBrain — https://github.com/garrytan/gbrain
+  Copyright (c) 2026 Garry Tan
+  Licensed under the MIT License (see LICENSE).
+
+Fork:
+  PBrain — https://github.com/joedanz/pbrain
+  Copyright (c) 2026 Joe Danziger
+  Licensed under the MIT License (see LICENSE).
+
+PBrain adapts GBrain's architecture — contract-first operations, pluggable
+PGLite/Postgres engines, hybrid RAG search, and the fat-markdown skills
+pattern — for a different audience: a senior software engineer managing
+knowledge about coding projects, software libraries, AI tools and models,
+git repositories, code patterns, papers/talks/books, and tech companies
+(Anthropic, OpenAI, xAI, Vercel, Convex) as technical organizations rather
+than as investment targets. The VC-oriented schema directories and
+enrichment pipelines from GBrain have been removed; project-, library-, and
+AI-tool-oriented schemas and skills have been added in their place.
+
+All core engineering decisions — the contract-first design, the compiled-truth
++ timeline page format, the 3-tier chunker, hybrid search with RRF, the skill
+resolver, the autopilot daemon, the recipe system, the doctor command, the
+MCP server — are Garry Tan's work. PBrain would not exist without GBrain.
+
+Thank you to Garry Tan and all GBrain contributors for the foundation.

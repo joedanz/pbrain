@@ -69,7 +69,7 @@ describe('CLI dispatch integration', () => {
     });
     const stdout = await new Response(proc.stdout).text();
     await proc.exited;
-    expect(stdout.trim()).toMatch(/^gbrain \d+\.\d+\.\d+/);
+    expect(stdout.trim()).toMatch(/^pbrain \d+\.\d+\.\d+/);
   });
 
   test('unknown command prints error and exits 1', async () => {
@@ -92,7 +92,7 @@ describe('CLI dispatch integration', () => {
     });
     const stdout = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
-    expect(stdout).toContain('Usage: gbrain get');
+    expect(stdout).toContain('Usage: pbrain get');
     expect(exitCode).toBe(0);
   });
 
@@ -104,7 +104,7 @@ describe('CLI dispatch integration', () => {
     });
     const stdout = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
-    expect(stdout).toContain('Usage: gbrain upgrade');
+    expect(stdout).toContain('Usage: pbrain upgrade');
     expect(exitCode).toBe(0);
   });
 
@@ -117,7 +117,7 @@ describe('CLI dispatch integration', () => {
     const stdout = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
     expect(stdout).toContain('USAGE');
-    expect(stdout).toContain('gbrain <command>');
+    expect(stdout).toContain('pbrain <command>');
     expect(exitCode).toBe(0);
   });
 

@@ -2,7 +2,7 @@
 
 ## The idea
 
-Every GBrain operation goes through `BrainEngine`. The engine is the contract between "what the brain can do" and "how it's stored." Swap the engine, keep everything else.
+Every PBrain operation goes through `BrainEngine`. The engine is the contract between "what the brain can do" and "how it's stored." Swap the engine, keep everything else.
 
 v0 shipped `PostgresEngine` backed by Supabase. v0.7 adds `PGLiteEngine` -- embedded Postgres 17.5 via WASM (@electric-sql/pglite), zero-config default. The interface is designed so a `DuckDBEngine`, `TursoEngine`, or any custom backend could slot in without touching the CLI, MCP server, skills, or any consumer code.
 
@@ -19,7 +19,7 @@ Different users have different constraints:
 | Researcher | Analytics, bulk exports, embeddings | DuckDBEngine (someday) |
 | Edge/mobile | Offline-first, sync later | PGLiteEngine + sync (someday) |
 
-The engine interface means we don't have to choose. PGLite is the zero-friction default. Supabase is the production scale path. `gbrain migrate --to supabase/pglite` moves between them.
+The engine interface means we don't have to choose. PGLite is the zero-friction default. Supabase is the production scale path. `pbrain migrate --to supabase/pglite` moves between them.
 
 ## The interface
 
@@ -158,7 +158,7 @@ RRF fusion, multi-query expansion, and 4-layer dedup are engine-agnostic. They o
 - Uses `pglite-schema.ts` for DDL (pgvector extension, pg_trgm, triggers, indexes)
 - Parameterized queries throughout (shared utilities in `src/core/utils.ts`)
 - `hybridSearch` keyword-only fallback when `OPENAI_API_KEY` is not set
-- Data stored at `~/.gbrain/brain.db` (configurable)
+- Data stored at `~/.pbrain/brain.db` (configurable)
 - pgvector HNSW index for cosine similarity vector search (same as Postgres)
 - tsvector + ts_rank for full-text search (same as Postgres)
 - pg_trgm for fuzzy slug resolution (same as Postgres)
@@ -167,14 +167,14 @@ RRF fusion, multi-query expansion, and 4-layer dedup are engine-agnostic. They o
 
 | Factor | PGLite | PostgresEngine + Supabase |
 |--------|--------|--------------------------|
-| Setup | `gbrain init` (zero-config) | Account + connection string |
+| Setup | `pbrain init` (zero-config) | Account + connection string |
 | Scale | Good for < 1,000 files | Production-proven at 10K+ |
 | Multi-device | Single machine only | Any device via remote MCP |
 | Cost | Free | Supabase Pro ($25/mo) |
 | Concurrency | Single process | Connection pooling |
 | Backups | Manual (file copy) | Managed by Supabase |
 
-**Migration:** `gbrain migrate --to supabase` exports everything (pages, chunks, embeddings, links, tags, timeline) and imports into Supabase. `gbrain migrate --to pglite` goes the other direction. Bidirectional, lossless.
+**Migration:** `pbrain migrate --to supabase` exports everything (pages, chunks, embeddings, links, tags, timeline) and imports into Supabase. `pbrain migrate --to pglite` goes the other direction. Bidirectional, lossless.
 
 ## Adding a new engine
 
@@ -191,7 +191,7 @@ RRF fusion, multi-query expansion, and 4-layer dedup are engine-agnostic. They o
    }
    ```
    The factory uses dynamic imports so engines are only loaded when selected.
-3. Store engine type in `~/.gbrain/config.json`: `{ "engine": "myengine", ... }`
+3. Store engine type in `~/.pbrain/config.json`: `{ "engine": "myengine", ... }`
 4. Add tests. The test suite should be engine-agnostic where possible... same test cases, different engine constructor.
 5. Document in this file + add a design doc in `docs/`
 

@@ -105,7 +105,7 @@ Tell the user:
 2. Click **'+ CREATE CREDENTIALS'** at the top > **'OAuth client ID'**
 3. If prompted to configure the consent screen:
    - User type: **External** (or Internal for Google Workspace)
-   - App name: 'GBrain' (anything works)
+   - App name: 'PBrain' (anything works)
    - Scopes: add the ones you need:
      - Gmail: `https://www.googleapis.com/auth/gmail.readonly`
      - Calendar: `https://www.googleapis.com/auth/calendar.readonly`
@@ -113,7 +113,7 @@ Tell the user:
    - Test users: add your own email address
 4. Create the OAuth client ID:
    - Application type: **Desktop app**
-   - Name: 'GBrain'
+   - Name: 'PBrain'
 5. Click **'Create'** — copy the **Client ID** and **Client Secret**
 6. Enable the APIs you need:
    - Gmail: https://console.cloud.google.com/apis/library/gmail.googleapis.com
@@ -135,7 +135,7 @@ Then run the OAuth flow:
 // 1. Open a browser to the Google consent URL
 // 2. User grants access
 // 3. Script receives auth code, exchanges for access + refresh token
-// 4. Stores tokens in ~/.gbrain/google-tokens.json
+// 4. Stores tokens in ~/.pbrain/google-tokens.json
 // 5. Auto-refreshes when tokens expire (refresh token is long-lived)
 ```
 
@@ -144,8 +144,8 @@ Then run the OAuth flow:
 ### Step 2: Log Setup Completion
 
 ```bash
-mkdir -p ~/.gbrain/integrations/credential-gateway
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"type":"CLAWVISOR_OR_GOOGLE"}}' >> ~/.gbrain/integrations/credential-gateway/heartbeat.jsonl
+mkdir -p ~/.pbrain/integrations/credential-gateway
+echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok","details":{"type":"CLAWVISOR_OR_GOOGLE"}}' >> ~/.pbrain/integrations/credential-gateway/heartbeat.jsonl
 ```
 
 Tell the user: "Credential gateway is set up. Email-to-brain and calendar-to-brain
@@ -159,7 +159,7 @@ can now access your Google services."
    request against the purpose. Narrow = blocked.
 
 2. **Google OAuth tokens expire.** Access tokens last ~1 hour. The refresh token
-   is long-lived but can be revoked. Store both in `~/.gbrain/google-tokens.json`
+   is long-lived but can be revoked. Store both in `~/.pbrain/google-tokens.json`
    with 0600 permissions. The script should auto-refresh on 401.
 
 3. **Google consent screen in "Testing" mode** limits to 100 users and tokens
@@ -172,7 +172,7 @@ can now access your Google services."
 ## How to Verify
 
 1. **ClawVisor:** `curl $CLAWVISOR_URL/health` returns OK.
-2. **Google OAuth:** Tokens exist at `~/.gbrain/google-tokens.json`.
+2. **Google OAuth:** Tokens exist at `~/.pbrain/google-tokens.json`.
 3. **Gmail access:** Run the email collector — it should pull recent messages.
 4. **Calendar access:** Run the calendar sync — it should pull today's events.
 
@@ -185,4 +185,4 @@ can now access your Google services."
 
 ---
 
-*Part of the [GBrain Skillpack](../docs/GBRAIN_SKILLPACK.md). See also: [Email-to-Brain](email-to-brain.md), [Calendar-to-Brain](calendar-to-brain.md)*
+*Part of the [PBrain Skillpack](../docs/PBRAIN_SKILLPACK.md). See also: [Email-to-Brain](email-to-brain.md), [Calendar-to-Brain](calendar-to-brain.md)*

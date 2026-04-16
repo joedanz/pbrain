@@ -22,7 +22,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: gbrain_test
+          POSTGRES_DB: pbrain_test
         ports:
           - 5432:5432
         options: >-
@@ -39,7 +39,7 @@ jobs:
       - name: Run Tier 1 E2E tests
         run: bun test test/e2e/mechanical.test.ts test/e2e/mcp.test.ts
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gbrain_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pbrain_test
 
   tier2:
     name: Tier 2 (LLM Skills)
@@ -52,7 +52,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: gbrain_test
+          POSTGRES_DB: pbrain_test
         ports:
           - 5432:5432
         options: >-
@@ -74,7 +74,7 @@ jobs:
           cat > ~/.openclaw/config.json << 'EOF'
           {
             "mcpServers": {
-              "gbrain": {
+              "pbrain": {
                 "command": "bun",
                 "args": ["run", "src/cli.ts", "serve"],
                 "env": {
@@ -87,6 +87,6 @@ jobs:
       - name: Run Tier 2 skill tests
         run: bun test test/e2e/skills.test.ts
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gbrain_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pbrain_test
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

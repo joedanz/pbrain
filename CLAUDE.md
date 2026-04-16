@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-GBrain is a personal knowledge brain and GStack mod for agent platforms. Pluggable
+PBrain is a personal knowledge brain and GStack mod for agent platforms. Pluggable
 engines: PGLite (embedded Postgres via WASM, zero-config default) or Postgres + pgvector
-+ hybrid search in a managed Supabase instance. `gbrain init` defaults to PGLite;
-suggests Supabase for 1000+ files. GStack teaches agents how to code. GBrain teaches
++ hybrid search in a managed Supabase instance. `pbrain init` defaults to PGLite;
+suggests Supabase for 1000+ files. GStack teaches agents how to code. PBrain teaches
 agents everything else: brain ops, signal detection, content ingestion, enrichment,
 cron scheduling, reports, identity, and access control.
 
@@ -24,7 +24,7 @@ markdown files (tool-agnostic, work with both CLI and plugin contexts).
 - `src/core/postgres-engine.ts` — Postgres + pgvector implementation (Supabase / self-hosted)
 - `src/core/utils.ts` — Shared SQL utilities extracted from postgres-engine.ts
 - `src/core/db.ts` — Connection management, schema initialization
-- `src/commands/migrate-engine.ts` — Bidirectional engine migration (`gbrain migrate --to supabase/pglite`)
+- `src/commands/migrate-engine.ts` — Bidirectional engine migration (`pbrain migrate --to supabase/pglite`)
 - `src/core/import-file.ts` — importFromFile + importFromContent (chunk + embed + tags)
 - `src/core/sync.ts` — Pure sync functions (manifest parsing, filtering, slug conversion)
 - `src/core/storage.ts` — Pluggable storage interface (S3, Supabase Storage, local)
@@ -34,7 +34,7 @@ markdown files (tool-agnostic, work with both CLI and plugin contexts).
 - `src/core/search/` — Hybrid search: vector + keyword + RRF + multi-query expansion + dedup
 - `src/core/search/intent.ts` — Query intent classifier (entity/temporal/event/general → auto-selects detail level)
 - `src/core/search/eval.ts` — Retrieval eval harness: P@k, R@k, MRR, nDCG@k metrics + runEval() orchestrator
-- `src/commands/eval.ts` — `gbrain eval` command: single-run table + A/B config comparison
+- `src/commands/eval.ts` — `pbrain eval` command: single-run table + A/B config comparison
 - `src/core/embedding.ts` — OpenAI text-embedding-3-large, batch, retry, backoff
 - `src/core/check-resolvable.ts` — Resolver validation: reachability, MECE overlap, DRY checks, structured fix objects
 - `src/core/backoff.ts` — Adaptive load-aware throttling: CPU/memory checks, exponential backoff, active hours multiplier
@@ -42,9 +42,9 @@ markdown files (tool-agnostic, work with both CLI and plugin contexts).
 - `src/core/transcription.ts` — Audio transcription: Groq Whisper (default), OpenAI fallback, ffmpeg segmentation for >25MB
 - `src/core/enrichment-service.ts` — Global enrichment service: entity slug generation, tier auto-escalation, batch throttling
 - `src/core/data-research.ts` — Recipe validation, field extraction (MRR/ARR regex), dedup, tracker parsing, HTML stripping
-- `src/commands/extract.ts` — `gbrain extract links|timeline|all`: batch link/timeline extraction from markdown
-- `src/commands/features.ts` — `gbrain features --json --auto-fix`: usage scan + feature adoption salesman
-- `src/commands/autopilot.ts` — `gbrain autopilot --install`: self-maintaining brain daemon (sync+extract+embed)
+- `src/commands/extract.ts` — `pbrain extract links|timeline|all`: batch link/timeline extraction from markdown
+- `src/commands/features.ts` — `pbrain features --json --auto-fix`: usage scan + feature adoption salesman
+- `src/commands/autopilot.ts` — `pbrain autopilot --install`: self-maintaining brain daemon (sync+extract+embed)
 - `src/mcp/server.ts` — MCP stdio server (generated from operations)
 - `src/commands/auth.ts` — Standalone token management (create/list/revoke/test)
 - `src/commands/upgrade.ts` — Self-update CLI with post-upgrade feature discovery + features hook
@@ -97,11 +97,11 @@ markdown files (tool-agnostic, work with both CLI and plugin contexts).
 
 ## Commands
 
-Run `gbrain --help` or `gbrain --tools-json` for full command reference.
+Run `pbrain --help` or `pbrain --tools-json` for full command reference.
 
 Key commands added in v0.7:
-- `gbrain init` — defaults to PGLite (no Supabase needed), scans repo size, suggests Supabase for 1000+ files
-- `gbrain migrate --to supabase` / `gbrain migrate --to pglite` — bidirectional engine migration
+- `pbrain init` — defaults to PGLite (no Supabase needed), scans repo size, suggests Supabase for 1000+ files
+- `pbrain migrate --to supabase` / `pbrain migrate --to pglite` — bidirectional engine migration
 
 ## Testing
 
@@ -179,23 +179,23 @@ Do not leave containers running after tests. Do not skip E2E tests.
    pick a different port (try 5435, 5436, 5437) and start on that one instead.
 3. **Start the test DB:**
    ```bash
-   docker run -d --name gbrain-test-pg \
+   docker run -d --name pbrain-test-pg \
      -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
-     -e POSTGRES_DB=gbrain_test \
+     -e POSTGRES_DB=pbrain_test \
      -p PORT:5432 pgvector/pgvector:pg16
    ```
-   Wait for ready: `docker exec gbrain-test-pg pg_isready -U postgres`
+   Wait for ready: `docker exec pbrain-test-pg pg_isready -U postgres`
 4. **Run E2E tests:**
-   `DATABASE_URL=postgresql://postgres:postgres@localhost:PORT/gbrain_test bun run test:e2e`
+   `DATABASE_URL=postgresql://postgres:postgres@localhost:PORT/pbrain_test bun run test:e2e`
 5. **Tear down immediately after tests finish (pass or fail):**
-   `docker stop gbrain-test-pg && docker rm gbrain-test-pg`
+   `docker stop pbrain-test-pg && docker rm pbrain-test-pg`
 
-Never leave `gbrain-test-pg` running. If you find a stale one from a previous run,
+Never leave `pbrain-test-pg` running. If you find a stale one from a previous run,
 stop and remove it before starting a new one.
 
 ## Skills
 
-Read the skill files in `skills/` before doing brain operations. GBrain ships 25 skills
+Read the skill files in `skills/` before doing brain operations. PBrain ships 25 skills
 organized by `skills/RESOLVER.md`:
 
 **Original 8 (conformance-migrated):** ingest (thin router), query, maintain, enrich,
@@ -213,7 +213,7 @@ model-routing, test-before-bulk, cross-modal). `skills/_brain-filing-rules.md` a
 
 ## Build
 
-`bun build --compile --outfile bin/gbrain src/cli.ts`
+`bun build --compile --outfile bin/pbrain src/cli.ts`
 
 ## Pre-ship requirements
 
@@ -252,8 +252,8 @@ upgrade, not document the implementation.
 - Lead with what the user can now DO that they couldn't before
 - Frame as benefits and capabilities, not files changed or code written
 - Make the user think "hell yeah, I want that"
-- Bad: "Added GBRAIN_VERIFY.md installation verification runbook"
-- Good: "Your agent now verifies the entire GBrain installation end-to-end, catching
+- Bad: "Added PBRAIN_VERIFY.md installation verification runbook"
+- Good: "Your agent now verifies the entire PBrain installation end-to-end, catching
   silent sync failures and stale embeddings before they bite you"
 - Bad: "Setup skill Phase H and Phase I added"
 - Good: "New installs automatically set up live sync so your brain never falls behind"
@@ -271,7 +271,7 @@ reads these files post-upgrade (Section 17, Step 4) and executes them.
 - New setup step that existing installs don't have (e.g., v0.5.0 added live sync,
   existing users need to set it up, not just new installs)
 - New SKILLPACK section with a MUST ADD setup requirement
-- Schema changes that require `gbrain init` or manual SQL
+- Schema changes that require `pbrain init` or manual SQL
 - Changed defaults that affect existing behavior
 - Deprecated commands or flags that need replacement
 - New verification steps that should run on existing installs
@@ -292,7 +292,7 @@ for the pattern.
 
 ## Schema state tracking
 
-`~/.gbrain/update-state.json` tracks which recommended schema directories the user
+`~/.pbrain/update-state.json` tracks which recommended schema directories the user
 adopted, declined, or added custom. The auto-update agent (SKILLPACK Section 17)
 reads this during upgrades to suggest new schema additions without re-suggesting
 things the user already declined. The setup skill writes the initial state during

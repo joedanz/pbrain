@@ -10,4 +10,6 @@ bin/
 .gstack/
 supabase/.temp/
 .claude/skills/
+.claude/settings.local.json
+tasks/
 .idea

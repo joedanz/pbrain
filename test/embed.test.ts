@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.GBRAIN_EMBED_CONCURRENCY;
+  delete process.env.PBRAIN_EMBED_CONCURRENCY;
 });
 
 describe('runEmbed --all (parallel)', () => {
@@ -71,7 +71,7 @@ describe('runEmbed --all (parallel)', () => {
       upsertChunks: async () => {},
     });
 
-    process.env.GBRAIN_EMBED_CONCURRENCY = '10';
+    process.env.PBRAIN_EMBED_CONCURRENCY = '10';
 
     await runEmbed(engine, ['--all']);
 
@@ -82,7 +82,7 @@ describe('runEmbed --all (parallel)', () => {
     expect(maxConcurrentEmbedCalls).toBeLessThanOrEqual(10);
   });
 
-  test('respects GBRAIN_EMBED_CONCURRENCY=1 (serial)', async () => {
+  test('respects PBRAIN_EMBED_CONCURRENCY=1 (serial)', async () => {
     const pages = Array.from({ length: 5 }, (_, i) => ({ slug: `page-${i}` }));
     const chunksBySlug = new Map(
       pages.map(p => [
@@ -97,7 +97,7 @@ describe('runEmbed --all (parallel)', () => {
       upsertChunks: async () => {},
     });
 
-    process.env.GBRAIN_EMBED_CONCURRENCY = '1';
+    process.env.PBRAIN_EMBED_CONCURRENCY = '1';
 
     await runEmbed(engine, ['--all']);
 
@@ -118,7 +118,7 @@ describe('runEmbed --all (parallel)', () => {
       upsertChunks: async () => {},
     });
 
-    process.env.GBRAIN_EMBED_CONCURRENCY = '5';
+    process.env.PBRAIN_EMBED_CONCURRENCY = '5';
 
     await runEmbed(engine, ['--stale']);
 

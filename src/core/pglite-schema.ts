@@ -14,7 +14,7 @@
  */
 
 export const PGLITE_SCHEMA_SQL = `
--- GBrain PGLite schema (local embedded Postgres)
+-- PBrain PGLite schema (local embedded Postgres)
 
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

@@ -28,18 +28,18 @@ on new_meeting_transcript(meeting):
         # Below the bar: full transcript, append-only
         #   Format: **Speaker** (HH:MM:SS): Words.
 
-    gbrain put <slug> --content "<compiled_truth>\n---\n<timeline>"
+    pbrain put <slug> --content "<compiled_truth>\n---\n<timeline>"
 
     # Step 3: Propagate to ALL entity pages (MANDATORY -- most agents skip this)
     for person in meeting.attendees + meeting.mentioned_people:
-        gbrain add_timeline_entry <person_slug> \
+        pbrain add_timeline_entry <person_slug> \
             --entry "Met in '{meeting.title}' on {date}. Key points: ..." \
             --source "Meeting notes '{meeting.title}', {date}"
         # Update their State section if new information surfaced
         # Update company pages for each person's company if relevant
 
     for company in meeting.mentioned_companies:
-        gbrain add_timeline_entry <company_slug> \
+        pbrain add_timeline_entry <company_slug> \
             --entry "Discussed in '{meeting.title}': {what_was_said}" \
             --source "Meeting notes '{meeting.title}', {date}"
 
@@ -49,11 +49,11 @@ on new_meeting_transcript(meeting):
 
     # Step 5: Back-link everything (bidirectional graph)
     for entity in all_entities_mentioned:
-        gbrain add_link <slug> <entity_slug>   # meeting -> entity
-        gbrain add_link <entity_slug> <slug>    # entity -> meeting
+        pbrain add_link <slug> <entity_slug>   # meeting -> entity
+        pbrain add_link <entity_slug> <slug>    # entity -> meeting
 
     # Step 6: Sync so new pages are immediately searchable
-    gbrain sync
+    pbrain sync
 
 # Schedule: cron 3x/day (10 AM, 4 PM, 9 PM) to catch new meetings
 # Source: Circleback (https://circleback.ai) or any service with
@@ -70,11 +70,11 @@ on new_meeting_transcript(meeting):
 
 ## How to Verify
 
-1. After ingesting a meeting, run `gbrain get meetings/{date}-{slug}`. Confirm the page has the agent's analysis above the bar and the full diarized transcript below it.
-2. For each attendee, run `gbrain get <attendee_slug>`. Check that their timeline has a new entry referencing the meeting with specific insights (not just "attended meeting").
-3. Pick a company mentioned in the meeting. Run `gbrain get <company_slug>`. Confirm a timeline entry exists referencing what was discussed about the company.
-4. Run `gbrain get_links meetings/{date}-{slug}`. Verify back-links exist to all attendee and entity pages.
-5. Run `gbrain search "{meeting_topic}"`. Confirm the meeting page appears in search results (verifies sync ran).
+1. After ingesting a meeting, run `pbrain get meetings/{date}-{slug}`. Confirm the page has the agent's analysis above the bar and the full diarized transcript below it.
+2. For each attendee, run `pbrain get <attendee_slug>`. Check that their timeline has a new entry referencing the meeting with specific insights (not just "attended meeting").
+3. Pick a company mentioned in the meeting. Run `pbrain get <company_slug>`. Confirm a timeline entry exists referencing what was discussed about the company.
+4. Run `pbrain get_links meetings/{date}-{slug}`. Verify back-links exist to all attendee and entity pages.
+5. Run `pbrain search "{meeting_topic}"`. Confirm the meeting page appears in search results (verifies sync ran).
 
 ---
-*Part of the [GBrain Skillpack](../GBRAIN_SKILLPACK.md).*
+*Part of the [PBrain Skillpack](../PBRAIN_SKILLPACK.md).*

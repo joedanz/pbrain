@@ -80,7 +80,7 @@ export async function discoverPoolerUrl(
 }
 
 /**
- * Verify RLS is enabled on all gbrain tables.
+ * Verify RLS is enabled on all pbrain tables.
  * Returns list of tables without RLS.
  */
 export async function checkRls(token: string, projectRef: string): Promise<string[]> {

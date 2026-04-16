@@ -5,7 +5,7 @@
  * to LLM. Logs every fallback as a JSONL entry for future improvement.
  * Over time, failure patterns reveal which regex rules are missing.
  *
- * Each operation writes to its own JSONL file (~/.gbrain/fail-improve/{operation}.jsonl).
+ * Each operation writes to its own JSONL file (~/.pbrain/fail-improve/{operation}.jsonl).
  * Atomic append assumption: individual log entries are <1KB, well under OS page size.
  * No cross-operation file conflicts since each operation has its own file.
  */
@@ -45,7 +45,7 @@ export interface TestCase {
   source: 'fail-improve-loop';
 }
 
-const LOG_DIR = join(homedir(), '.gbrain', 'fail-improve');
+const LOG_DIR = join(homedir(), '.pbrain', 'fail-improve');
 const MAX_ENTRIES = 1000;
 
 // ---------------------------------------------------------------------------

@@ -113,7 +113,7 @@ in the brain, skip it. No duplicates.
 
 ## Prerequisites
 
-1. **GBrain installed and configured** (`gbrain doctor` passes)
+1. **PBrain installed and configured** (`pbrain doctor` passes)
 2. **Node.js 18+** (for the sync script)
 3. **Circleback account** (https://circleback.ai) with meetings recorded
 
@@ -189,16 +189,16 @@ Should show files like `2026-04-10-weekly-team-sync.md`.
 
 Tell the user: "Found and synced N meetings. Here are the most recent: [list 3]."
 
-### Step 4: Import to GBrain
+### Step 4: Import to PBrain
 
 ```bash
-gbrain import brain/meetings/ --no-embed
-gbrain embed --stale
+pbrain import brain/meetings/ --no-embed
+pbrain embed --stale
 ```
 
 Verify:
 ```bash
-gbrain search "meeting" --limit 3
+pbrain search "meeting" --limit 3
 ```
 
 ### Step 5: Propagate to Entity Pages
@@ -206,14 +206,14 @@ gbrain search "meeting" --limit 3
 This is YOUR job (the agent). For each meeting:
 
 1. **Read the meeting page** — understand who attended and what was discussed
-2. **For each attendee**, check brain: `gbrain search "attendee name"`
+2. **For each attendee**, check brain: `pbrain search "attendee name"`
    - If page exists: append timeline entry:
      `- YYYY-MM-DD | Meeting: {title}. Discussed: {key points relevant to this person} [Source: Circleback]`
    - If no page and person is notable: create a brain page
 3. **For each company mentioned**: update company page timeline
 4. **Action items**: if the meeting has action items, ensure they're tracked
 5. **Cross-reference with calendar**: link meeting page to the calendar event
-6. **Sync**: `gbrain sync --no-pull --no-embed`
+6. **Sync**: `pbrain sync --no-pull --no-embed`
 
 ### Step 6: Set Up Cron
 
@@ -228,8 +228,8 @@ Default (no flags): syncs yesterday and today.
 ### Step 7: Log Setup Completion
 
 ```bash
-mkdir -p ~/.gbrain/integrations/meeting-sync
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok"}' >> ~/.gbrain/integrations/meeting-sync/heartbeat.jsonl
+mkdir -p ~/.pbrain/integrations/meeting-sync
+echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","event":"setup_complete","source_version":"0.7.0","status":"ok"}' >> ~/.pbrain/integrations/meeting-sync/heartbeat.jsonl
 ```
 
 Tell the user: "Meeting sync is set up. Every meeting recorded by Circleback
@@ -346,7 +346,7 @@ if new_meetings_created > 0:
   shell('git push', cwd=BRAIN_DIR)
 ```
 
-The sync script commits and pushes automatically. This triggers GBrain's
+The sync script commits and pushes automatically. This triggers PBrain's
 live sync to index the new pages.
 
 ### What the Agent Should Test After Setup

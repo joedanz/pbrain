@@ -5,11 +5,11 @@ research a person, company, or topic, check the brain first.
 
 ## The 5-Step Lookup
 
-1. `gbrain search "name"` — keyword search for existing pages
-2. `gbrain query "natural question about name"` — hybrid search for related context
-3. `gbrain get <slug>` — if you know the slug, read the full page
-4. Check backlinks: `gbrain get_backlinks <slug>` — who references this entity?
-5. Check timeline: `gbrain get_timeline <slug>` — recent events involving this entity
+1. `pbrain search "name"` — keyword search for existing pages
+2. `pbrain query "natural question about name"` — hybrid search for related context
+3. `pbrain get <slug>` — if you know the slug, read the full page
+4. Check backlinks: `pbrain get_backlinks <slug>` — who references this entity?
+5. Check timeline: `pbrain get_timeline <slug>` — recent events involving this entity
 
 The brain almost always has something. External APIs fill gaps, not start from scratch.
 

@@ -30,7 +30,7 @@ async function main() {
   }
 
   if (command === '--version' || command === 'version') {
-    console.log(`gbrain ${VERSION}`);
+    console.log(`pbrain ${VERSION}`);
     return;
   }
 
@@ -66,7 +66,7 @@ async function main() {
   const op = cliOps.get(command);
   if (!op) {
     console.error(`Unknown command: ${command}`);
-    console.error('Run gbrain --help for available commands.');
+    console.error('Run pbrain --help for available commands.');
     process.exit(1);
   }
 
@@ -80,7 +80,7 @@ async function main() {
         const cliName = op.cliHints?.name || op.name;
         const positional = op.cliHints?.positional || [];
         const usage = positional.map(p => `<${p}>`).join(' ');
-        console.error(`Usage: gbrain ${cliName} ${usage}`);
+        console.error(`Usage: pbrain ${cliName} ${usage}`);
         process.exit(1);
       }
     }
@@ -376,7 +376,7 @@ async function handleCliOnly(command: string, args: string[]) {
 async function connectEngine(): Promise<BrainEngine> {
   const config = loadConfig();
   if (!config) {
-    console.error('No brain configured. Run: gbrain init');
+    console.error('No brain configured. Run: pbrain init');
     process.exit(1);
   }
   const { createEngine } = await import('./core/engine-factory.ts');
@@ -388,7 +388,7 @@ async function connectEngine(): Promise<BrainEngine> {
 function printOpHelp(op: Operation) {
   const positional = (op.cliHints?.positional || []).map(p => `<${p}>`).join(' ');
   const name = op.cliHints?.name || op.name;
-  console.log(`Usage: gbrain ${name} ${positional} [options]\n`);
+  console.log(`Usage: pbrain ${name} ${positional} [options]\n`);
   console.log(op.description + '\n');
   const entries = Object.entries(op.params);
   if (entries.length > 0) {
@@ -407,10 +407,10 @@ function printHelp() {
   const cliNames = Array.from(cliOps.entries())
     .map(([name, op]) => ({ name, desc: op.description }));
 
-  console.log(`gbrain ${VERSION} -- personal knowledge brain
+  console.log(`pbrain ${VERSION} -- personal knowledge brain
 
 USAGE
-  gbrain <command> [options]
+  pbrain <command> [options]
 
 SETUP
   init [--pglite|--supabase|--url]   Create brain (PGLite default, no server)
@@ -484,7 +484,7 @@ ADMIN
   version                            Version info
   --tools-json                       Tool discovery (JSON)
 
-Run gbrain <command> --help for command-specific help.
+Run pbrain <command> --help for command-specific help.
 `);
 }
 

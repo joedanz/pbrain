@@ -2,7 +2,7 @@
  * E2E Sync Tests — Tier 1 (no API keys required)
  *
  * Tests the full git-to-DB sync pipeline: create a git repo, commit
- * markdown files, run gbrain sync, verify pages appear in the database.
+ * markdown files, run pbrain sync, verify pages appear in the database.
  * Covers first sync, incremental add/modify/delete, and the critical
  * "edit → sync → search returns corrected text" flow.
  *
@@ -27,7 +27,7 @@ if (skip) {
 
 /** Create a temp git repo with initial markdown files */
 function createTestRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'gbrain-sync-e2e-'));
+  const dir = mkdtempSync(join(tmpdir(), 'pbrain-sync-e2e-'));
   execSync('git init', { cwd: dir, stdio: 'pipe' });
   execSync('git config user.email "test@test.com"', { cwd: dir, stdio: 'pipe' });
   execSync('git config user.name "Test"', { cwd: dir, stdio: 'pipe' });
