@@ -110,13 +110,13 @@ Don't just capture facts. Capture texture:
 
 | Signal Type | What to Extract |
 |-------------|----------------|
-| Opinions, beliefs | What They Believe section |
-| Current projects, features shipped | What They're Building section |
+| Opinions, beliefs, technical positions | What They Believe section |
+| Current projects, libraries shipped, PRs merged | What They're Building section |
 | Ambition, career arc, motivation | What Motivates Them section |
 | Topics they return to obsessively | Hobby Horses section |
 | Who they amplify, argue with, respect | Network / Relationships |
 | Ascending, plateauing, pivoting? | Trajectory section |
-| Role, company, funding, location | State section (hard facts) |
+| Role, company, GitHub handle, location | State section (hard facts) |
 
 ### Step 4: External data source lookups
 
@@ -137,18 +137,31 @@ Priority order -- stop when you have enough signal for the entity's tier.
 - Pull recent posts/tweets for tone, interests, current focus
 - Social media is the highest-texture signal for what someone actually thinks
 
-**4d. People enrichment APIs (Tier 1)**
-- LinkedIn data, career history, connections, education
+**4d. GitHub / package registry (all tiers for tech entities)**
+- For `people/`: GitHub API → repos, contributions, PR activity, language mix
+- For `libraries/`: npm/PyPI/crates.io → version history, deps, maintainer, license
+- For `repos/`: GitHub API → stars, recent activity, CODEOWNERS, open issues
+- This is the single most valuable source for engineering context — call it first
 
-**4e. Company enrichment APIs (Tier 1)**
-- Company data, financials, headcount, key hires, recent news
+**4e. Product docs (Tier 1-2 for `ai-tools/` and `companies/`)**
+- `docs.anthropic.com`, OpenAI API reference, model cards, changelogs
+- Primary source for what an AI tool can actually do
+- For `companies/`: pricing pages, model cards, announcement blog
+
+**4f. People enrichment APIs (Tier 1, if available)**
+- Public-profile data where relevant; prefer GitHub + personal sites for engineers
+
+**4g. arxiv / Semantic Scholar (Tier 1-2 for `papers/`)**
+- Abstract, citations, related work, author profiles
 
 | Data Need | Example Sources | Tier |
 |-----------|----------------|------|
 | Web research | Perplexity, Brave, Exa | 1-2 |
-| LinkedIn / career | Crustdata, Proxycurl, People Data Labs | 1 |
-| Career history | Happenstance, LinkedIn | 1 |
-| Funding / company data | Crunchbase, PitchBook, Clearbit | 1 |
+| GitHub repos, PRs, contributors | GitHub REST + GraphQL API | 1-3 |
+| Package metadata | npm registry, PyPI JSON, crates.io API, pkg.go.dev | 1-2 |
+| Papers & citations | arxiv.org API, Semantic Scholar API | 1-2 |
+| Product capabilities | Provider docs pages (docs.anthropic.com, platform.openai.com, etc.) | 1-2 |
+| Public profiles | GitHub profile, personal site, company about pages | 1-2 |
 | Social media | Platform APIs, web scraping | 1-3 |
 | Meeting history | Calendar/meeting transcript tools | 1-2 |
 
@@ -248,7 +261,10 @@ Reverse chronological. Every entry has a date and [Source: ...] citation.
 - **YYYY-MM-DD** | Event description [Source: ...]
 ```
 
-#### Company page template
+#### Company page template (tech-org, not VC)
+
+PBrain tracks tech companies by what they ship, not by their cap table. No Stage,
+no valuation, no investors.
 
 ```markdown
 ---
@@ -261,19 +277,41 @@ tags: []
 
 # Company Name
 
-> 1-paragraph executive summary.
+> 1-paragraph summary: what they make, why you care, what's shipping now.
 
-## State
-What they do, stage, key people, key metrics, your connection.
+## What they make
+Product / service line at a glance.
+
+## Current offerings
+- **[Offering]** — what it does, pricing tier, what you use it for
+- ...
+
+## Direction
+Where they're going. Cite recent announcements, blog posts, interviews.
+
+## My usage
+How YOU use their products. Be specific — which endpoint, which model, which
+plan. If you don't use them, explain why they're tracked anyway.
+
+## Key people
+Links to `people/` pages for CEO, research lead, head of DX, notable ICs.
+(Not investors, not board members.)
 
 ## Open Threads
-Active items, pending decisions, things to track.
+Things to watch, API changes to test, pricing shifts to model.
 
 ---
 
 ## Timeline
 - **YYYY-MM-DD** | Event description [Source: ...]
 ```
+
+#### Other tech-page templates
+
+For `libraries/`, `ai-tools/`, `repos/`, `patterns/`, `papers/`, `talks/`, `books/`,
+follow the templates in `docs/PBRAIN_RECOMMENDED_SCHEMA.md`. When enrichment runs on
+these entities, prefer GitHub / package registry / product docs as primary sources
+(see 4d–4g above) over general web search.
 
 ### Step 7: Cross-reference
 

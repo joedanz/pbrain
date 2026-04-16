@@ -31,9 +31,30 @@ The first PBrain release. Adaptation work is phased across four PRs merged to ma
 #### Migration path
 Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate binary and a separate config directory. GBrain v0.10.1 and PBrain v1.0.0 are distinct products.
 
-### Phase 2 — Schema & skills adaptation (not yet started)
+### Phase 2 — Schema & skills adaptation (merged)
 
-_Planned: drop VC directory taxonomy, add coding/AI directories, re-skin `companies/` template, swap VC examples in 27 skill files for coding/AI examples._
+#### Schema taxonomy rebuilt for engineering
+- **Seven tech directories added:** `libraries/` (packages you `import`), `ai-tools/` (products you `curl` or drive via CLI/UI), `repos/` (git source trees you own or follow), `patterns/` (reusable code idioms), `papers/` (arxiv/conference), `talks/` (conference/podcast/video), `books/` (long reference works).
+- **Eight VC/founder directories dropped** from the recommended schema: `deals/`, `hiring/`, `civic/`, `org/`, `media/`, `personal/`, `household/`, `programs/`. Existing pages there are untouched — the resolver simply stops routing new content to them.
+- **`originals/` now documented** in the schema taxonomy (was implicit in skills but undocumented).
+- **Resolver decision tree rewritten** (`docs/PBRAIN_RECOMMENDED_SCHEMA.md`) with 20 numbered entries, tech-flavored disambiguation rules (library vs. ai-tool, library vs. repo, pattern vs. library, paper vs. concept, etc.), and a two-question check before any tech-domain page is created.
+
+#### `companies/` template re-skinned for tech orgs
+- VC fields removed: Stage (Seed/Series A/Growth), Key metrics (revenue/headcount/funding), Investors/board.
+- Tech-org fields added: **What they make**, **Current offerings** (models/APIs/CLIs), **Direction** (roadmap signals), **My usage** (which endpoints, which plan, observed cost), **Key people** (CEO/research lead/head of DX — not investors).
+- Seven new page templates added to `docs/PBRAIN_RECOMMENDED_SCHEMA.md` for library/ai-tool/repo/pattern/paper/talk/book.
+
+#### Enrichment sources rewired
+- `skills/enrich/SKILL.md` now prioritizes GitHub REST+GraphQL, package registries (npm/PyPI/crates.io/pkg.go.dev), arxiv/Semantic Scholar, and product docs (docs.anthropic.com, OpenAI API reference, model cards) over VC-style LinkedIn/Crunchbase/Crustdata/Happenstance/PitchBook.
+- Five new enrichment flows documented: library, AI tool, paper, plus updated flows for person (engineer/maintainer) and tech company.
+- Tier table rebuilt: GitHub API / package registry are now first-class Tier 1–3 sources.
+
+#### Routing & filing rules
+- `skills/RESOLVER.md` gained a "Tech-domain filing" section mapping each of the seven new directories to its template.
+- `skills/_brain-filing-rules.md` gained a "Tech-domain primary-subject tests" section with concrete misfiling patterns (changelog entry → library timeline; tool review → ai-tool page; retry-with-jitter → pattern, not library).
+
+#### Migration
+- `skills/migrations/v1.1.0.md` documents the taxonomy change for the eventual v1.0.0 auto-update: non-destructive (no content is touched), updates routing only, rollback-safe.
 
 ### Phase 3 — Markdown-first storage (not yet started)
 

@@ -29,6 +29,24 @@ This is the dispatcher. Skills are the implementation. **Read the skill file bef
 | Meeting transcript received | `skills/meeting-ingestion/SKILL.md` |
 | Generic "ingest this" (auto-routes to above) | `skills/ingest/SKILL.md` |
 
+## Tech-domain filing (PBrain adds these to GBrain's taxonomy)
+
+| Trigger | Destination |
+|---------|-------------|
+| A software library (`npm install`, `pip install`, `cargo add`) | `libraries/` — follow `library.md` template in `docs/PBRAIN_RECOMMENDED_SCHEMA.md` |
+| An AI product/model/agent runtime you `curl` or drive via CLI/UI | `ai-tools/` — follow `ai-tool.md` template |
+| A git repo you own or closely follow as a source tree | `repos/` — follow `repo.md` template |
+| A reusable code pattern or idiom | `patterns/` — follow `pattern.md` template |
+| A research paper (arxiv, conference proceedings) | `papers/` — follow `paper.md` template |
+| A conference talk, podcast, or video lecture | `talks/` — follow `talk.md` template |
+| A technical book or long reference work | `books/` — follow `book.md` template |
+
+When filing for these tech directories, apply the disambiguation rules in
+`skills/_brain-filing-rules.md` (library vs. ai-tool, library vs. repo, pattern vs.
+library, paper vs. concept, etc.). Cross-linking is mandatory: a library page
+links to its maintainers (`people/`), its publisher (`companies/`), and the
+pattern pages that use it.
+
 ## Thinking skills (from GStack)
 
 | Trigger | Skill |
