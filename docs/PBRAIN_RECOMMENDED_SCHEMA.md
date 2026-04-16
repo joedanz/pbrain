@@ -10,7 +10,9 @@ Drop this into your agent's workspace as a skill or system prompt. Your agent wi
 
 ## What this is
 
-A personal intelligence system where your AI agent builds and maintains an interlinked wiki of everything you know about your world — people, companies, deals, projects, meetings, ideas — as structured, cross-referenced markdown files. The agent writes and maintains all of it. You direct, curate, and think.
+A personal intelligence system where your AI agent builds and maintains an interlinked wiki of everything you know about your technical world — people, tech companies, software libraries, AI tools, git repos, code patterns, papers, talks, books, projects, meetings, ideas — as structured, cross-referenced markdown files. The agent writes and maintains all of it. You direct, curate, and think.
+
+PBrain is optimized for senior software engineers who want their knowledge base to compound across coding projects, model comparisons, library upgrades, and tech-industry context — not deal flow or hiring pipelines.
 
 This is Karpathy's LLM wiki pattern, but extended from research notes into a full operational knowledge base — one that integrates with your calendar, email, meetings, social media, and contacts to stay continuously current.
 
@@ -112,46 +114,61 @@ brain/
 ├── schema.md          — page conventions, templates, workflows
 ├── index.md           — content catalog with one-line summaries
 ├── log.md             — chronological record of all ingests/updates
-├── people/            — one page per human being
+├── people/            — one page per human being (maintainers, researchers, authors)
 │   ├── README.md      — resolver: what goes here, what doesn't
 │   └── .raw/          — raw API responses per person (JSON sidecars)
-├── companies/         — one page per organization
+├── companies/         — one page per tech organization (Anthropic, OpenAI, Vercel, xAI…)
 │   ├── README.md
 │   └── .raw/
-├── deals/             — financial transactions with terms and decisions
+├── libraries/         — one page per software library you use or track (React, Convex, Zod…)
+│   └── README.md
+├── ai-tools/          — one page per AI product/model/agent (Claude Code, Cursor, GPT-5…)
+│   └── README.md
+├── repos/             — one page per git repo you own or closely follow
+│   └── README.md
+├── patterns/          — reusable code patterns, idioms, snippets
+│   └── README.md
+├── papers/            — research papers (arxiv, conference proceedings)
+│   └── README.md
+├── talks/             — conference talks, podcasts, video lectures
+│   └── README.md
+├── books/             — technical books, long-form reference material
+│   └── README.md
+├── projects/          — things you're actively building (has a repo, spec, or team)
 │   └── README.md
 ├── meetings/          — records of specific events with transcripts
 │   └── README.md
-├── projects/          — things being actively built (has a repo, spec, or team)
-│   └── README.md
 ├── ideas/             — raw possibilities nobody is building yet
 │   └── README.md
-├── concepts/          — mental models and frameworks you'd teach
+├── concepts/          — mental models and frameworks you'd teach (not tied to a specific lib)
 │   └── README.md
-├── writing/           — prose artifacts (essays, philosophy, drafts)
+├── originals/         — your own original thinking (theses, frameworks, observations you generated)
 │   └── README.md
-├── programs/          — major life workstreams (the forest, not the trees)
-│   └── README.md
-├── org/               — your institution's strategy and operations
-│   └── README.md
-├── civic/             — political landscape, policy, government
-│   └── README.md
-├── media/             — public narrative, content ops, social monitoring
-│   └── README.md
-├── personal/          — private notes, health, personal reflections
-│   └── README.md
-├── household/         — domestic operations, properties, logistics
-│   └── README.md
-├── hiring/            — candidate pipelines and evaluations
-│   └── README.md
-├── sources/           — raw data imports and archived snapshots
+├── writing/           — prose artifacts (essays, blog drafts, design docs)
 │   └── README.md
 ├── prompts/           — reusable LLM prompt library
+├── sources/           — raw data imports and archived snapshots
+│   └── README.md
+├── agent/             — briefings, digests, research produced by your agent
+│   └── README.md
 ├── inbox/             — unsorted quick captures (temporary)
-└── archive/           — dead pages, historical record
+├── archive/           — dead pages, historical record
+└── templates/         — page templates (structural, not content)
 ```
 
-Every directory has a README.md resolver. Adapt directories to your life — add or remove domains as needed. Not everyone needs civic/ or hiring/ or household/. The invariant is: **one directory per knowledge domain, one file per entity, every directory has a resolver, and RESOLVER.md is the master decision tree that guarantees MECE filing.**
+Every knowledge directory has a README.md resolver. Adapt directories to your work — add or remove domains as needed. Not everyone needs `books/` or `talks/` if they rarely track those. The invariant is: **one directory per knowledge domain, one file per entity, every directory has a resolver, and RESOLVER.md is the master decision tree that guarantees MECE filing.**
+
+### The seven tech-specific directories
+
+GBrain (upstream) is built for VCs and founders — its taxonomy emphasizes `deals/`, `hiring/`, `civic/`, `org/`, `media/`, `household/`. PBrain drops all of those and adds seven directories that matter to a working engineer:
+
+- **`libraries/`** — software packages you depend on. One page per lib. Track version pinned, upgrade notes, gotchas, why you chose it.
+- **`ai-tools/`** — AI products, models, agent runtimes. One page per tool. Track capabilities, pricing, your actual usage pattern, known failure modes.
+- **`repos/`** — git repositories (your own, plus upstream projects you follow closely). One page per repo. Track architecture, key files, active work, PR hygiene.
+- **`patterns/`** — reusable code patterns (auth flows, error-handling idioms, testing shapes). Small, tactical, portable across projects.
+- **`papers/`** — research papers you've read or want to read. Abstract + your notes + cross-links to concepts the paper introduces.
+- **`talks/`** — conference talks, podcasts, video essays. Timestamped highlights + takeaways.
+- **`books/`** — technical books, long reference material. Chapter-level notes + recurring ideas.
 
 ## Entity Identity and Deduplication
 
@@ -202,12 +219,16 @@ During weekly lint, actively look for potential duplicates: similar names, same 
 The most common filing confusions and how to resolve them:
 
 - **Concept vs. Idea:** Could you *teach* it as a framework? → concept. Could you *build* it? → idea.
-- **Concept vs. Personal:** Would you share it in a professional talk? → concept. Is it private reflection? → personal.
+- **Concept vs. Pattern:** A concept is a mental model you'd teach ("eventual consistency"). A pattern is a concrete code shape you'd copy ("optimistic UI with rollback").
 - **Idea vs. Project:** Is anyone working on it? Yes → project. No → idea. The graduation moment is when work starts.
-- **Writing vs. Media:** Writing is the *artifact* (the essay). Media is the *production and distribution infrastructure* (content pipeline, social monitoring).
+- **Library vs. AI-tool:** A library is code you import (`npm install zod`). An AI-tool is a product/service you interact with (Claude Code, Cursor, OpenAI API). If you `curl` it, it's an ai-tool; if you `import` it, it's a library. When something is both (e.g., Vercel AI SDK is a library that wraps AI-tool providers), file under the one you primarily *use it as*.
+- **Library vs. Repo:** Libraries are what you consume. Repos are what you build, own, or closely follow as source trees. Your own `pbrain` repo → `repos/`. `react` (the thing you `npm install`) → `libraries/`. If you're contributing upstream, cross-link both.
+- **Pattern vs. Library:** Patterns are language/framework-agnostic shapes (retry-with-jitter, idempotent handlers). Libraries are named packages. If you find yourself writing "this is how `zod` does it", file under `libraries/zod.md` not `patterns/`.
+- **Paper vs. Concept:** A paper is *the artifact* (Vaswani et al. 2017). A concept is *the idea the paper introduced* (attention mechanism). The paper page links to the concept page.
+- **Talk vs. Paper:** Talks are performances; papers are written artifacts. A conference talk adapted from a paper gets both pages, cross-linked.
+- **Book vs. Paper:** Books are long reference works (Designing Data-Intensive Applications). Papers are short self-contained research. If in doubt: did it get a DOI or an ISBN?
 - **Writing vs. Concepts:** A concept page is distilled (200 words of compiled truth). An essay is developed prose (argument, narrative, story).
 - **Person vs. Company:** Is it about *them as a human*? → people/. Is it about *the organization*? → companies/. Both pages link to each other.
-- **Household vs. Personal:** Would a PA execute on it? → household (operational). Is it private reflection? → personal.
 - **Sources vs. .raw/ sidecars:** Per-entity enrichment data → .raw/ sidecar. Bulk multi-entity imports → sources/.
 
 When nothing fits, file in inbox/ and flag it. That's a signal the schema needs to evolve.
@@ -300,19 +321,294 @@ The context sections (Beliefs, Motivations, Communication Style, Assessment) are
 - **Never generalize from a single data point.** "She seemed frustrated in one meeting" is a timeline entry. Patterns require multiple observations.
 - **The user's corrections override everything.** If the user says "that's wrong about her," update immediately — that correction is the highest-confidence signal in the system.
 
-### Company
+### Company (tech-org perspective)
+
+PBrain tracks companies as tech organizations, not investment targets. No Stage, no
+valuation, no investors. What matters: what they ship, what you use, where they're
+going.
 
 ```markdown
 # Company Name
 
-> What they do, stage, why they matter.
+> One-line summary: what they make, why you care, what's shipping now.
+
+## What they make
+Product / service line. Bullet the actual offerings (models, APIs, CLIs,
+hosted services). Each offering links to the relevant `ai-tools/`, `libraries/`,
+or `repos/` page if one exists.
+
+## Current offerings
+- **[Offering name]** — what it does, pricing tier if relevant, what you use it for
+- …
+
+## Direction
+Where they're going. Recent announcements, roadmap signals, public strategy statements.
+Cite sources — blog posts, interviews, release notes. Don't speculate.
+
+## My usage
+How YOU actually use this company's products. Be specific: which endpoints, which
+model, typical request volume, what you'd switch to if they disappeared tomorrow.
+If you don't use them, say so and explain why they're tracked anyway.
+
+## Key people
+Links to `people/` pages for the CEO, research lead, head of DX, notable ICs. Not
+investors, not board members.
+- [Name](../people/slug.md) — role, why they matter to you
+
+## Open Threads
+- Things to watch, API changes to test, pricing shifts to model
+
+---
+
+## Timeline
+- **YYYY-MM-DD** | Source — What happened.
+```
+
+### Library
+
+```markdown
+# Library Name
+
+> What it does, why you use it, version you're on.
 
 ## State
-- **What:** One-line description
-- **Stage:** Seed / Series A / Growth / Public
-- **Key people:** Names with links to people pages
-- **Key metrics:** Revenue, headcount, funding
-- **Connection:** How they relate to your world
+- **Package:** `@scope/name` (npm) / `package-name` (PyPI/crates.io/etc.)
+- **Version pinned:** X.Y.Z (as of YYYY-MM-DD)
+- **Role in your stack:** One line — auth, validation, state, etc.
+- **Language/runtime:** TypeScript, Python, Rust, etc.
+- **License:** MIT / Apache-2.0 / etc.
+- **Home:** Repo URL, docs URL
+
+## Why you chose it
+The 2–3 reasons you picked this over alternatives. Include the alternatives you
+rejected and why, so future-you doesn't re-litigate the decision.
+
+## How you use it
+Concrete patterns: which APIs, which config, common call shapes. Link to
+`patterns/` pages for reusable idioms.
+
+## Gotchas
+Known sharp edges. Bugs you've hit. Version-specific issues. Workarounds.
+
+## Upgrade notes
+Outstanding upgrades. Breaking changes in newer versions. Migration checklist if
+you're mid-upgrade.
+
+## Alternatives considered
+Libraries you rejected or might switch to. One line each on why.
+
+## Open Threads
+
+---
+
+## Timeline
+```
+
+### AI-tool
+
+```markdown
+# Tool Name
+
+> What it does, what you use it for, pricing tier.
+
+## State
+- **Provider:** [Company](../companies/slug.md)
+- **Type:** Model / IDE extension / CLI / hosted service / agent runtime
+- **Tier:** Free / Pro / Team / Enterprise (and what YOU pay)
+- **Access method:** API, CLI, web, IDE plugin
+- **Current version/model:** exact identifier
+
+## Capabilities
+What it can actually do — specific, not marketing. Test your assumptions.
+
+## My usage
+Real workflow: when you reach for it, which tasks, rough daily/weekly volume.
+What you'd switch to if it disappeared.
+
+## Pricing model
+Tokens, seats, requests — whichever axis. Your observed cost per month.
+
+## Known failure modes
+Where it fails for you. Tasks it refuses, hallucinates on, or handles worse
+than alternatives.
+
+## Alternatives
+Competing tools you've tried or could switch to.
+
+## Open Threads
+
+---
+
+## Timeline
+- **YYYY-MM-DD** | Release — New capability, pricing change, deprecation.
+```
+
+### Repo
+
+```markdown
+# owner/repo
+
+> What it is, your relationship to it (owner / contributor / watcher).
+
+## State
+- **URL:** github.com/owner/repo
+- **Relationship:** owner / contributor / follower
+- **Primary language:** Language
+- **License:** SPDX id
+- **Stars / last release:** as of YYYY-MM-DD (context, not vanity)
+
+## Architecture
+High-level map. What directories matter, what the entry points are, where business
+logic lives. Link to `patterns/` for idioms used.
+
+## Key files
+- `path/to/file.ts` — what lives here, why it matters
+- …
+
+## Active work
+What's in-flight. Current branch focus. Open PRs you care about.
+
+## Contributions
+If you contribute upstream: PRs merged, open issues you've filed, maintainer
+relationships.
+
+## Open Threads
+
+---
+
+## Timeline
+```
+
+### Pattern
+
+```markdown
+# Pattern Name
+
+> One-line description of the shape.
+
+## Problem
+The situation this pattern solves. Be concrete — describe a scenario where you'd
+reach for this.
+
+## Shape
+The essence of the pattern — pseudocode, diagram, or minimal code. Keep it small.
+
+```lang
+// minimal illustrative code
+```
+
+## When to use
+Situations where this fits. Scale, concurrency, consistency requirements.
+
+## When not to use
+Situations where the pattern is overkill or actively wrong.
+
+## Variations
+Named variants. Which situation each fits.
+
+## Seen in
+Concrete instances — libraries, repos, papers where this pattern appears.
+Cross-link to them.
+
+## Open Threads
+
+---
+
+## Timeline
+```
+
+### Paper
+
+```markdown
+# Paper Title
+
+> One-line: what they proved, why it matters, year.
+
+## Citation
+Full reference. DOI or arxiv ID. Authors as links to `people/` pages if they have
+brain pages.
+
+## Abstract
+Author's abstract, verbatim. Don't paraphrase.
+
+## My summary
+YOUR take. What the paper actually says in plain terms. What surprised you. What
+you'd cite it for.
+
+## Key ideas
+- **[Idea]** — what it means, where it shows up later. Link to `concepts/` page.
+
+## Relevance to your work
+Why this matters to what you're building. Be specific.
+
+## Related
+- Papers it builds on
+- Papers it was later superseded by
+- Concepts it introduced
+
+## Open Threads
+
+---
+
+## Timeline
+- **YYYY-MM-DD** | Read / re-read / cited — context.
+```
+
+### Talk
+
+```markdown
+# Talk Title — Speaker
+
+> One-line: what the talk argues, venue/year.
+
+## Source
+- **Speaker:** [Name](../people/slug.md)
+- **Venue:** Conference, podcast, YouTube
+- **Date:** YYYY-MM-DD
+- **URL:** link to recording
+
+## My notes
+Timestamped highlights. Skip the intro; capture the substantive arguments.
+- **[MM:SS]** — what's being said, what's worth remembering
+
+## Takeaways
+3–5 durable ideas you'd bring into your own work.
+
+## Follow-ups
+- Things mentioned you want to investigate
+- Libraries or tools they reference
+
+---
+
+## Timeline
+```
+
+### Book
+
+```markdown
+# Book Title — Author
+
+> One-line argument of the book, why it's durable.
+
+## State
+- **Author:** [Name](../people/slug.md)
+- **Edition / year:** as it matters
+- **ISBN:** if tracking
+- **Status:** reading / finished / reference
+
+## Structure
+Chapter map or section outline. Useful when returning to the book.
+
+## My notes
+Chapter-level or section-level notes. Direct quotes you'd cite — mark with > and
+page number.
+
+## Recurring ideas
+Themes that show up across chapters. Link to `concepts/` pages.
+
+## Related
+- Books that pair with this one
+- Papers / talks by the same author
 
 ## Open Threads
 
@@ -384,30 +680,49 @@ Each external data source should be its own named skill with full API documentat
 
 This keeps things DRY: the enrich skill owns the logic (when to enrich, what tier, what to extract), and each data source skill owns the API contract (endpoints, auth, rate limits, gotchas, validation rules).
 
-Recommended data source skills:
+Recommended data source skills (tech-focused):
 
-- **Web search** — broad keyword search (Brave, Google, etc.). Quick background, press, funding.
-- **Semantic search** — better than keyword for finding specific people, LinkedIn URLs, personal writing. (Exa, Perplexity, etc.)
-- **Social search** — X/Twitter, Bluesky, etc. for public voice: beliefs, projects, engagement patterns.
-- **People enrichment** — structured LinkedIn-like data: career history, education, skills, contact info. (Crustdata, Proxycurl, People Data Labs, etc.)
-- **Network search** — search your professional network for warm intros and connections. (Happenstance, Clay, etc.)
-- **Company intelligence** — Pitchbook-grade data: funding rounds, investors, valuations, headcount, financials. (Captain API, Crunchbase, etc.)
+- **Web search** — broad keyword search (Brave, Google, etc.). Quick background, release notes, changelogs.
+- **Semantic search** — better than keyword for finding technical writing, blog posts, design docs. (Exa, Perplexity, etc.)
+- **Social search** — X/Twitter, Bluesky, Mastodon for public voice: what maintainers are saying, release announcements, debate threads.
+- **GitHub API** — for repos and libraries: stars, releases, recent commits, open PRs/issues, contributor list, CODEOWNERS. The single most valuable source for engineering context.
+- **Package registries** — `npm registry`, `PyPI`, `crates.io`, `pkg.go.dev`: version history, dependency trees, download stats, maintainer identity, security advisories.
+- **arxiv.org / Semantic Scholar** — for papers: abstract, citations, related work, author profiles.
+- **Product docs** — `docs.anthropic.com`, OpenAI API reference, model cards, changelog pages. These are primary sources for what an AI tool can actually do.
+- **Conference / podcast feeds** — curated talk indexes (InfoQ, GOTO, Strange Loop archives), podcast RSS, YouTube channels for tech talks.
 - **Meeting history** — search past meetings for interactions with this entity. (Circleback, Otter, Fireflies, etc.)
-- **Contact data** — email, phone, location from your contacts. (Google Contacts, etc.)
 
-The typical enrichment flow for a new person:
-1. **Network search** → find LinkedIn URL, career arc, alternate names
-2. **People enrichment** → deep structured data (skills, work history, education, contact info)
-3. **Semantic search** → find personal sites, talks, writing that reveal beliefs and perspective
-4. **Social search** → their public voice, who they engage with, hobby horses
-5. **Web search** → press coverage, recent news, talks
-6. **Meeting history** → past interactions with you
+The typical enrichment flow for a new person (engineer/researcher/maintainer):
+1. **Web search** → find personal site, blog, employer, public role
+2. **GitHub API** → their repos, contributions, PRs to notable projects, language mix
+3. **Social search** → their technical voice, what they engage with, recent takes
+4. **Semantic search** → long-form writing, conference talks, podcast appearances
+5. **Meeting history** → past interactions with you
 
-For a new company:
-1. **Company intelligence** → funding, investors, headcount, financials
-2. **Web search** → product, press, traction
-3. **Social search** → company's public positioning
-4. **People enrichment** → enrich founders/key team members (each triggers person enrichment)
+For a new tech company:
+1. **Web search** → product page, pricing, blog, model/release pages
+2. **Product docs** → what their API/tool actually does, capability surface
+3. **GitHub API** → if they have public repos, open-source strategy, release cadence
+4. **Social search** → public positioning, CEO/research-lead posts, launch reactions
+5. **People enrichment** → enrich their founders/research leads/head of DX (triggers person enrichment)
+
+For a new library:
+1. **Package registry** → version history, dependencies, maintainer, license
+2. **GitHub API** → repo health, recent activity, open issues, CODEOWNERS
+3. **Product docs** → API surface, examples, migration guides
+4. **Web search** → blog posts about using it, comparison articles, known gotchas
+5. **People enrichment** → enrich the primary maintainer(s) (triggers person enrichment)
+
+For a new AI tool:
+1. **Product docs** → current model/version, capability surface, pricing
+2. **Web search** → recent announcements, release notes, benchmark comparisons
+3. **Social search** → what users are saying, failure modes reported publicly
+4. **People enrichment** → enrich the provider company (triggers company enrichment)
+
+For a new paper:
+1. **arxiv.org / Semantic Scholar** → abstract, authors, citations
+2. **Web search** → blog posts explaining the paper, author Twitter threads, discussion
+3. **People enrichment** → authors with notable work (triggers person enrichment)
 
 ### Enrichment tiers (don't over-enrich)
 
@@ -731,40 +1046,41 @@ An email monitor cron fires at 12:00 PM. Its prompt: "Read skills/executive-assi
 
 **Step 2: Classify and handle.** Most emails are routine: 2 scheduling confirmations (handled directly — checks calendar, sends confirmations), 3 newsletters (archived), 1 internal FYI (noted). But one stands out:
 
-**An email from "David Park, GP at Ridgeline Ventures"** — subject: "Series A for NovaTech — co-invest opportunity." The agent has never seen this person before.
+**An email from "Priya Nair <priya@convex.dev>"** — subject: "Heads up — breaking change in Convex 1.20 that affects your usage pattern." The agent has never seen this person before.
 
 **Step 3: Enrich the unknown sender.**
 
 The agent calls the enrich skill. Enrich searches the brain:
 ```bash
-grep -rl "David Park" /data/brain/people/ --include="*.md"  # no results
-grep -rl "Ridgeline" /data/brain/companies/ --include="*.md"  # no results
-grep -rl "david.park@ridgeline" /data/brain/people/ --include="*.md"  # no results (alias search)
+grep -rl "Priya Nair" /data/brain/people/ --include="*.md"  # no results
+grep -rl "priya@convex" /data/brain/people/ --include="*.md"  # no results (alias search)
+grep -rl "convex" /data/brain/libraries/ --include="*.md"    # finds libraries/convex.md
+grep -rl "convex" /data/brain/companies/ --include="*.md"    # finds companies/convex.md
 ```
 
-No match. → **CREATE path.**
+Person: no match. Library and company: already tracked. → **CREATE path for the person.**
 
 1. Reads RESOLVER.md: "a specific named person" → `people/`
-2. Runs **Tier 2 enrichment** (this is an unsolicited email, not a key relationship yet):
-   - Web search: finds David Park's profile on Ridgeline's website. GP, focuses on enterprise SaaS. Previously at two other funds.
-   - Social search: finds his X account. Recent posts about AI infrastructure, developer tools. Reposted an article about NovaTech last week.
-   - Brain cross-reference: searches for NovaTech → finds `companies/novatech.md` exists (from a meeting 2 months ago). Cross-links.
-3. Creates `people/david-park.md` with what it found — role, fund, investment focus, public voice, connection to NovaTech.
-4. Also checks `companies/ridgeline-ventures.md` — doesn't exist. Creates a thin page with what's known from the web search.
+2. Runs **Tier 2 enrichment** (maintainer of a library you depend on — worth real context):
+   - Web search: finds her profile on the Convex team page. DX engineer. Previously at a major DB vendor.
+   - GitHub API: finds `priya-n` account. Top contributor to `get-convex/convex-backend`. Recent commits on the reactor module.
+   - Social search: finds her X. Posts about DX, query engines, the Convex 1.20 migration thread.
+   - Brain cross-reference: already links to `libraries/convex.md` and `companies/convex.md`. Updates those pages' Key people sections to list her.
+3. Creates `people/priya-nair.md` with role, focus area, GitHub handle, Convex connection.
 
 **Step 4: Back in the EA skill.** Now the agent has context. It classifies the email:
-- Priority: Medium (co-invest opportunity, not urgent)
-- Context: David Park is a GP at a fund that focuses on enterprise SaaS. NovaTech is already in the brain from a previous meeting.
-- Action needed: User should review
+- Priority: High (breaking change affecting a library you depend on)
+- Context: Priya is a Convex DX engineer. You pin Convex at 1.19 in `repos/pbrain/package.json`. Your `libraries/convex.md` has a known-gotcha about the reactor module she committed to.
+- Action needed: User should read the migration steps before upgrading
 
 Posts to the Emails notification channel:
-> **Co-invest opportunity — NovaTech Series A**
-> From: David Park, GP at Ridgeline Ventures
-> He's reaching out about co-investing in NovaTech's Series A. Ridgeline focuses on enterprise SaaS.
-> NovaTech is already in the brain — you met their founder in February.
+> **Convex 1.20 breaking change — affects your usage**
+> From: Priya Nair (DX at Convex)
+> She's flagging a reactor-module change between 1.19 (what you're on) and 1.20. Your `libraries/convex.md` already tracks a known gotcha in this area.
+> Related: `libraries/convex.md` → upgrade notes, `companies/convex.md` → direction.
 > [Open in Gmail](link)
 
-**The email monitor didn't just triage — it grew the brain by two pages** (one person, one company) and cross-linked them to an existing entity.
+**The email monitor didn't just triage — it grew the brain by one person page** and cross-linked her to two existing pages (the library and the company), so the next time Convex ships a release note, enrich already knows who's behind it.
 
 ### Example 3: The Compound Effect — How Context Builds Before a Meeting
 
@@ -950,21 +1266,21 @@ When creating or filing a new page, walk this decision tree. Every piece of know
 
 **Start here: what is the primary subject?**
 
-1. **A specific named person** → `people/`
-2. **A specific organization** (company, fund, nonprofit, government body) → `companies/`
-3. **A financial transaction** with terms and a decision to make → `deals/`
-4. **A record of a specific meeting/call** that happened at a specific time → `meetings/`
-5. **Something being actively built** (has a repo, spec, team, or active work) → `projects/`
-6. **A raw possibility** that nobody is building yet → `ideas/`
-7. **A reusable mental model or thesis** about how the world works → `concepts/`
-8. **A piece of prose** that could be published as a standalone work → `writing/`
-9. **Your institution's strategy, org, processes, internal dynamics** → `org/`
-10. **Political or civic landscape** — policy, legislation, elections, government → `civic/`
-11. **Public narrative or content operations** — social monitoring, content pipeline, published posts → `media/`
-12. **A major life program** — an enduring domain of commitment containing multiple projects → `programs/`
-13. **Domestic operations** — properties, logistics, household management → `household/`
-14. **Private notes** — health, personal reflections, inner life → `personal/`
-15. **A hiring pipeline** — candidate evaluations, role specs, interview notes → `hiring/`
+1. **A specific named person** (engineer, researcher, author, maintainer) → `people/`
+2. **A specific tech organization** (Anthropic, OpenAI, Vercel, xAI, a foundation, a standards body) → `companies/`
+3. **A software library you consume** (npm, PyPI, crates.io, go modules…) → `libraries/`
+4. **An AI product / model / agent runtime** you interact with → `ai-tools/`
+5. **A git repo you own or closely follow** (source tree, not package) → `repos/`
+6. **A reusable code pattern or idiom** (language/framework-agnostic shape) → `patterns/`
+7. **A research paper** (arxiv, conference proceedings) → `papers/`
+8. **A conference talk, podcast, or video lecture** → `talks/`
+9. **A technical book or long reference work** → `books/`
+10. **A record of a specific meeting/call** that happened at a specific time → `meetings/`
+11. **Something you're actively building** (has a repo, spec, team, or active work) → `projects/`
+12. **A raw possibility** that nobody is building yet → `ideas/`
+13. **A reusable mental model or thesis** about how the world works → `concepts/`
+14. **Your own original thinking** (thesis, framework, observation you generated) → `originals/`
+15. **A piece of prose** that could be published as a standalone work → `writing/`
 16. **A reusable LLM prompt** — templates for getting specific outputs from models → `prompts/`
 17. **A raw data import or snapshot** — bulk exports, API dumps, periodic captures → `sources/`
 18. **Agent deliverables** — briefings, digests, and research produced by your agent → `agent/`
@@ -975,15 +1291,17 @@ When creating or filing a new page, walk this decision tree. Every piece of know
 
 When two directories seem to fit, apply these tiebreakers:
 
-- **Person vs. Company:** If the page is about *them as a human* (beliefs, relationship, trajectory), it's people/. If it's about *the organization they run*, it's companies/. Both pages link to each other.
-- **Concept vs. Idea:** Could you *teach* it to someone as a framework? Concept. Could you *build* it? Idea.
-- **Concept vs. Personal:** Would you share it in a professional talk? Concept. Is it private reflection? Personal.
-- **Idea vs. Project:** Is anyone working on it? If yes, project. If no, idea. The graduation moment is when work starts.
-- **Writing vs. Concepts:** Concepts are distilled (200 words of compiled truth). Writing is developed prose (argument, narrative, story).
-- **Writing vs. Media:** Writing is the *artifact*. Media is the *production and distribution infrastructure*.
-- **Org vs. Programs:** org/ is institutional knowledge *about* your organization. programs/ is about your personal role and priorities within it.
-- **Civic vs. People:** Political figures get people/ pages. Their legislative agenda and political positioning as civic actors goes in civic/.
-- **Household vs. Personal:** If a PA would execute on it, it's household (operational). If it's private reflection, it's personal (inner life).
+- **Person vs. Company:** If the page is about *them as a human* (beliefs, trajectory, relationship), it's people/. If it's about *the organization they work at*, it's companies/. Both pages link to each other.
+- **Library vs. AI-tool:** If you `import` it from your code, it's a library. If you `curl` it or drive it through a CLI/UI, it's an ai-tool. Vercel AI SDK = library. Claude Code = ai-tool. If genuinely both, file under how you *primarily* use it.
+- **Library vs. Repo:** Libraries are what you *consume* (as a package). Repos are what you *build on* (as a source tree). Your own `pbrain` → repos. `react` installed from npm → libraries. Upstream contributor? Cross-link both.
+- **Pattern vs. Library:** Patterns are portable shapes. Libraries are named packages. "Retry with exponential jitter" = pattern. "p-retry" = library. If it has a package name, it's a library.
+- **Pattern vs. Concept:** Concept is the mental model ("eventual consistency"). Pattern is the code shape ("optimistic UI with server reconciliation"). Concept teaches; pattern implements.
+- **Paper vs. Concept:** Paper is the artifact. Concept is the idea the paper introduced. "Attention Is All You Need" → paper. "Attention mechanism" → concept.
+- **Talk vs. Paper:** Talks are performances; papers are written. Same material in both forms = two pages, cross-linked.
+- **Book vs. Paper:** ISBN → book. DOI/arxiv → paper.
+- **Concept vs. Idea:** Could you *teach* it? Concept. Could you *build* it? Idea.
+- **Idea vs. Project:** Is anyone working on it? If yes, project. If no, idea.
+- **Writing vs. Concepts:** Concepts are distilled (~200 words of compiled truth). Writing is developed prose (argument, narrative, story).
 - **Sources vs. .raw/ sidecars:** Per-entity enrichment data → .raw/ sidecar next to the entity. Bulk multi-entity imports → sources/.
 - **Agent vs. Sources:** Sources feed *into* the brain. Agent deliverables are synthesized output that feeds *into your reading*.
 

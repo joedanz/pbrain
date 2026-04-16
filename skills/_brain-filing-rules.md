@@ -21,7 +21,24 @@ not the source, not the skill that's running.
 | Meeting-derived company info -> `meetings/` only | -> ALSO update `companies/` | Entity propagation is mandatory |
 | Research about a company -> `sources/` | -> `companies/` | Primary subject is a company |
 | Reusable framework/thesis -> `sources/` | -> `concepts/` | It's a mental model |
-| Tweet thread about policy -> `media/` | -> `civic/` or `concepts/` | media/ is for content ops |
+| Changelog entry for a library -> `sources/` | -> `libraries/<name>.md` timeline | Primary subject is the library |
+| Review of an AI tool -> `writing/` | -> `ai-tools/<name>.md` | Primary subject is the tool |
+| Code snippet for retry with jitter -> `patterns/p-retry.md` | -> `patterns/retry-with-jitter.md` | Name the pattern, not the package (package gets a `libraries/` page) |
+| arxiv paper about attention -> `concepts/attention.md` only | -> `papers/vaswani-2017-attention.md` + cross-link `concepts/attention.md` | Paper is the artifact; concept is what it introduced |
+
+## Tech-domain primary-subject tests
+
+When the subject is tech-flavored, apply these tests in order:
+
+1. **Is it a specific named package or product?** → `libraries/` (code you import) or `ai-tools/` (service you drive). Name the page after the canonical package/product name.
+2. **Is it a git repo source tree?** → `repos/`. Filename: `owner-repo.md`.
+3. **Is it a reusable idiom or code shape, package-independent?** → `patterns/`. Name after the pattern, not any library that implements it.
+4. **Is it a research artifact (paper/talk/book)?** → `papers/` / `talks/` / `books/`. The *idea* it introduces (if durable) also gets a `concepts/` page, cross-linked.
+5. **Is it a tech organization?** → `companies/`. PBrain tracks tech orgs (what they ship, what you use, their direction) — not as investment targets. No Stage, no valuation, no investors.
+
+**The 2-question check before creating any tech-domain page:**
+- Would I search for this by the package/product name? → that name is the slug.
+- Can this be consumed (imported, installed, subscribed to)? → library/ai-tool. Or is this just ideas/patterns about how to use something? → patterns/concepts.
 
 ## What `sources/` Is Actually For
 
