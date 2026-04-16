@@ -8,6 +8,10 @@ All notable changes to PBrain will be documented in this file.
 
 The first PBrain release. Adaptation work is phased across four PRs merged to master incrementally; no intermediate tags or GitHub releases are cut. `v1.0.0` will be tagged only after all four phases merge.
 
+### Attribution
+
+PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). Every core engineering decision originates from GBrain: contract-first operations, pluggable engines (PGLite + Postgres), hybrid RAG search, compiled truth + timeline page format, fat markdown skills, the autopilot daemon, the MCP stdio server, and the recipe system. PBrain resets the version to `1.0.0` to mark a product boundary — different audience (senior engineers), different taxonomy (libraries/ai-tools/repos/patterns/papers/talks/books in, VC directories out), different storage semantics (markdown-first, Obsidian-native) — not because GBrain's API is unstable. GBrain's own lineage continues independently at its own cadence. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full attribution.
+
 ### Phase 1 — Rebrand (merged)
 
 #### Forked
