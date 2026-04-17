@@ -6,8 +6,9 @@ import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-import { saveConfig, type PBrainConfig } from '../core/config.ts';
+import { loadConfig, saveConfig, type PBrainConfig } from '../core/config.ts';
 import { createEngine } from '../core/engine-factory.ts';
+import { detectClients } from '../core/skill-installer.ts';
 
 export async function runInit(args: string[]) {
   const isSupabase = args.includes('--supabase');
@@ -27,7 +28,9 @@ export async function runInit(args: string[]) {
       : process.env.PBRAIN_BRAIN_PATH || null;
 
   await maybeMigrateGBrainConfigDir({ isNonInteractive, jsonOutput });
-  const brainPath = await resolveBrainPath({ brainPathArg, isNonInteractive, jsonOutput });
+  const existingConfig = loadConfig();
+  const existingBrainPath = existingConfig?.brain_path || null;
+  const brainPath = await resolveBrainPath({ brainPathArg, existingBrainPath, isNonInteractive, jsonOutput });
 
   // Explicit PGLite mode
   if (isPGLite || (!isSupabase && !manualUrl && !isNonInteractive)) {
@@ -67,7 +70,7 @@ export async function runInit(args: string[]) {
   return initPostgres({ databaseUrl, jsonOutput, apiKey, brainPath, isNonInteractive });
 }
 
-async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string | null; isNonInteractive: boolean }) {
+async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string; isNonInteractive: boolean }) {
   // Default index path moved to ~/.pbrain/indexes/ for Phase 3 — the PGLite
   // file is a rebuildable index now, not the brain itself. Existing users on
   // the legacy ~/.pbrain/brain.pglite path keep using that file; new installs
@@ -98,17 +101,17 @@ async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; cu
     console.log(JSON.stringify({ status: 'success', engine: 'pglite', path: dbPath, brain_path: opts.brainPath, pages: stats.page_count }));
   } else {
     console.log(`\nBrain index ready at ${dbPath}`);
-    if (opts.brainPath) console.log(`Brain folder: ${opts.brainPath}`);
+    console.log(`Brain folder: ${opts.brainPath}`);
     console.log(`${stats.page_count} pages. Engine: PGLite (local Postgres).`);
-    console.log(`Next: pbrain index${opts.brainPath ? '' : ' <dir>'}`);
+    console.log(`Next: pbrain import ${opts.brainPath}`);
     console.log('');
     console.log('When you outgrow local: pbrain migrate --to supabase');
     reportModStatus();
-    await maybeInstallSkillsPrompt({ isNonInteractive: opts.isNonInteractive });
+    printSkillInstallHint();
   }
 }
 
-async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null; brainPath: string | null; isNonInteractive: boolean }) {
+async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null; brainPath: string; isNonInteractive: boolean }) {
   const { databaseUrl } = opts;
 
   // Detect Supabase direct connection URLs and warn about IPv6
@@ -174,10 +177,10 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
     console.log(JSON.stringify({ status: 'success', engine: 'postgres', brain_path: opts.brainPath, pages: stats.page_count }));
   } else {
     console.log(`\nBrain index ready. ${stats.page_count} pages. Engine: Postgres (Supabase).`);
-    if (opts.brainPath) console.log(`Brain folder: ${opts.brainPath}`);
-    console.log(`Next: pbrain index${opts.brainPath ? '' : ' <dir>'}`);
+    console.log(`Brain folder: ${opts.brainPath}`);
+    console.log(`Next: pbrain import ${opts.brainPath}`);
     reportModStatus();
-    await maybeInstallSkillsPrompt({ isNonInteractive: opts.isNonInteractive });
+    printSkillInstallHint();
   }
 }
 
@@ -210,31 +213,48 @@ function countMarkdownFiles(dir: string, maxScan = 1500): number {
 }
 
 /**
- * Resolve the markdown brain folder. Source of truth: CLI flag, env var, or
- * interactive prompt. Non-interactive flows without an explicit value return
- * null (init still works; the user can set it later with `pbrain config set
- * brain_path <dir>` or on first `pbrain index <dir>`).
- *
- * Validation is deliberately thin — we verify the path is a directory we can
- * reach and create it if missing. Permission and cloud-sync quirks surface
- * on first write rather than at config time, where we don't have enough
- * context to diagnose them well.
+ * Resolve the markdown brain folder. Precedence: explicit flag/env (brainPathArg)
+ * → existing config (re-init) → interactive prompt. Every skill assumes the
+ * brain folder exists, so a successful init without one is a footgun: the bare
+ * `pbrain init` behavior now errors out instead of silently skipping.
  */
 async function resolveBrainPath(opts: {
   brainPathArg: string | null;
+  existingBrainPath: string | null;
   isNonInteractive: boolean;
   jsonOutput: boolean;
-}): Promise<string | null> {
+}): Promise<string> {
   let raw = opts.brainPathArg;
-  if (!raw && !opts.isNonInteractive && !opts.jsonOutput) {
-    console.log('');
-    console.log('Where should your brain live?');
-    console.log('  Any filesystem path works — local folder, Obsidian vault, or cloud-synced mount.');
-    console.log('  Press enter to skip (you can set it later with --brain-path).');
-    const answer = await readLine('Brain path [skip]: ');
-    raw = answer?.trim() || null;
+
+  // Re-init: reuse existing config's brain_path unless overridden.
+  if (!raw && opts.existingBrainPath) {
+    return opts.existingBrainPath;
   }
-  if (!raw) return null;
+
+  if (!raw) {
+    if (opts.isNonInteractive || opts.jsonOutput) {
+      console.error('');
+      console.error('No brain path provided. PBrain needs a folder to read and write markdown into.');
+      console.error('');
+      console.error('Pass one via flag or env var:');
+      console.error('  pbrain init --brain-path ~/ObsidianVault/MyBrain');
+      console.error('  PBRAIN_BRAIN_PATH=~/ObsidianVault/MyBrain pbrain init');
+      console.error('');
+      process.exit(1);
+    }
+
+    console.log('');
+    console.log('Where is your brain folder? (usually your Obsidian vault)');
+    console.log('  Example: ~/ObsidianVault/MyBrain');
+    console.log('  Any filesystem path works — local folder, Obsidian vault, or cloud-synced mount.');
+    while (!raw) {
+      const answer = await readLine('Brain path: ');
+      raw = answer?.trim() || null;
+      if (!raw) {
+        console.log('A brain folder is required. PBrain writes markdown into this folder and every skill reads from it.');
+      }
+    }
+  }
 
   const expanded = raw.startsWith('~')
     ? join(homedir(), raw.slice(1))
@@ -247,9 +267,20 @@ async function resolveBrainPath(opts: {
       console.error(`Brain path exists but is not a directory: ${absolute}`);
       process.exit(1);
     }
-  } else {
+  } else if (opts.isNonInteractive || opts.jsonOutput) {
     mkdirSync(absolute, { recursive: true });
     console.log(`Created brain folder: ${absolute}`);
+  } else {
+    console.log(`Folder does not exist: ${absolute}`);
+    const answer = await readLine('Create it? [Y/n]: ');
+    const normalized = (answer || '').trim().toLowerCase();
+    if (normalized === '' || normalized === 'y' || normalized === 'yes') {
+      mkdirSync(absolute, { recursive: true });
+      console.log(`Created brain folder: ${absolute}`);
+    } else {
+      console.error('Cancelled. Rerun with a path that exists, or let PBrain create it.');
+      process.exit(1);
+    }
   }
   return absolute;
 }
@@ -385,35 +416,19 @@ export function installDefaultTemplates(workspaceDir: string): string[] {
 }
 
 /**
- * After a successful init, offer to symlink PBrain's skills into whichever
- * supported clients (Claude Code, Cursor, Windsurf) the user has installed.
- * Skipped silently in --non-interactive mode or when stdin isn't a TTY
- * (e.g., piped installs) — the user can always run `pbrain install-skills`
- * later.
+ * Print a one-line hint about registering skills into IDE clients. We used to
+ * prompt-and-execute this inline, but that coupled init success to the skill
+ * installer's exit status and surprised non-IDE users. Now it's opt-in: a
+ * single line telling Claude Code / Cursor / Windsurf users the command to run.
  */
-async function maybeInstallSkillsPrompt(opts: { isNonInteractive: boolean }): Promise<void> {
-  if (opts.isNonInteractive) return;
-  if (!process.stdin.isTTY) return;
-
-  const { detectClients } = await import('../core/skill-installer.ts');
+function printSkillInstallHint(): void {
   const clients = detectClients();
   if (clients.length === 0) return;
-
-  const label = clients.map(c => ({ claude: 'Claude Code', cursor: 'Cursor', windsurf: 'Windsurf' }[c])).join(' / ');
-  const answer = await readLine(`Install PBrain skills into ${label}? [Y/n]: `);
-  const normalized = (answer || '').trim().toLowerCase();
-  if (normalized !== '' && normalized !== 'y' && normalized !== 'yes') {
-    console.log('Skipped. Run `pbrain install-skills` later to register them.');
-    return;
-  }
-
-  // Shell out so install-skills's exit codes don't terminate init itself.
-  // A conflict (exit 2) is informational, not a failure of init.
-  try {
-    execSync('pbrain install-skills', { stdio: 'inherit', timeout: 30_000 });
-  } catch {
-    // best-effort; user can always rerun the command
-  }
+  const label = clients
+    .map((c: string) => ({ claude: 'Claude Code', cursor: 'Cursor', windsurf: 'Windsurf' }[c]))
+    .join(' / ');
+  console.log('');
+  console.log(`Using ${label}? Register PBrain skills with:  pbrain install-skills`);
 }
 
 /**

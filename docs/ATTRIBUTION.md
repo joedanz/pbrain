@@ -17,7 +17,7 @@ Nearly everything, including:
 - **Compiled Truth + Timeline page format** — above-the-line pre-synthesized truth,
   below-the-line append-only evidence log.
 - **Fat markdown skills** — tool-agnostic, single-source-of-truth workflow docs that
-  work in both CLI and plugin contexts.
+  work with the CLI and MCP server contexts.
 - **Autopilot daemon** — self-maintaining brain with sync + extract + embed loops.
 - **Recipe system** — pluggable integration recipes (`src/commands/integrations.ts`).
 - **Doctor command** — health checks for the brain.
