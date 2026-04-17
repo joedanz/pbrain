@@ -172,10 +172,6 @@ export function planInstall(skills: Skill[], targets: Target[], opts: InstallOpt
         actions.push({ op: 'link', skill, target, dst, reason: 'new symlink' });
       } else if (classification === 'ours') {
         actions.push({ op: 'skip-already-linked', skill, target, dst, reason: 'already linked' });
-      } else if (classification === 'ours-legacy') {
-        // Legacy symlink from v1.0.0 that pointed at SKILL.md instead of the
-        // skill directory — self-heal on upgrade without requiring --force.
-        actions.push({ op: 'overwrite', skill, target, dst, reason: 'upgrading legacy file symlink to directory symlink' });
       } else if (opts.force) {
         actions.push({ op: 'overwrite', skill, target, dst, reason: `--force: replacing ${classification}` });
       } else {
@@ -186,7 +182,7 @@ export function planInstall(skills: Skill[], targets: Target[], opts: InstallOpt
   return actions;
 }
 
-type DstClassification = 'missing' | 'ours' | 'ours-legacy' | 'symlink-elsewhere' | 'file' | 'directory';
+type DstClassification = 'missing' | 'ours' | 'symlink-elsewhere' | 'file' | 'directory';
 
 function classifyDst(dst: string, ourSrc: string): DstClassification {
   let stat;
@@ -201,10 +197,6 @@ function classifyDst(dst: string, ourSrc: string): DstClassification {
       const resolved = resolve(isAbsolute(raw) ? raw : resolve(dirname(dst), raw));
       const want = resolve(ourSrc);
       if (resolved === want) return 'ours';
-      // Old v1.0.0 installer symlinked at <skill>/SKILL.md inside our dir.
-      // Recognize any symlink resolving inside the intended skill directory
-      // as ours so we can upgrade it in place.
-      if (resolved.startsWith(want + '/')) return 'ours-legacy';
     } catch {
       // broken symlink — treat as not-ours; overwriting is safe with --force
     }

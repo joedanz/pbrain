@@ -168,23 +168,6 @@ describe('applyPlan', () => {
     expect(existsSync(join(targetDir, 'x', 'SKILL.md'))).toBe(true);
   });
 
-  test('legacy file-pointing symlink is upgraded to directory symlink on reinstall', () => {
-    const targetDir = join(scratchDir, 't');
-    mkdirSync(targetDir, { recursive: true });
-    const srcDir = join(scratchDir, 's');
-    mkdirSync(srcDir, { recursive: true });
-    const srcFile = join(srcDir, 'SKILL.md');
-    writeFileSync(srcFile, 'x');
-    // Plant a v1.0.0-style symlink pointing at SKILL.md, not the directory.
-    symlinkSync(srcFile, join(targetDir, 'x'));
-
-    const actions = planInstall([{ name: 'x', srcPath: srcDir }], [{ client: 'claude', dir: targetDir }]);
-    expect(actions[0].op).toBe('overwrite');
-    expect(actions[0].reason).toContain('legacy');
-    const result = applyPlan(actions);
-    expect(result.overwritten).toBe(1);
-    expect(readlinkSync(join(targetDir, 'x'))).toBe(srcDir);
-  });
 });
 
 describe('uninstall safety', () => {

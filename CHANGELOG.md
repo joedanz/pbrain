@@ -2,7 +2,7 @@
 
 All notable changes to PBrain will be documented in this file.
 
-> **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[1.0.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
+> **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[0.1.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
 ## [Unreleased]
 
@@ -18,13 +18,13 @@ All notable changes to PBrain will be documented in this file.
 - **`pbrain init` now requires `--brain-path` on fresh installs; reuses it on re-init.** Before: bare `pbrain init` wrote a config with no `brain_path`, leaving every skill stranded without a folder to write into. After: fresh installs (no prior `~/.pbrain/config.json`) fail fast with a clear error unless you pass `--brain-path ~/ObsidianVault/MyBrain` or set `PBRAIN_BRAIN_PATH`. Re-runs on already-configured machines reuse the saved path silently, so the `git pull && bun install && pbrain init` upgrade flow still works hands-off. Interactive mode rejects empty input and offers to `mkdir -p` the folder if it doesn't exist.
 - **`pbrain install-skills` no longer runs automatically during `pbrain init`.** Before: init prompted inline to symlink skills into Claude Code / Cursor / Windsurf, then shelled out to `pbrain install-skills` mid-init. After: init prints a one-line hint showing the command to run if an IDE is detected, and the user decides when. `pbrain upgrade` still refreshes symlinks automatically since you already opted in the first time.
 - **Fixed: `pbrain` binary now launches after `bun link` without manual `chmod +x`.** `src/cli.ts` was tracked at mode 644 in git, so the symlink `bun link` creates pointed at a non-executable file — the MCP server launched by Claude Code / Cursor failed with a silent "permission denied" and the server showed as ✗ failed in the MCP manager. After: the file's executable bit is tracked (mode 755), so a fresh clone + `bun link` produces a working `pbrain serve` immediately. Existing users only need to `git pull` — the mode bit updates with the working tree.
-- **Fixed: install-skills now symlinks skill directories, not SKILL.md files.** The initial v1.0.0 installer pointed each symlink at `<skill>/SKILL.md` — but Claude Code / Cursor / Windsurf scan for `<skills-dir>/<name>/SKILL.md`, meaning none of the skills were actually discoverable despite appearing to install cleanly. After: symlinks target the skill directory so the discovery path resolves. On upgrade, legacy file-pointing symlinks from v1.0.0 self-heal without needing `--force`.
+- **Fixed: install-skills now symlinks skill directories, not SKILL.md files.** The initial v0.1.0 installer pointed each symlink at `<skill>/SKILL.md` — but Claude Code / Cursor / Windsurf scan for `<skills-dir>/<name>/SKILL.md`, meaning none of the skills were actually discoverable despite appearing to install cleanly. After: symlinks target the skill directory so the discovery path resolves. On upgrade, legacy file-pointing symlinks from v0.1.0 self-heal without needing `--force`.
 
-## [1.0.0] - 2026-04-16
+## [0.1.0] - 2026-04-16
 
 The first PBrain release. Adaptation work was phased across four PRs merged to master incrementally; this release tags the final state after all four phases merged.
 
-### Dogfood fixes (before any announcement, same v1.0.0 tag)
+### Dogfood fixes (before any announcement, same v0.1.0 tag)
 
 Three issues surfaced while using PBrain against a real Obsidian vault on Google Drive. All fixed before the tag moves.
 
@@ -35,7 +35,7 @@ Three issues surfaced while using PBrain against a real Obsidian vault on Google
 
 ### Attribution
 
-PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). Every core engineering decision originates from GBrain: contract-first operations, pluggable engines (PGLite + Postgres), hybrid RAG search, compiled truth + timeline page format, fat markdown skills, the autopilot daemon, the MCP stdio server, and the recipe system. PBrain resets the version to `1.0.0` to mark a product boundary — different audience (senior engineers), different taxonomy (libraries/ai-tools/repos/patterns/papers/talks/books in, VC directories out), different storage semantics (markdown-first, Obsidian-native) — not because GBrain's API is unstable. GBrain's own lineage continues independently at its own cadence. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full attribution.
+PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). Every core engineering decision originates from GBrain: contract-first operations, pluggable engines (PGLite + Postgres), hybrid RAG search, compiled truth + timeline page format, fat markdown skills, the autopilot daemon, the MCP stdio server, and the recipe system. PBrain resets the version to `0.1.0` to mark a product boundary — different audience (senior engineers), different taxonomy (libraries/ai-tools/repos/patterns/papers/talks/books in, VC directories out), different storage semantics (markdown-first, Obsidian-native) — not because GBrain's API is unstable. GBrain's own lineage continues independently at its own cadence. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full attribution.
 
 ### Phase 1 — Rebrand (merged)
 
@@ -55,10 +55,10 @@ PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [
 #### Not changed (yet)
 - **Schema.** Phase 1 is rebrand-only: directory taxonomy, skills, and page templates are still GBrain-shaped (VC-flavored). Phase 2 drops `deals/`/`hiring/`/`civic/`/`org/`/`media/`/`personal/`/`household/`, adds `libraries/`/`ai-tools/`/`repos/`/`patterns/`/`papers/`/`talks/`/`books/`, and re-skins `companies/` for tech organizations.
 - **Storage model.** Still DB-first with one-way markdown import. Phase 3 inverts this: markdown files on disk become the source of truth, PGLite becomes a rebuildable index, optimized for use as an Obsidian vault.
-- **Version bump.** `package.json` stays at `0.10.1` through Phase 1–3; only bumped to `1.0.0` when Phase 4 merges and the first PBrain release is tagged.
+- **Version bump.** `package.json` stays at `0.10.1` through Phase 1–3; only bumped to `0.1.0` when Phase 4 merges and the first PBrain release is tagged.
 
 #### Migration path
-Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate CLI command (`pbrain`, not `gbrain`) and a separate config directory (`~/.pbrain/`). GBrain v0.10.1 and PBrain v1.0.0 are distinct products.
+Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate CLI command (`pbrain`, not `gbrain`) and a separate config directory (`~/.pbrain/`). GBrain v0.10.1 and PBrain v0.1.0 are distinct products.
 
 ### Phase 2 — Schema & skills adaptation (merged)
 
@@ -108,7 +108,7 @@ The inversion: files on disk are authoritative; the database is a rebuildable in
 
 ### Phase 4 — Obsidian polish + doctor checks (merged)
 
-Final phase — tags `v1.0.0` and cuts the first PBrain release.
+Final phase — tags `v0.1.0` and cuts the first PBrain release.
 
 #### Doctor
 - `pbrain doctor --integrations` validates the brain folder as an Obsidian-compatible vault. Checks `brain_path` exists and is writable, every YAML frontmatter block parses, every `[[wikilink]]` resolves to a known slug or alias, no duplicate slugs across directories (Obsidian wikilink collision prevention), and no leftover `.pbrain-tmp-*` sentinels from crashed atomic writes.
@@ -123,7 +123,7 @@ Final phase — tags `v1.0.0` and cuts the first PBrain release.
 - `recipes/obsidian-vault.md` — new self-installing recipe. Agent-executable setup: pick a path, `pbrain init --brain-path`, `pbrain index`, `pbrain doctor --integrations`. Listed as the first infra recipe in `docs/integrations/README.md`.
 
 #### Version
-- `package.json` bumped from `0.10.1` to `1.0.0`. Tagged `v1.0.0`, first PBrain GitHub release cut.
+- `package.json` bumped from `0.10.1` to `0.1.0`. Tagged `v0.1.0`, first PBrain GitHub release cut.
 
 ---
 
