@@ -93,6 +93,7 @@ markdown files (tool-agnostic, work with the CLI and MCP server contexts).
 - `src/commands/backlinks.ts` — Back-link checker and fixer (enforces Iron Law)
 - `src/commands/lint.ts` — Page quality linter (catches LLM artifacts, placeholder dates)
 - `src/commands/report.ts` — Structured report saver (audit trail for maintenance/enrichment)
+- `scripts/install.sh` — One-line bootstrap installer (Bun detect/install, clone, `bun link`, brain-path prompt, optional install-skills). Idempotent; re-run to upgrade. See `docs/install.md`.
 
 ## Commands
 
