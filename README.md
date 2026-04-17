@@ -12,23 +12,51 @@ PBrain is GBrain's patterns, retargeted at software engineering knowledge. 25 sk
 
 ## Install
 
-### Prerequisites
+Before you start: **pick your brain folder.** PBrain reads and writes markdown into a folder on disk. If you already have an Obsidian vault, use it. If not, create one now — open Obsidian, "Create new vault", and pick a path like `~/ObsidianVault/MyBrain`. Any writable folder works (Logseq, plain markdown, a cloud-synced mount), but an Obsidian vault gets you the graph view for free.
 
-1. **Pick your brain folder.** PBrain reads and writes markdown into a folder on disk. If you already have an Obsidian vault, use it. If not, create one now — open Obsidian, "Create new vault", and pick a path like `~/ObsidianVault/MyBrain`. Any writable folder works (Logseq, plain markdown, a cloud-synced mount), but an Obsidian vault gets you the graph view for free.
-2. **Install Bun.** `curl -fsSL https://bun.sh/install | bash`
-
-Don't run `pbrain init` until the brain folder exists — every skill assumes it's there.
-
-### Standalone CLI
+### One-line install (recommended)
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/joedanz/pbrain/master/scripts/install.sh | bash
+```
+
+Installs Bun if needed, clones the repo to `~/.pbrain-repo`, runs `bun install && bun link`, asks for your brain folder, runs `pbrain init`, and (optionally) registers skills with Claude Code / Cursor / Windsurf. Idempotent — re-run to upgrade.
+
+Want to audit first? `curl -fsSL https://raw.githubusercontent.com/joedanz/pbrain/master/scripts/install.sh -o install.sh && less install.sh && bash install.sh`.
+
+Non-interactive / scripted:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/joedanz/pbrain/master/scripts/install.sh \
+  | bash -s -- --brain-path ~/ObsidianVault/MyBrain --yes
+```
+
+See [`docs/install.md`](docs/install.md) for flags, env vars, and troubleshooting. macOS and Linux only; Windows users run this inside WSL.
+
+### Manual install
+
+```bash
+# 1. Install Bun (once per machine)
+curl -fsSL https://bun.sh/install | bash
+
+# 2. Clone, install, link
 git clone https://github.com/joedanz/pbrain.git && cd pbrain && bun install && bun link
+
+# 3. Point PBrain at your brain folder
 pbrain init --brain-path ~/ObsidianVault/MyBrain   # absolute path to your vault
 pbrain import ~/ObsidianVault/MyBrain              # index existing notes
 pbrain query "what themes show up across my notes?"
 ```
 
 `--brain-path` is saved to `~/.pbrain/config.json` as `brain_path`. Every skill and command resolves the vault from here. Override per-session with `PBRAIN_BRAIN_PATH=/path pbrain …`. Re-running `pbrain init` later reuses the saved path unless you pass `--brain-path` again.
+
+### Upgrading
+
+Re-run the one-line installer (idempotent — detects the existing clone and runs `git pull && bun install`), or do it by hand:
+
+```bash
+cd ~/.pbrain-repo && git pull && bun install
+```
 
 ### On an agent platform
 

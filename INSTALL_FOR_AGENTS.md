@@ -13,6 +13,31 @@ Confirm the user has these ready. If any are missing, help them set them up befo
 
 ## Step 1: Install PBrain
 
+### Fast path (recommended)
+
+Ask the user for their brain folder first (Obsidian vault root or any writable markdown folder), then run the one-line installer with that path. The installer handles Bun, clone, `bun install && bun link`, and `pbrain init` in one shot.
+
+```bash
+BRAIN_PATH="/absolute/path/the/user/gave/you"
+curl -fsSL https://raw.githubusercontent.com/joedanz/pbrain/master/scripts/install.sh \
+  | bash -s -- --brain-path "$BRAIN_PATH" --yes
+```
+
+`--yes` accepts all prompts (creates the brain folder if missing, runs `pbrain install-skills` if an IDE is detected). After it finishes, `export PATH="$HOME/.bun/bin:$PATH"` so `pbrain` is on PATH for subsequent steps.
+
+Verify:
+
+```bash
+export PATH="$HOME/.bun/bin:$PATH"
+pbrain --version
+```
+
+If this succeeds, **skip to Step 2 (API Keys)**. Steps 3 and 4 are already done.
+
+### Manual path (fallback)
+
+Use if the one-line installer fails (no `curl`, restricted filesystem, corporate proxy).
+
 ```bash
 git clone https://github.com/joedanz/pbrain.git ~/pbrain && cd ~/pbrain
 curl -fsSL https://bun.sh/install | bash
@@ -21,7 +46,7 @@ bun install && bun link
 ```
 
 Verify: `pbrain --version` should print a version number. If `pbrain` is not found,
-restart the shell or add the PATH export to the shell profile.
+restart the shell or add the PATH export to the shell profile. Then continue with Step 3 below to wire up the brain folder.
 
 ## Step 2: API Keys
 
