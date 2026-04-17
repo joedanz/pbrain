@@ -246,19 +246,19 @@ exists) for a line matching `^## pbrain\s*$`. If present, skip this phase
 entirely. Do NOT append a second section.
 
 If absent (or if CLAUDE.md doesn't exist), append (or create with) exactly
-this section, substituting `<owner>/<name>` with the concrete slug:
+this section, substituting `<slug>` with the project's slug:
 
 ```markdown
 
 ## pbrain
 
-This project is tracked in pbrain as `repos/<owner>/<name>`.
+This project is tracked in pbrain as `projects/<slug>`.
 
 - Before answering questions about architecture, dependencies, stack
   history, or past decisions, query the brain: `pbrain query "<question>"`.
 - When a significant decision is made, record it with
   `pbrain remember "<summary>"` — the command auto-detects the current
-  project and appends a timeline entry to `repos/<owner>/<name>`.
+  project and appends a timeline entry.
 - To re-onboard (e.g. after a brain wipe), run the `project-onboard` skill.
 ```
 
