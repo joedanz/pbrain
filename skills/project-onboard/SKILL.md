@@ -241,6 +241,7 @@ tags: [company, <category>]
 - **Creating both `libraries/X.md` and `companies/X.md` with the same slug.** Pick one. If the company ships multiple tracked products, rename the company page (`companies/X-inc.md`) or keep the library page only.
 - **Non-idempotent re-runs.** If the page already lists this project under "Used by", don't duplicate. Read-then-merge.
 - **Skipping `pbrain doctor --integrations` at the end.** The skill is not done until doctor is green.
+- **Literal double-bracket strings in page prose.** Doctor's wikilink scanner matches `[[...]]` anywhere in the body, even inside backticks or code spans. If you need to describe wikilink syntax in prose, spell it out ("wikilinks" / "double-bracket links") instead of using the literal characters. The scanner cannot distinguish documentation from intent.
 
 ## Output Format
 
