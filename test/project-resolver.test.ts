@@ -132,7 +132,6 @@ describe('resolveProject — marker file layer', () => {
     });
     expect(result).toEqual({
       slug: 'projects/myproj',
-      repoSlug: null,
       matchedVia: 'marker',
     });
   });
@@ -254,7 +253,6 @@ describe('resolveProject — git remote layer', () => {
     });
     expect(result).toEqual({
       slug: 'repos/joedanz-picspot',
-      repoSlug: 'repos/joedanz-picspot',
       matchedVia: 'remote:origin',
     });
   });
