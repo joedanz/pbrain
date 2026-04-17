@@ -19,7 +19,7 @@ PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [
 - **Attribution preserved.** Original copyright and LICENSE unchanged. New `NOTICE` file and `docs/ATTRIBUTION.md` credit Garry Tan and all GBrain contributors as the origin of every core engineering decision (contract-first ops, pluggable engines, hybrid RAG, compiled truth, skill resolver, autopilot, MCP server).
 
 #### Changed
-- **Binary:** `gbrain` → `pbrain`. The CLI command, all build artifacts (`bin/pbrain-darwin-arm64`, `bin/pbrain-linux-x64`), and MCP server name are now `pbrain`.
+- **Binary:** `gbrain` → `pbrain`. The CLI command and MCP server name are now `pbrain`. PBrain is source-distributed (clone + `bun install && bun link`) — no GitHub binary release, matching the upstream GBrain model.
 - **Config directory:** `~/.gbrain/` → `~/.pbrain/`. Includes `config.json`, `indexes/`, `update-state.json`. Migration shim in `pbrain init` detects an existing `~/.gbrain/` and offers a one-time consented rename.
 - **Environment variables:** `GBRAIN_DATABASE_URL` → `PBRAIN_DATABASE_URL`. The standard `DATABASE_URL` fallback still works (unchanged). All other `GBRAIN_*` env vars similarly renamed to `PBRAIN_*`.
 - **TypeScript type:** `GBrainConfig` → `PBrainConfig`.
