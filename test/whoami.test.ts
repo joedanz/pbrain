@@ -83,4 +83,31 @@ describe('runWhoami', () => {
     expect(output).toMatch(/remote/i);
     expect(output).toContain('https://github.com/unknown/repo');
   });
+
+  test('--json emits {slug, matchedVia, cwd} on a hit', async () => {
+    writeFileSync(join(sandbox, '.pbrain-project'), 'projects/picspot\n');
+    const { output, exitCode } = await runWhoami(stubEngine(), ['--json'], {
+      cwd: sandbox,
+      home: sandbox,
+    });
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(output);
+    expect(parsed).toEqual({
+      slug: 'projects/picspot',
+      matchedVia: 'marker',
+      cwd: sandbox,
+    });
+  });
+
+  test('--json emits null slug on miss', async () => {
+    const { output, exitCode } = await runWhoami(stubEngine(), ['--json'], {
+      cwd: sandbox,
+      home: sandbox,
+    });
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(output);
+    expect(parsed.slug).toBeNull();
+    expect(parsed.matchedVia).toBeNull();
+    expect(parsed.cwd).toBe(sandbox);
+  });
 });

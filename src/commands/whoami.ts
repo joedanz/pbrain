@@ -31,12 +31,22 @@ export async function runWhoami(
   opts: WhoamiOptions,
 ): Promise<WhoamiResult> {
   const verbose = args.includes('--verbose') || args.includes('-v');
+  const json = args.includes('--json');
 
   const result: ResolveResult = await resolveProject({
     cwd: opts.cwd,
     home: opts.home,
     findRepoByUrl: (url) => engine.findRepoByUrl(url),
   });
+
+  if (json) {
+    const payload = {
+      slug: result?.slug ?? null,
+      matchedVia: result?.matchedVia ?? null,
+      cwd: opts.cwd,
+    };
+    return { output: JSON.stringify(payload) + '\n', exitCode: 0 };
+  }
 
   if (result) {
     const lines = [

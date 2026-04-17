@@ -12,6 +12,7 @@ tools:
   - search
   - get_page
   - put_page
+  - find_repo_by_url
 mutating: true
 ---
 
@@ -24,7 +25,7 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 ## Contract
 
 1. **One project page** per project, slug = project's common name (lowercase-hyphen). Path-qualified wikilinks only.
-2. **One repo page** per repo, slug = `<owner>-<name>` (owner-prefixed to avoid colliding with the project page).
+2. **One repo page** per repo, slug = `repos/<owner>/<name>`. The nested-slug form is collision-free: GitHub owner/name components cannot contain `/`, so `foo-bar/baz` and `foo/bar-baz` can no longer collapse to the same slug. Repo pages MUST carry `github_url: <canonical>` in frontmatter so `findRepoByUrl` can resolve them via the GIN-indexed containment query.
 3. **Libraries / ai-tools link from project pages only** — not from repo pages. Repo pages describe code structure, scripts, and monorepo layout in plain prose.
 4. **Companies** link from their libraries and ai-tools (as vendor). Never from projects directly.
 5. **Library vs. company disambiguation:** create a `libraries/X.md` page when X is 1:1 with its vendor (Stripe, Sentry, Resend, Convex, Drizzle, Neon). Create a `companies/X.md` page only when X ships multiple tracked products (Anthropic → Claude + Claude Code + APIs; Vercel → AI SDK + Next.js + Turborepo; Cloudflare → R2 + Workers + D1).
@@ -32,7 +33,8 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 7. **Never trust GitHub's `homepage` field as the real domain** — it's often a `*.vercel.app` preview. Ask the user to confirm the real domain.
 8. **All wikilinks path-qualified** (`[[projects/picspot]]`, not `[[picspot]]`). Doctor will flag ambiguous bare slugs.
 9. **Atomic-safe writes:** use the file-write pathway PBrain provides — never leave half-written files visible to Obsidian.
-10. **Fork → upstream tracking:** if the repo is a fork, stub the upstream repo at `repos/<upstream-owner>-<upstream-name>.md` and link it from the fork's repo page via an `Upstream:` field. The upstream stub is a thin pointer (no `Used by`, no full stack breakdown) — it exists so the ancestry shows up in the graph.
+10. **Fork → upstream tracking:** if the repo is a fork, stub the upstream repo at `repos/<upstream-owner>/<upstream-name>.md` and link it from the fork's repo page via an `Upstream:` field. The upstream stub is a thin pointer (no `Used by`, no full stack breakdown) — it exists so the ancestry shows up in the graph.
+11. **Canonicalize URLs via the CLI.** Every `github_url` you write must come from `pbrain canonical-url <raw-url>`. Never hand-roll URL normalization — case, `.git` suffix, and scheme differences will break `findRepoByUrl` lookups. Shell out: `CANONICAL=$(pbrain canonical-url "$(git config --get remote.origin.url)")`.
 
 ## Inputs
 
@@ -61,7 +63,27 @@ onboard ~/code/picspot domain=picspot.app
 
 ## Phases
 
-### Phase 0 — Locate the brain root (MANDATORY FIRST STEP)
+### Phase 0 — Idempotency gate (MANDATORY FIRST STEP)
+
+Before doing any work, check whether this repo is already onboarded. The
+skill is wired to fire automatically on every session via the project-level
+`CLAUDE.md` declaration (see Phase 7), so running it in an already-onboarded
+repo must be a fast no-op.
+
+```bash
+pbrain whoami --json
+```
+
+Parse the JSON output. If `slug` is non-null, the repo is already onboarded:
+print `Already onboarded: <slug>` and exit the skill immediately. Do NOT
+re-create pages, do NOT re-fetch GitHub metadata, do NOT re-write CLAUDE.md.
+
+If `slug` is null, proceed to Phase 1.
+
+The check is ~5ms end-to-end because `findRepoByUrl` is a GIN-indexed
+frontmatter containment query. Safe to invoke unconditionally on every session.
+
+### Phase 1 — Locate the brain root
 
 Before any fetch or write, resolve the absolute filesystem path of the brain. Do not guess, do not default to `~/brain`, and do not create a new empty directory. The brain is where the user's existing `projects/`, `repos/`, `libraries/`, `ai-tools/`, and `companies/` pages already live.
 
@@ -91,7 +113,7 @@ Resolution order (stop at first hit):
 
 Store the resolved path as `$BRAIN` for the rest of the run. All subsequent paths in this skill (`projects/<slug>.md`, etc.) are relative to `$BRAIN`.
 
-### Phase 1 — Fetch
+### Phase 2 — Fetch
 
 Fetch in parallel:
 - Repo metadata: `gh api repos/<owner>/<name> --jq '{name,description,language,topics,homepage,default_branch,pushed_at,fork,parent:(.parent // null) | if . then {owner:.owner.login, name:.name, url:.html_url} else null end}'` — `fork: true` triggers the upstream-tracking path; `parent` holds the upstream repo's `owner`/`name`
@@ -105,7 +127,7 @@ Fetch in parallel:
 
 If README is 404 or a generic scaffold (e.g. Google AI Studio boilerplate), fall back to package.json + root listing for facts.
 
-### Phase 2 — Confirm domain
+### Phase 3 — Confirm domain
 
 Resolution order (stop at first hit):
 
@@ -113,11 +135,11 @@ Resolution order (stop at first hit):
 2. **GitHub `homepage` is a real domain** — any non-preview hostname. Use it.
 3. **`homepage` is a preview host or missing** — matches `*.vercel.app`, `*.netlify.app`, `*.fly.dev`, `*.onrender.com`, `*.github.io`, `*.pages.dev`, `*.workers.dev`, or empty. **Ask the user** for the real production domain before writing.
 
-If the supplied `real_domain` and the repo's `homepage` disagree, trust the input — the user is the source of truth — but surface the mismatch in the Phase 6 notes so they can fix the GitHub field if they want.
+If the supplied `real_domain` and the repo's `homepage` disagree, trust the input — the user is the source of truth — but surface the mismatch in the Phase 7 notes so they can fix the GitHub field if they want.
 
 Never silently use a preview URL.
 
-### Phase 3 — Classify dependencies
+### Phase 4 — Classify dependencies
 
 Walk the dependency manifest. Bucket every dep into exactly one of:
 
@@ -133,7 +155,7 @@ Walk the dependency manifest. Bucket every dep into exactly one of:
 
 **skip** — everything else. Mention in prose on the repo page if architecturally notable (e.g., `@hebcal/core` for a Jewish calendar app) but don't stub.
 
-### Phase 4 — Materialize pages
+### Phase 5 — Materialize pages
 
 For each classified entity:
 
@@ -149,15 +171,49 @@ For each classified entity:
 
 Write the **project page** and **repo page** last, with wikilinks to every library and ai-tool classified above.
 
-### Phase 5 — Verify
+### Phase 6 — Verify
 
 Run `pbrain doctor --integrations`. Required: green (no broken wikilinks, no duplicate slugs, no leftover `.pbrain-tmp-*` files). If red, fix before reporting done.
 
-### Phase 6 — Report
+### Phase 7 — Self-install the CLAUDE.md declaration
+
+Append a pbrain declaration section to the project's `CLAUDE.md` (at
+`$PROJECT_ROOT/CLAUDE.md`, where `$PROJECT_ROOT` is the git root of the repo
+being onboarded — NOT `$BRAIN`). This teaches every future Claude Code
+session in the project that it's pbrain-tracked and how to leverage the
+brain. The Phase 0 idempotency gate is what keeps re-invocation cheap.
+
+**Idempotency guard — MANDATORY before writing:** grep CLAUDE.md (if it
+exists) for a line matching `^## pbrain\s*$`. If present, skip this phase
+entirely. Do NOT append a second section.
+
+If absent (or if CLAUDE.md doesn't exist), append (or create with) exactly
+this section, substituting `<owner>/<name>` with the concrete slug:
+
+```markdown
+
+## pbrain
+
+This project is tracked in pbrain as `repos/<owner>/<name>`.
+
+- Before answering questions about architecture, dependencies, stack
+  history, or past decisions, query the brain: `pbrain query "<question>"`.
+- When a significant decision is made, record it with
+  `pbrain remember "<summary>"` — the command auto-detects the current
+  project and appends a timeline entry to `repos/<owner>/<name>`.
+- To re-onboard (e.g. after a brain wipe), run the `project-onboard` skill.
+```
+
+Leading blank line is required to separate from whatever precedes it in an
+existing CLAUDE.md. Writing this section is the last mutating step before
+Phase 8 (Report).
+
+### Phase 8 — Report
 
 Output a concise summary:
 - Pages created / updated (counts by type)
 - Cross-project hubs that grew (e.g., "convex now has 5 users")
+- CLAUDE.md status — created / appended-to / already-present
 - Anything that looked off (missing real domain, README scaffold detected, skipped deps worth reviewing)
 
 ## Templates
@@ -178,7 +234,7 @@ tags: [project, <status>, <domain-tag>]
 Active — deployed at https://<real-domain>
 
 ## Repo
-[[repos/<owner>-<slug>]]
+[[repos/<owner>/<slug>]]
 
 ## Stack
 <Inline prose with every notable library/ai-tool wikilinked path-qualified.>
@@ -189,10 +245,17 @@ Active — deployed at https://<real-domain>
 #project #<status> #<domain-tag>
 ```
 
-### `repos/<owner>-<slug>.md`
+### `repos/<owner>/<slug>.md`
+
+Frontmatter is REQUIRED to include `github_url: <canonical>` (use
+`pbrain canonical-url` — see Contract rule 11) and `type: source`. The
+`findRepoByUrl` containment query will not resolve the page without it.
 
 ```markdown
 ---
+type: source
+title: <owner>/<name>
+github_url: https://github.com/<owner>/<name>
 aliases: ["<Display Name> repo", "<repo-package-name>"]
 tags: [repo, <language>, <arch-tag>]
 ---
@@ -201,7 +264,7 @@ tags: [repo, <language>, <arch-tag>]
 
 GitHub: https://github.com/<owner>/<name>
 Project: [[projects/<slug>]]
-Upstream: [[repos/<upstream-owner>-<upstream-name>]]   <!-- only if this repo is a fork; also create a stub for the upstream repo -->
+Upstream: [[repos/<upstream-owner>/<upstream-name>]]   <!-- only if this repo is a fork; also create a stub for the upstream repo -->
 
 ## Stack
 <Prose describing framework, build tool, test stack. NO library wikilinks — those live on the project page.>
@@ -294,7 +357,7 @@ tags: [company, <category>]
 
 - **Trusting `homepage` as the real domain.** GitHub's homepage field is often a Vercel preview. Always confirm with the user before writing the project page.
 - **Bare-slug wikilinks.** Always path-qualify: `[[projects/picspot]]`, never `[[picspot]]`. Obsidian resolver will flag ambiguity if two files share a tail.
-- **Matching repo slug to project slug.** `repos/picspot.md` + `projects/picspot.md` collide. Always owner-prefix repo slugs.
+- **Matching repo slug to project slug.** `repos/picspot.md` + `projects/picspot.md` collide. Always nest under owner: `repos/<owner>/<name>.md`.
 - **Re-linking libraries from repo pages.** Creates triangle edges in the graph. Libraries link from project pages only.
 - **Stubbing every dep.** Skip micro-utilities and test harnesses. The "Used by" graph is only useful for tools with real independent state.
 - **Creating both `libraries/X.md` and `companies/X.md` with the same slug.** Pick one. If the company ships multiple tracked products, rename the company page (`companies/X-inc.md`) or keep the library page only.
@@ -311,7 +374,7 @@ Onboarded <owner>/<name> → projects/<slug>
 
 Created:
   projects/<slug>.md
-  repos/<owner>-<slug>.md
+  repos/<owner>/<slug>.md
   libraries/<new-lib-1>.md, libraries/<new-lib-2>.md  (N new)
   ai-tools/<new-tool>.md                               (N new)
   companies/<new-company>.md                           (N new)
@@ -322,6 +385,8 @@ Updated (Used by appended):
 Cross-project hubs now at:
   libraries/convex  ── N projects
   ai-tools/claude   ── N projects
+
+CLAUDE.md: created | appended pbrain section | already-present (skipped)
 
 Doctor: [OK] <pages> pages, <wikilinks> wikilinks, 0 issues
 

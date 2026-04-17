@@ -170,19 +170,15 @@ export class PGLiteEngine implements BrainEngine {
   }
 
   async findRepoByUrl(url: string): Promise<{ slug: string; title: string }[]> {
-    // Body-scan lookup — URL is stored as a prose line ("GitHub: https://...")
-    // in repos/* pages today. TODO: swap for a frontmatter `github_url` lookup
-    // once `project-onboard` is updated and existing pages are backfilled.
     const FIND_REPO_LIMIT = 5;
-    const pattern = '%' + url + '%';
     const { rows } = await this.db.query(
       `SELECT slug, title
        FROM pages
        WHERE slug LIKE 'repos/%'
-         AND (compiled_truth ILIKE $1 OR timeline ILIKE $1)
+         AND frontmatter @> jsonb_build_object('github_url', $1::text)
        ORDER BY slug
        LIMIT $2`,
-      [pattern, FIND_REPO_LIMIT],
+      [url, FIND_REPO_LIMIT],
     );
     return (rows as { slug: string; title: string }[]);
   }
