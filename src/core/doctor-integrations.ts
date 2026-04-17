@@ -18,7 +18,7 @@ import { join, relative } from 'path';
 import { parseWikilinks, resolveWikilink } from './wikilink.ts';
 
 export interface IntegrationIssue {
-  type: 'missing_brain' | 'unwritable_brain' | 'leftover_tmp' | 'yaml_error' | 'broken_wikilink' | 'duplicate_slug';
+  type: 'missing_brain' | 'unwritable_brain' | 'leftover_tmp' | 'yaml_error' | 'broken_wikilink' | 'duplicate_slug' | 'scan_error';
   path: string;
   detail: string;
 }
@@ -37,16 +37,27 @@ export interface IntegrationReport {
 /**
  * Walk the brain folder and collect every .md file plus any .pbrain-tmp-* sentinels.
  * Symlinks are skipped for the same reason collectMarkdownFiles() skips them.
+ *
+ * Scan failures (EPERM, EACCES — common on macOS CloudStorage without Full Disk
+ * Access) are surfaced as scan_errors so doctor doesn't silently pass on a vault
+ * it couldn't actually read.
  */
-function walk(root: string): { pages: string[]; tmpFiles: string[] } {
+function walk(root: string): { pages: string[]; tmpFiles: string[]; scanErrors: Array<{ path: string; code: string; message: string }> } {
   const pages: string[] = [];
   const tmpFiles: string[] = [];
+  const scanErrors: Array<{ path: string; code: string; message: string }> = [];
 
   function recurse(dir: string) {
     let entries: string[];
     try {
       entries = readdirSync(dir);
-    } catch {
+    } catch (e) {
+      const err = e as NodeJS.ErrnoException;
+      scanErrors.push({
+        path: dir,
+        code: err.code || 'UNKNOWN',
+        message: err.message || String(e),
+      });
       return;
     }
     for (const entry of entries) {
@@ -76,7 +87,7 @@ function walk(root: string): { pages: string[]; tmpFiles: string[] } {
   }
 
   recurse(root);
-  return { pages: pages.sort(), tmpFiles };
+  return { pages: pages.sort(), tmpFiles, scanErrors };
 }
 
 /** Convert an absolute file path under brainPath to a slug (drop `.md`, use forward slashes). */
@@ -134,9 +145,16 @@ export function checkIntegrations(brainPath: string | undefined | null): Integra
     report.ok = false;
   }
 
-  const { pages, tmpFiles } = walk(brainPath);
+  const { pages, tmpFiles, scanErrors } = walk(brainPath);
   report.stats.pages_scanned = pages.length;
   report.stats.leftover_tmp = tmpFiles.length;
+
+  for (const err of scanErrors) {
+    const detail = err.code === 'EPERM' || err.code === 'EACCES'
+      ? `Cannot read ${err.path}: ${err.code}. On macOS this usually means bun lacks Full Disk Access. Grant it at System Settings > Privacy & Security > Full Disk Access for /Users/$(whoami)/.bun/bin/bun and restart your terminal.`
+      : `Cannot read ${err.path}: ${err.code}. ${err.message}`;
+    issues.push({ type: 'scan_error', path: err.path, detail });
+  }
 
   for (const tmp of tmpFiles) {
     issues.push({

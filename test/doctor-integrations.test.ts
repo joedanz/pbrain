@@ -103,3 +103,26 @@ test('checkIntegrations accepts tags as list or string', () => {
   expect(report.issues.filter(i => i.type === 'yaml_error')).toHaveLength(0);
   rmSync(brain, { recursive: true });
 });
+
+test('checkIntegrations surfaces scan_error on unreadable subdir, does not silently pass', () => {
+  const brain = mkBrain();
+  // readable sibling so the root walk succeeds
+  writePage(brain, 'ok/page', 'body');
+  // create an unreadable subdir (mode 000)
+  const unreadable = join(brain, 'locked');
+  mkdirSync(unreadable);
+  writeFileSync(join(unreadable, 'hidden.md'), 'body');
+  chmodSync(unreadable, 0o000);
+
+  try {
+    const report = checkIntegrations(brain);
+    // Must flag the scan failure rather than silently reporting green
+    const scanErr = report.issues.find(i => i.type === 'scan_error');
+    expect(scanErr).toBeDefined();
+    expect(scanErr!.path).toBe(unreadable);
+    expect(report.ok).toBe(false);
+  } finally {
+    chmodSync(unreadable, 0o755);
+    rmSync(brain, { recursive: true });
+  }
+});
