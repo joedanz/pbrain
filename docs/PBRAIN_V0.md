@@ -154,8 +154,7 @@ Behind the scenes, `clawhub install pbrain`:
 
 ```bash
 # 1. Install
-npm install -g pbrain
-# or: download binary from GitHub Releases
+git clone https://github.com/joedanz/pbrain.git && cd pbrain && bun install && bun link
 
 # 2. Initialize with Supabase
 pbrain init --supabase
@@ -440,8 +439,8 @@ Single-user, local-only:
 
 | Path | How |
 |------|-----|
+| Source (default) | `cd <pbrain repo> && git pull && bun install` |
 | npm | `bun update pbrain` (or npm equivalent) |
-| Compiled binary | Download new binary to temp dir, atomic rename swap, exec new process |
 | ClawHub | `clawhub update pbrain` |
 
 Version check: compare local version against latest GitHub release tag.
