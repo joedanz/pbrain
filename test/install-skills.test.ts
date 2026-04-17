@@ -35,9 +35,11 @@ describe('findRepoRoot + enumerateSkills', () => {
     expect(root).toBeTruthy();
     const skills = enumerateSkills(root!);
     expect(skills.length).toBeGreaterThan(20);
-    // Every source path resolves to an existing SKILL.md.
+    // Every source path resolves to an existing skill directory containing SKILL.md.
     for (const s of skills) {
       expect(existsSync(s.srcPath)).toBe(true);
+      expect(lstatSync(s.srcPath).isDirectory()).toBe(true);
+      expect(existsSync(join(s.srcPath, 'SKILL.md'))).toBe(true);
       expect(s.name).toMatch(/^[a-z0-9-]+$/);
     }
   });
@@ -60,15 +62,15 @@ describe('resolveTargetDirs', () => {
 
 describe('planInstall', () => {
   function makeSkills(): Skill[] {
-    const srcA = join(scratchDir, 'src', 'a', 'SKILL.md');
-    const srcB = join(scratchDir, 'src', 'b', 'SKILL.md');
-    mkdirSync(join(scratchDir, 'src', 'a'), { recursive: true });
-    mkdirSync(join(scratchDir, 'src', 'b'), { recursive: true });
-    writeFileSync(srcA, 'a');
-    writeFileSync(srcB, 'b');
+    const dirA = join(scratchDir, 'src', 'a');
+    const dirB = join(scratchDir, 'src', 'b');
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+    writeFileSync(join(dirA, 'SKILL.md'), 'a');
+    writeFileSync(join(dirB, 'SKILL.md'), 'b');
     return [
-      { name: 'a', srcPath: srcA },
-      { name: 'b', srcPath: srcB },
+      { name: 'a', srcPath: dirA },
+      { name: 'b', srcPath: dirB },
     ];
   }
   function makeTarget(): Target {
@@ -142,25 +144,46 @@ describe('applyPlan', () => {
   test('dry-run performs no filesystem writes', () => {
     const targetDir = join(scratchDir, 't');
     mkdirSync(targetDir, { recursive: true });
-    const srcPath = join(scratchDir, 's', 'SKILL.md');
-    mkdirSync(join(scratchDir, 's'), { recursive: true });
-    writeFileSync(srcPath, 'x');
+    const srcPath = join(scratchDir, 's');
+    mkdirSync(srcPath, { recursive: true });
+    writeFileSync(join(srcPath, 'SKILL.md'), 'x');
     const actions = planInstall([{ name: 'x', srcPath }], [{ client: 'claude', dir: targetDir }]);
     const result = applyPlan(actions, { dryRun: true });
     expect(result.linked).toBe(1);
     expect(existsSync(join(targetDir, 'x'))).toBe(false);
   });
 
-  test('creates target dir if missing', () => {
+  test('creates target dir if missing and symlinks the skill directory', () => {
     const targetDir = join(scratchDir, 'deep', 'nested', 'skills');
-    const srcPath = join(scratchDir, 's', 'SKILL.md');
-    mkdirSync(join(scratchDir, 's'), { recursive: true });
-    writeFileSync(srcPath, 'x');
+    const srcPath = join(scratchDir, 's');
+    mkdirSync(srcPath, { recursive: true });
+    writeFileSync(join(srcPath, 'SKILL.md'), 'x');
     const actions = planInstall([{ name: 'x', srcPath }], [{ client: 'claude', dir: targetDir }]);
     const result = applyPlan(actions);
     expect(result.linked).toBe(1);
     expect(lstatSync(join(targetDir, 'x')).isSymbolicLink()).toBe(true);
     expect(readlinkSync(join(targetDir, 'x'))).toBe(srcPath);
+    // Resolved symlink must expose SKILL.md under <target>/x/SKILL.md — this is
+    // what Claude Code / Cursor / Windsurf actually scan for.
+    expect(existsSync(join(targetDir, 'x', 'SKILL.md'))).toBe(true);
+  });
+
+  test('legacy file-pointing symlink is upgraded to directory symlink on reinstall', () => {
+    const targetDir = join(scratchDir, 't');
+    mkdirSync(targetDir, { recursive: true });
+    const srcDir = join(scratchDir, 's');
+    mkdirSync(srcDir, { recursive: true });
+    const srcFile = join(srcDir, 'SKILL.md');
+    writeFileSync(srcFile, 'x');
+    // Plant a v1.0.0-style symlink pointing at SKILL.md, not the directory.
+    symlinkSync(srcFile, join(targetDir, 'x'));
+
+    const actions = planInstall([{ name: 'x', srcPath: srcDir }], [{ client: 'claude', dir: targetDir }]);
+    expect(actions[0].op).toBe('overwrite');
+    expect(actions[0].reason).toContain('legacy');
+    const result = applyPlan(actions);
+    expect(result.overwritten).toBe(1);
+    expect(readlinkSync(join(targetDir, 'x'))).toBe(srcDir);
   });
 });
 

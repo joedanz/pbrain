@@ -7,6 +7,7 @@ All notable changes to PBrain will be documented in this file.
 ## [Unreleased]
 
 - **Skills now auto-register in Claude Code, Cursor, and Windsurf via `pbrain install-skills`.** Before: the 26 skill files lived in the cloned repo and were invisible to IDE clients — only dedicated agent platforms (OpenClaw, Hermes) that read the skill directory directly could see them. After: one command symlinks every skill into `~/.claude/skills/`, `~/.cursor/skills/`, and `~/.windsurf/skills/` (whichever exist). Auto-run by `pbrain init` (prompted) and `pbrain upgrade` (silent), so upgrades ship new skills without you lifting a finger. Idempotent. Collisions with other plugins are never overwritten silently — PBrain skips them and tells you to re-run with `--force` if you know what you're doing. `pbrain doctor` adds a `skill_symlinks` check so you notice when something's broken. Closes the biggest remaining install-friction gap: a stranger who clones the repo now gets working skills in their editor without a single manual step.
+- **Fixed: install-skills now symlinks skill directories, not SKILL.md files.** The initial v1.0.0 installer pointed each symlink at `<skill>/SKILL.md` — but Claude Code / Cursor / Windsurf scan for `<skills-dir>/<name>/SKILL.md`, meaning none of the skills were actually discoverable despite appearing to install cleanly. After: symlinks target the skill directory so the discovery path resolves. On upgrade, legacy file-pointing symlinks from v1.0.0 self-heal without needing `--force`.
 
 ## [1.0.0] - 2026-04-16
 
