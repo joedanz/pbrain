@@ -8,6 +8,15 @@ All notable changes to PBrain will be documented in this file.
 
 The first PBrain release. Adaptation work was phased across four PRs merged to master incrementally; this release tags the final state after all four phases merged.
 
+### Dogfood fixes (before any announcement, same v1.0.0 tag)
+
+Three issues surfaced while using PBrain against a real Obsidian vault on Google Drive. All fixed before the tag moves.
+
+- **`pbrain doctor --integrations` surfaces scan failures instead of silently reporting green.** Before: `readdirSync` EPERM/EACCES (macOS CloudStorage without Full Disk Access is the common trigger) was swallowed, and the doctor reported "0 pages, 0 issues" on a vault it couldn't actually read — a false green. After: scan errors emit a new `scan_error` issue with actionable guidance (grant FDA to `~/.bun/bin/bun`).
+- **PGLite lock detects PID reuse via process start time, not arg matching.** Before: after an `pbrain serve` process died, the lock's PID could be inherited by an unrelated program and the stale-detection would incorrectly block CLI commands (or, if the heuristic flipped the other way, the CLI would wrongly clobber a live holder's lock). After: lock records `lstart`; liveness check compares stored vs live start time — unambiguous even under PID reuse.
+- **Clearer lock-contention error when `pbrain serve` is holding PGLite.** Before: CLI timed out after 30s with "Timed out waiting for PGLite lock" and no guidance. After: fails in ~2s with a specific error calling out the most common cause (a running MCP server from Claude Code / Cursor) and two paths to resolve (stop the MCP server, or `pbrain migrate --to postgres` for multi-process access).
+- **`pbrain serve` registers SIGTERM/SIGINT handlers** so Claude Code shutting down the MCP server gracefully releases the lock on disk instead of leaving it for stale-detection to clean up later.
+
 ### Attribution
 
 PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). Every core engineering decision originates from GBrain: contract-first operations, pluggable engines (PGLite + Postgres), hybrid RAG search, compiled truth + timeline page format, fat markdown skills, the autopilot daemon, the MCP stdio server, and the recipe system. PBrain resets the version to `1.0.0` to mark a product boundary — different audience (senior engineers), different taxonomy (libraries/ai-tools/repos/patterns/papers/talks/books in, VC directories out), different storage semantics (markdown-first, Obsidian-native) — not because GBrain's API is unstable. GBrain's own lineage continues independently at its own cadence. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full attribution.
