@@ -121,36 +121,50 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
   }
 
   // 4. pgvector extension
-  try {
-    const sql = db.getConnection();
-    const ext = await sql`SELECT extname FROM pg_extension WHERE extname = 'vector'`;
-    if (ext.length > 0) {
-      checks.push({ name: 'pgvector', status: 'ok', message: 'Extension installed' });
-    } else {
-      checks.push({ name: 'pgvector', status: 'fail', message: 'Extension not found. Run: CREATE EXTENSION vector;' });
+  //    For PGLite, pgvector is bundled with the WASM runtime and loaded by
+  //    pglite-schema.ts during init — the check below uses the `postgres` npm
+  //    driver which isn't initialized in PGLite mode, so skip it cleanly.
+  const cfg = loadConfig();
+  const isPglite = cfg?.engine === 'pglite';
+  if (isPglite) {
+    checks.push({ name: 'pgvector', status: 'ok', message: 'Bundled with PGLite runtime' });
+  } else {
+    try {
+      const sql = db.getConnection();
+      const ext = await sql`SELECT extname FROM pg_extension WHERE extname = 'vector'`;
+      if (ext.length > 0) {
+        checks.push({ name: 'pgvector', status: 'ok', message: 'Extension installed' });
+      } else {
+        checks.push({ name: 'pgvector', status: 'fail', message: 'Extension not found. Run: CREATE EXTENSION vector;' });
+      }
+    } catch {
+      checks.push({ name: 'pgvector', status: 'warn', message: 'Could not check pgvector extension' });
     }
-  } catch {
-    checks.push({ name: 'pgvector', status: 'warn', message: 'Could not check pgvector extension' });
   }
 
-  // 5. RLS
-  try {
-    const sql = db.getConnection();
-    const tables = await sql`
-      SELECT tablename, rowsecurity FROM pg_tables
-      WHERE schemaname = 'public'
-        AND tablename IN ('pages','content_chunks','links','tags','raw_data',
-                           'page_versions','timeline_entries','ingest_log','config','files')
-    `;
-    const noRls = tables.filter((t: any) => !t.rowsecurity);
-    if (noRls.length === 0) {
-      checks.push({ name: 'rls', status: 'ok', message: 'RLS enabled on all tables' });
-    } else {
-      const names = noRls.map((t: any) => t.tablename).join(', ');
-      checks.push({ name: 'rls', status: 'warn', message: `RLS not enabled on: ${names}` });
+  // 5. RLS — only relevant for managed Postgres (Supabase). PGLite is a local
+  //    embedded DB owned by a single OS user; RLS doesn't add anything.
+  if (isPglite) {
+    checks.push({ name: 'rls', status: 'ok', message: 'N/A for PGLite (local embedded DB)' });
+  } else {
+    try {
+      const sql = db.getConnection();
+      const tables = await sql`
+        SELECT tablename, rowsecurity FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename IN ('pages','content_chunks','links','tags','raw_data',
+                             'page_versions','timeline_entries','ingest_log','config','files')
+      `;
+      const noRls = tables.filter((t: any) => !t.rowsecurity);
+      if (noRls.length === 0) {
+        checks.push({ name: 'rls', status: 'ok', message: 'RLS enabled on all tables' });
+      } else {
+        const names = noRls.map((t: any) => t.tablename).join(', ');
+        checks.push({ name: 'rls', status: 'warn', message: `RLS not enabled on: ${names}` });
+      }
+    } catch {
+      checks.push({ name: 'rls', status: 'warn', message: 'Could not check RLS status' });
     }
-  } catch {
-    checks.push({ name: 'rls', status: 'warn', message: 'Could not check RLS status' });
   }
 
   // 6. Schema version

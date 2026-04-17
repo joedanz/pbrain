@@ -208,15 +208,11 @@ export function checkIntegrations(brainPath: string | undefined | null): Integra
     pageBodies.set(p, { body: parsed.content, slug });
   }
 
-  for (const [tail, slugs] of tailIndex) {
-    if (slugs.length > 1) {
-      issues.push({
-        type: 'duplicate_slug',
-        path: slugs.join(', '),
-        detail: `Multiple files share the tail "${tail}" — Obsidian wikilinks [[${tail}]] are ambiguous.`,
-      });
-    }
-  }
+  // Tail collisions are only a real problem when a bare-slug wikilink [[tail]] is
+  // actually used somewhere — path-qualified links ([[projects/foo]]) are unambiguous
+  // per Contract rule 2 of project-onboard. Track bare-slug usage during the wikilink
+  // scan, then emit duplicate_slug only for tails that have bare-slug referents.
+  const bareSlugUsage = new Map<string, string[]>();
 
   for (const [absPath, { body, slug }] of pageBodies) {
     const links = parseWikilinks(body);
@@ -228,8 +224,33 @@ export function checkIntegrations(brainPath: string | undefined | null): Integra
           path: absPath,
           detail: `${slug}.md → [[${link.slug}]] does not resolve.`,
         });
+        continue;
+      }
+
+      const normalized = link.slug.trim().replace(/\.md$/, '');
+      if (normalized.includes('/')) continue;
+      if (knownSlugs.has(normalized)) continue;
+      const lower = normalized.toLowerCase();
+      if (aliases.has(normalized) || aliases.has(lower)) continue;
+
+      const candidates = tailIndex.get(normalized);
+      if (candidates && candidates.length > 1) {
+        const refs = bareSlugUsage.get(normalized) || [];
+        refs.push(absPath);
+        bareSlugUsage.set(normalized, refs);
       }
     }
+  }
+
+  for (const [tail, refs] of bareSlugUsage) {
+    const slugs = tailIndex.get(tail) || [];
+    const refList = refs.map(p => relative(brainPath, p)).join(', ');
+    const suggestion = slugs[0] ? `e.g. [[${slugs[0]}]]` : '';
+    issues.push({
+      type: 'duplicate_slug',
+      path: slugs.join(', '),
+      detail: `Multiple files share the tail "${tail}" and a bare-slug wikilink [[${tail}]] references it from: ${refList}. Path-qualify the reference ${suggestion}.`.trim(),
+    });
   }
 
   report.ok = issues.length === 0;

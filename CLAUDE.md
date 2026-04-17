@@ -363,3 +363,14 @@ Key routing rules:
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+
+## pbrain
+
+This project is tracked in pbrain as `repos/joedanz/pbrain`.
+
+- Before answering questions about architecture, dependencies, stack
+  history, or past decisions, query the brain: `pbrain query "<question>"`.
+- When a significant decision is made, record it with
+  `pbrain remember "<summary>"` — the command auto-detects the current
+  project and appends a timeline entry to `repos/joedanz/pbrain`.
+- To re-onboard (e.g. after a brain wipe), run the `project-onboard` skill.
