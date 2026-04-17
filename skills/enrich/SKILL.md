@@ -36,6 +36,7 @@ This skill guarantees:
 - No stubs: every new page has meaningful content from web search or existing brain context
 
 > **Filing rule:** Read `skills/_brain-filing-rules.md` before creating any new page.
+> **Quality rules:** See `skills/conventions/quality.md` for the canonical citation format, back-link (Iron Law), and notability-gate rules. The sections below are a local recap; the convention file is the source of truth.
 
 ## Iron Law: Back-Linking (MANDATORY)
 

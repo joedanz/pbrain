@@ -239,6 +239,46 @@ describe('scanTargets', () => {
     const entries = scanTargets([{ client: 'claude', dir: targetDir }], repoRoot);
     expect(entries[0].state).toBe('ours-broken');
   });
+
+  test('symlink into a sibling pbrain checkout is classified as ours-elsewhere', () => {
+    // Two pbrain checkouts: repoRoot (where doctor is running) and siblingRoot
+    // (where the installed symlinks actually point — e.g. ~/.pbrain-repo).
+    const repoRoot = join(scratchDir, 'dev-clone');
+    const siblingRoot = join(scratchDir, 'sibling-pbrain');
+    mkdirSync(join(repoRoot, 'skills', 'foo'), { recursive: true });
+    writeFileSync(join(repoRoot, 'skills', 'foo', 'SKILL.md'), '---\nname: foo\n---');
+    writeFileSync(join(repoRoot, 'package.json'), JSON.stringify({ name: 'pbrain' }));
+    mkdirSync(join(siblingRoot, 'skills', 'foo'), { recursive: true });
+    const siblingSkill = join(siblingRoot, 'skills', 'foo', 'SKILL.md');
+    writeFileSync(siblingSkill, '---\nname: foo\n---');
+    writeFileSync(join(siblingRoot, 'package.json'), JSON.stringify({ name: 'pbrain' }));
+
+    const targetDir = join(scratchDir, 'client2', 'skills');
+    mkdirSync(targetDir, { recursive: true });
+    symlinkSync(siblingSkill, join(targetDir, 'foo'));
+
+    const entries = scanTargets([{ client: 'claude', dir: targetDir }], repoRoot);
+    expect(entries[0].state).toBe('ours-elsewhere');
+    expect(entries[0].resolvedTo).toContain('sibling-pbrain');
+  });
+
+  test('symlink into a non-pbrain foreign project stays foreign-symlink', () => {
+    const repoRoot = join(scratchDir, 'r1');
+    mkdirSync(repoRoot, { recursive: true });
+    writeFileSync(join(repoRoot, 'package.json'), JSON.stringify({ name: 'pbrain' }));
+    const foreignRoot = join(scratchDir, 'not-pbrain');
+    mkdirSync(join(foreignRoot, 'skills', 'foo'), { recursive: true });
+    const foreignSkill = join(foreignRoot, 'skills', 'foo', 'SKILL.md');
+    writeFileSync(foreignSkill, 'x');
+    writeFileSync(join(foreignRoot, 'package.json'), JSON.stringify({ name: 'something-else' }));
+
+    const targetDir = join(scratchDir, 'client3', 'skills');
+    mkdirSync(targetDir, { recursive: true });
+    symlinkSync(foreignSkill, join(targetDir, 'foo'));
+
+    const entries = scanTargets([{ client: 'claude', dir: targetDir }], repoRoot);
+    expect(entries[0].state).toBe('foreign-symlink');
+  });
 });
 
 describe('detectClients', () => {

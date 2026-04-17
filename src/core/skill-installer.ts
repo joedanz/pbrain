@@ -268,9 +268,40 @@ export interface StatusEntry {
   /** Skill name at that dir. */
   name: string;
   dst: string;
-  state: 'ours-ok' | 'ours-broken' | 'foreign-symlink' | 'foreign-file' | 'foreign-dir';
+  /**
+   * - `ours-ok`: symlink resolves into the current repo root.
+   * - `ours-broken`: symlink was clearly ours but now dangles.
+   * - `ours-elsewhere`: symlink resolves into a *different* PBrain checkout
+   *   (e.g., `~/.pbrain-repo` when doctor is run from a dev clone). Still a
+   *   valid install — just not pointing at this tree.
+   * - `foreign-*`: a real other-plugin file / symlink / directory.
+   */
+  state: 'ours-ok' | 'ours-broken' | 'ours-elsewhere' | 'foreign-symlink' | 'foreign-file' | 'foreign-dir';
   /** Where the symlink points (resolved). */
   resolvedTo?: string;
+}
+
+/**
+ * Walk up from `pathInside` looking for a `package.json` whose `name` field
+ * is `pbrain`. Used to classify symlinks that land in a different PBrain
+ * checkout (e.g. the global `~/.pbrain-repo` install) as `ours-elsewhere`
+ * rather than `foreign-symlink` — they're valid installs, just not this tree.
+ */
+function isPbrainCheckout(pathInside: string): boolean {
+  let dir = pathInside;
+  for (let i = 0; i < 12; i++) {
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg && pkg.name === 'pbrain') return true;
+      } catch { /* malformed — keep walking */ }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return false;
 }
 
 /**
@@ -321,6 +352,8 @@ export function scanTargets(targets: Target[], repoRoot: string): StatusEntry[] 
       }
       if (rootList.some(r => pathInsideRoot(resolved!, r))) {
         entries.push({ target, name, dst, state: 'ours-ok', resolvedTo: resolved });
+      } else if (isPbrainCheckout(resolved!)) {
+        entries.push({ target, name, dst, state: 'ours-elsewhere', resolvedTo: resolved });
       } else {
         entries.push({ target, name, dst, state: 'foreign-symlink', resolvedTo: resolved });
       }
