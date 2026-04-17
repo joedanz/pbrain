@@ -60,6 +60,13 @@ export async function runUpgrade(args: string[]) {
     } catch {
       // post-upgrade is best-effort, don't fail the upgrade
     }
+    // Refresh skill symlinks so any newly added skills appear in Claude Code /
+    // Cursor / Windsurf without the user having to re-run install-skills.
+    try {
+      execSync('pbrain install-skills --from-upgrade', { stdio: 'inherit', timeout: 30_000 });
+    } catch {
+      // best-effort; collisions (exit 2) or a missing client dir aren't a hard failure
+    }
     // Run features scan to show what's new and what to fix
     try {
       execSync('pbrain features', { stdio: 'inherit', timeout: 30_000 });

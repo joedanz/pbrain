@@ -55,8 +55,25 @@ pbrain query "key themes across these documents?"
 
 ## Step 5: Load Skills
 
-Read `~/pbrain/skills/RESOLVER.md`. This is the skill dispatcher. It tells you which
-skill to read for any task. Save this to your memory permanently.
+**Dedicated agent platforms (OpenClaw, Hermes):** read `~/pbrain/skills/RESOLVER.md`
+directly. This is the skill dispatcher — it tells you which skill to read for any
+task. Save it to memory permanently. The agent reads skill files straight from the
+cloned repo.
+
+**Claude Code / Cursor / Windsurf users:** register the skills into your client's
+discovery directory so they auto-fire without you having to remember to load them:
+
+```bash
+pbrain install-skills
+```
+
+This is auto-invoked by `pbrain init` and `pbrain upgrade`, so you usually won't
+run it by hand. The command symlinks every skill in `~/pbrain/skills/` into the
+skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.windsurf/skills/`) that
+exist on your machine. Re-running is idempotent, and upgrades pick up new skills
+automatically. Name collisions are never overwritten silently — if another plugin
+already owns a skill name (e.g., `ingest`), PBrain warns and skips it unless you
+pass `--force`.
 
 The three most important skills to adopt immediately:
 

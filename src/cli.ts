@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -258,6 +258,11 @@ async function handleCliOnly(command: string, args: string[]) {
     await runIntegrations(args);
     return;
   }
+  if (command === 'install-skills') {
+    const { runInstallSkills } = await import('./commands/install-skills.ts');
+    await runInstallSkills(args);
+    return;
+  }
   if (command === 'publish') {
     const { runPublish } = await import('./commands/publish.ts');
     await runPublish(args);
@@ -433,6 +438,7 @@ SETUP
   doctor [--json] [--fast]            Health check (resolver, skills, pgvector, RLS, embeddings)
   doctor --integrations               Validate brain folder as Obsidian-compatible vault (no DB)
   integrations [subcommand]          Manage integration recipes (senses + reflexes)
+  install-skills [subcommand]         Register PBrain skills with Claude Code / Cursor / Windsurf
 
 PAGES
   get <slug>                         Read a page
