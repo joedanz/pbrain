@@ -33,7 +33,7 @@ PBrain was forked from [GBrain v0.10.1](https://github.com/garrytan/gbrain) by [
 - **Version bump.** `package.json` stays at `0.10.1` through Phase 1–3; only bumped to `1.0.0` when Phase 4 merges and the first PBrain release is tagged.
 
 #### Migration path
-Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate binary and a separate config directory. GBrain v0.10.1 and PBrain v1.0.0 are distinct products.
+Existing GBrain users: there is no automated GBrain→PBrain upgrade. PBrain is a separate CLI command (`pbrain`, not `gbrain`) and a separate config directory (`~/.pbrain/`). GBrain v0.10.1 and PBrain v1.0.0 are distinct products.
 
 ### Phase 2 — Schema & skills adaptation (merged)
 
