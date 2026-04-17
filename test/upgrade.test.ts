@@ -44,25 +44,19 @@ describe('detectInstallMethod heuristic (source analysis)', () => {
     expect(nodeModulesIdx).toBeLessThan(binaryIdx);
   });
 
-  test('checks binary before clawhub', () => {
-    const binaryIdx = source.indexOf("endsWith('/pbrain')");
-    const clawhubIdx = source.indexOf("clawhub --version");
-    expect(binaryIdx).toBeLessThan(clawhubIdx);
-  });
-
-  test('uses clawhub --version, not which clawhub', () => {
-    expect(source).toContain("clawhub --version");
-    expect(source).not.toContain('which clawhub');
-  });
-
   test('has timeout on upgrade execSync calls', () => {
     // Count timeout occurrences in execSync calls
     const timeoutMatches = source.match(/timeout:\s*\d+/g) || [];
-    expect(timeoutMatches.length).toBeGreaterThanOrEqual(2); // bun + clawhub detection at minimum
+    expect(timeoutMatches.length).toBeGreaterThanOrEqual(1);
   });
 
-  test('return type is bun | binary | clawhub | unknown', () => {
-    expect(source).toContain("'bun' | 'binary' | 'clawhub' | 'unknown'");
+  test('return type is bun | binary | unknown', () => {
+    expect(source).toContain("'bun' | 'binary' | 'unknown'");
+  });
+
+  test('does not reference clawhub after plugin removal', () => {
+    expect(source).not.toContain('clawhub');
+    expect(source).not.toContain('ClawHub');
   });
 
   test('does not reference npm in case labels or messages', () => {

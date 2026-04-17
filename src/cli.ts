@@ -314,11 +314,19 @@ async function handleCliOnly(command: string, args: string[]) {
         const { runImport } = await import('./commands/import.ts');
         // If no positional directory was passed, fall back to config.brain_path
         // so `pbrain index` by itself indexes the brain the user configured.
-        if (args.length === 0 || args[0].startsWith('--')) {
+        // Detect "no positional" by looking for any non-flag arg that isn't
+        // the value of a known option (e.g. `--workers 4`).
+        const hasPositional = args.some((a, i) => {
+          if (a.startsWith('--')) return false;
+          const prev = args[i - 1];
+          if (prev === '--workers') return false;
+          return true;
+        });
+        if (!hasPositional) {
           const { loadConfig: loadCfg } = await import('./core/config.ts');
           const cfg = loadCfg();
           if (cfg?.brain_path) {
-            args = [cfg.brain_path, ...args];
+            args = [...args, cfg.brain_path];
           }
         }
         await runImport(engine, args);

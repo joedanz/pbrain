@@ -34,8 +34,7 @@ export function isMinorOrMajorBump(current: string, latest: string): boolean {
 function upgradeCommandForMethod(method: string): string {
   switch (method) {
     case 'bun': return 'bun update pbrain';
-    case 'clawhub': return 'clawhub update pbrain';
-    case 'binary': return 'Download from https://github.com/joedanz/pbrain/releases';
+    case 'binary': return 'cd <pbrain repo> && git pull && bun install';
     default: return 'pbrain upgrade';
   }
 }

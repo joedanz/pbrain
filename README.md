@@ -12,18 +12,25 @@ PBrain is GBrain's patterns, retargeted at software engineering knowledge. 25 sk
 
 ## Install
 
-### Claude Code plugin (skills-only, fastest)
+### Prerequisites
 
-Just want the 26 skills in Claude Code without cloning the repo?
+1. **Pick your brain folder.** PBrain reads and writes markdown into a folder on disk. If you already have an Obsidian vault, use it. If not, create one now — open Obsidian, "Create new vault", and pick a path like `~/ObsidianVault/MyBrain`. Any writable folder works (Logseq, plain markdown, a cloud-synced mount), but an Obsidian vault gets you the graph view for free.
+2. **Install Bun.** `curl -fsSL https://bun.sh/install | bash`
 
+Don't run `pbrain init` until the brain folder exists — every skill assumes it's there.
+
+### Standalone CLI
+
+```bash
+git clone https://github.com/joedanz/pbrain.git && cd pbrain && bun install && bun link
+pbrain init --brain-path ~/ObsidianVault/MyBrain   # absolute path to your vault
+pbrain import ~/ObsidianVault/MyBrain              # index existing notes
+pbrain query "what themes show up across my notes?"
 ```
-/plugin marketplace add joedanz/pbrain
-/plugin install pbrain
-```
 
-Restart your session — the skills auto-discover. Your agent can now file notes into your Obsidian vault, maintain the wikilink graph, enrich people/company pages, and route queries through the brain-ops protocol. For full brain functionality (hybrid search, `pbrain query`, autopilot, cron jobs), install the CLI as described below; the plugin is skills-only.
+`--brain-path` is saved to `~/.pbrain/config.json` as `brain_path`. Every skill and command resolves the vault from here. Override per-session with `PBRAIN_BRAIN_PATH=/path pbrain …`. Re-running `pbrain init` later reuses the saved path unless you pass `--brain-path` again.
 
-### On an agent platform (recommended for the full stack)
+### On an agent platform
 
 PBrain is designed to be installed and operated by an AI agent. If you don't have one running yet:
 
@@ -37,16 +44,7 @@ Retrieve and follow the instructions at:
 https://raw.githubusercontent.com/joedanz/pbrain/master/INSTALL_FOR_AGENTS.md
 ```
 
-That's it. The agent clones the repo, installs PBrain, sets up the brain, loads 25 skills, and configures recurring jobs. You answer a few questions about API keys. ~30 minutes.
-
-### Standalone CLI (no agent)
-
-```bash
-git clone https://github.com/joedanz/pbrain.git && cd pbrain && bun install && bun link
-pbrain init                     # local brain, ready in 2 seconds
-pbrain import ~/notes/          # index your markdown
-pbrain query "what themes show up across my notes?"
-```
+The agent will ask for your Obsidian vault path, clone the repo, install PBrain, set up the brain, load 25 skills, and configure recurring jobs. You answer a few questions about API keys. ~30 minutes.
 
 ```
 3 results (hybrid search, 0.12s):
@@ -76,19 +74,18 @@ PBrain exposes 30+ MCP tools via stdio:
 
 Add to `~/.claude/server.json` (Claude Code), Settings > MCP Servers (Cursor), or your client's MCP config.
 
-Then register the 26 skills in your client's skill discovery:
+Then register the 25 skills in your client's skill discovery:
 
 ```bash
 pbrain install-skills
 ```
 
-Auto-run by `pbrain init` and `pbrain upgrade`, so you rarely need it by hand.
 Symlinks every PBrain skill into `~/.claude/skills/`, `~/.cursor/skills/`, and
-`~/.windsurf/skills/` (whichever of those dirs exist). Idempotent. Never
-silently overwrites skills owned by other plugins — pass `--force` to replace
-conflicts. See `pbrain install-skills --help` for scope (`--project` for
-per-repo), client filtering (`--client claude`), and `status`/`uninstall`
-subcommands.
+`~/.windsurf/skills/` (whichever of those dirs exist). Idempotent — re-run after
+`pbrain upgrade` to pick up new skills. Never silently overwrites skills owned
+by other plugins — pass `--force` to replace conflicts. See `pbrain install-skills
+--help` for scope (`--project` for per-repo), client filtering (`--client claude`),
+and `status`/`uninstall` subcommands.
 
 ### Remote MCP (Claude Desktop, Cowork, Perplexity)
 

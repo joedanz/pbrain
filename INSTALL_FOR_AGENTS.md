@@ -1,7 +1,15 @@
 # PBrain Installation Guide for AI Agents
 
-Read this entire file, then follow the steps. Ask the user for API keys when needed.
+Read this entire file, then follow the steps. Ask the user for the things you need.
 Target: ~30 minutes to a fully working brain.
+
+## Before you start
+
+Confirm the user has these ready. If any are missing, help them set them up before moving on.
+
+- **A brain folder.** This is where PBrain reads and writes markdown. An Obsidian vault is ideal (graph view, backlinks pane, Dataview plugin all work out of the box), but any writable folder works — Logseq, plain markdown, a cloud-synced mount. If the user doesn't have one yet, tell them: "Open Obsidian → Create new vault → pick a path like `~/ObsidianVault/MyBrain`. Then come back with the absolute path."
+- **OpenAI API key** (required for vector search).
+- **Anthropic API key** (optional, improves search quality via query expansion).
 
 ## Step 1: Install PBrain
 
@@ -27,33 +35,44 @@ export ANTHROPIC_API_KEY=sk-ant-...   # optional, improves search quality
 Save to shell profile or `.env`. Without OpenAI, keyword search still works.
 Without Anthropic, search works but skips query expansion.
 
-## Step 3: Create the Brain
+## Step 3: Ask for the brain folder
+
+Do not run `pbrain init` yet. First, ask the user:
+
+> "Where is your brain folder? This is the absolute path PBrain will read and write markdown into. If it's an Obsidian vault, give me the vault root (e.g. `~/ObsidianVault/MyBrain`)."
+
+Wait for a concrete path. Expand `~` to `$HOME`. Verify the directory exists and is writable:
 
 ```bash
-pbrain init                           # PGLite, no server needed
-pbrain doctor --json                  # verify all checks pass
+BRAIN_PATH="/absolute/path/the/user/gave/you"
+test -d "$BRAIN_PATH" -a -w "$BRAIN_PATH" || {
+  echo "Not a writable directory: $BRAIN_PATH"
+  exit 1
+}
 ```
 
-The user's markdown files (notes, docs, brain repo) are SEPARATE from this tool repo.
-Ask the user where their files are, or create a new brain repo:
+If the directory doesn't exist yet, ask the user to confirm they want it created, then `mkdir -p "$BRAIN_PATH"`.
+
+## Step 4: Create the Brain
 
 ```bash
-mkdir -p ~/brain && cd ~/brain && git init
+pbrain init --brain-path "$BRAIN_PATH"   # writes brain_path to ~/.pbrain/config.json
+pbrain doctor --json                      # verify all checks pass
 ```
 
-Read `~/pbrain/docs/PBRAIN_RECOMMENDED_SCHEMA.md` and set up the MECE directory
-structure (people/, companies/, concepts/, etc.) inside the user's brain repo,
-NOT inside ~/pbrain.
+If the user wants the MECE directory structure (`people/`, `companies/`, `concepts/`,
+etc.) inside their vault, read `~/pbrain/docs/PBRAIN_RECOMMENDED_SCHEMA.md` and
+create those subdirectories inside `$BRAIN_PATH`, NOT inside `~/pbrain`.
 
-## Step 4: Import and Index
+## Step 5: Import and Index
 
 ```bash
-pbrain import ~/brain/ --no-embed     # import markdown files
-pbrain embed --stale                  # generate vector embeddings
+pbrain import "$BRAIN_PATH" --no-embed   # import existing markdown files
+pbrain embed --stale                      # generate vector embeddings
 pbrain query "key themes across these documents?"
 ```
 
-## Step 5: Load Skills
+## Step 6: Load Skills
 
 **Dedicated agent platforms (OpenClaw, Hermes):** read `~/pbrain/skills/RESOLVER.md`
 directly. This is the skill dispatcher — it tells you which skill to read for any
@@ -67,13 +86,11 @@ discovery directory so they auto-fire without you having to remember to load the
 pbrain install-skills
 ```
 
-This is auto-invoked by `pbrain init` and `pbrain upgrade`, so you usually won't
-run it by hand. The command symlinks every skill in `~/pbrain/skills/` into the
-skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.windsurf/skills/`) that
-exist on your machine. Re-running is idempotent, and upgrades pick up new skills
-automatically. Name collisions are never overwritten silently — if another plugin
-already owns a skill name (e.g., `ingest`), PBrain warns and skips it unless you
-pass `--force`.
+Re-run this after `pbrain upgrade` to pick up new skills. The command symlinks
+every skill in `~/pbrain/skills/` into the skill dirs (`~/.claude/skills/`,
+`~/.cursor/skills/`, `~/.windsurf/skills/`) that exist on your machine.
+Name collisions are never overwritten silently — if another plugin already owns
+a skill name (e.g., `ingest`), PBrain warns and skips it unless you pass `--force`.
 
 The three most important skills to adopt immediately:
 
@@ -86,7 +103,7 @@ The three most important skills to adopt immediately:
 3. **Conventions** (`skills/conventions/quality.md`) — citation format, back-linking
    iron law, source attribution. These are non-negotiable quality rules.
 
-## Step 6: Identity (optional)
+## Step 7: Identity (optional)
 
 Run the soul-audit skill to customize the agent's identity:
 
@@ -99,18 +116,18 @@ This generates SOUL.md (agent identity), USER.md (user profile), ACCESS_POLICY.m
 
 If skipped, minimal defaults are installed automatically.
 
-## Step 7: Recurring Jobs
+## Step 8: Recurring Jobs
 
 Set up using your platform's scheduler (OpenClaw cron, Railway cron, crontab):
 
-- **Live sync** (every 15 min): `pbrain sync --repo ~/brain && pbrain embed --stale`
+- **Live sync** (every 15 min): `pbrain sync --repo "$BRAIN_PATH" && pbrain embed --stale`
 - **Auto-update** (daily): `pbrain check-update --json` (tell user, never auto-install)
 - **Dream cycle** (nightly): read `docs/guides/cron-schedule.md` for the full protocol.
   Entity sweep, citation fixes, memory consolidation. This is what makes the brain
   compound. Do not skip it.
 - **Weekly**: `pbrain doctor --json && pbrain embed --stale`
 
-## Step 8: Integrations
+## Step 9: Integrations
 
 Run `pbrain integrations list`. Each recipe in `~/pbrain/recipes/` is a self-contained
 installer. It tells you what credentials to ask for, how to validate, and what cron
@@ -118,7 +135,7 @@ to register. Ask the user which integrations they want (email, calendar, voice, 
 
 Verify: `pbrain integrations doctor` (after at least one is configured)
 
-## Step 9: Verify
+## Step 10: Verify
 
 Read `docs/PBRAIN_VERIFY.md` and run all 6 verification checks. Check #4 (live sync
 actually works) is the most important.
@@ -127,6 +144,9 @@ actually works) is the most important.
 
 ```bash
 cd ~/pbrain && git pull origin main && bun install
+pbrain init                   # idempotent — reuses saved brain_path, applies schema migrations
+pbrain install-skills         # refresh IDE skill symlinks if Claude Code / Cursor / Windsurf is in use
 ```
 
-Then run `pbrain init` to apply any schema migrations (idempotent, safe to re-run).
+Re-running `pbrain init` with no flags on an already-configured machine reuses the
+`brain_path` saved in `~/.pbrain/config.json` — no re-prompt.

@@ -5,7 +5,7 @@ import { VERSION } from '../version.ts';
 
 export async function runUpgrade(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: pbrain upgrade\n\nSelf-update the CLI.\n\nDetects install method (bun, binary, clawhub) and runs the appropriate update.\nAfter upgrading, shows what\'s new and offers to set up new features.');
+    console.log('Usage: pbrain upgrade\n\nSelf-update the CLI.\n\nDetects install method (bun, binary) and runs the appropriate update.\nAfter upgrading, shows what\'s new and offers to set up new features.');
     return;
   }
 
@@ -32,22 +32,11 @@ export async function runUpgrade(args: string[]) {
       console.log('  cd $(dirname $(which pbrain))/.. && git pull && bun install');
       break;
 
-    case 'clawhub':
-      console.log('Upgrading via ClawHub...');
-      try {
-        execSync('clawhub update pbrain', { stdio: 'inherit', timeout: 120_000 });
-        upgraded = true;
-      } catch {
-        console.error('ClawHub upgrade failed. Try: clawhub update pbrain');
-      }
-      break;
-
     default:
       console.error('Could not detect installation method.');
       console.log('Try one of:');
       console.log('  cd <pbrain repo> && git pull && bun install');
       console.log('  bun update pbrain');
-      console.log('  clawhub update pbrain');
   }
 
   if (upgraded) {
@@ -190,7 +179,7 @@ function isNewerThan(version: string, baseline: string): boolean {
   return false;
 }
 
-export function detectInstallMethod(): 'bun' | 'binary' | 'clawhub' | 'unknown' {
+export function detectInstallMethod(): 'bun' | 'binary' | 'unknown' {
   const execPath = process.execPath || '';
 
   // Check if running from node_modules (bun/npm install)
@@ -201,14 +190,6 @@ export function detectInstallMethod(): 'bun' | 'binary' | 'clawhub' | 'unknown' 
   // Check if running as compiled binary
   if (execPath.endsWith('/pbrain') || execPath.endsWith('\\pbrain.exe')) {
     return 'binary';
-  }
-
-  // Check if clawhub is available (use --version, not which, to avoid false positives)
-  try {
-    execSync('clawhub --version', { stdio: 'pipe', timeout: 5_000 });
-    return 'clawhub';
-  } catch {
-    // not available
   }
 
   return 'unknown';

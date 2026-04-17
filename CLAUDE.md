@@ -12,7 +12,7 @@ cron scheduling, reports, identity, and access control.
 Contract-first: `src/core/operations.ts` defines ~30 shared operations. CLI and MCP
 server are both generated from this single source. Engine factory (`src/core/engine-factory.ts`)
 dynamically imports the configured engine (`'pglite'` or `'postgres'`). Skills are fat
-markdown files (tool-agnostic, work with both CLI and plugin contexts).
+markdown files (tool-agnostic, work with the CLI and MCP server contexts).
 
 ## Key files
 
@@ -93,7 +93,6 @@ markdown files (tool-agnostic, work with both CLI and plugin contexts).
 - `src/commands/backlinks.ts` — Back-link checker and fixer (enforces Iron Law)
 - `src/commands/lint.ts` — Page quality linter (catches LLM artifacts, placeholder dates)
 - `src/commands/report.ts` — Structured report saver (audit trail for maintenance/enrichment)
-- `openclaw.plugin.json` — ClawHub bundle plugin manifest
 
 ## Commands
 
