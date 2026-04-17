@@ -4,8 +4,10 @@ description: Onboard a coding project (repo URL or local path) into the brain �
 triggers:
   - "onboard this repo"
   - "onboard this project"
-  - "onboard <repo> domain <domain>"
-  - "onboard <repo> at <domain>"
+  - "project-onboard"
+  - "project-onboard <name>"
+  - "project-onboard <name> <domain>"
+  - "project-onboard <domain>"
   - "add this project to the brain"
   - "import this repo into pbrain"
 tools:
@@ -38,37 +40,56 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 
 ## Inputs
 
-- **repo** (required) — `https://github.com/owner/name`, `owner/name`, or a local path.
-- **owner** (optional) — derived from the URL; override if the canonical owner differs.
-- **real_domain** (optional) — the production domain (e.g. `picspot.app`, `https://picspot.app`). When supplied, the skill treats it as the authoritative answer to Phase 2 and skips the confirmation prompt entirely. Accept it in any of these forms and normalize to a bare hostname before writing:
-  - `domain=picspot.app`
-  - `at picspot.app`
-  - `https://picspot.app`
-  - `picspot.app`
+All positional arguments are optional and **order-independent**. Each arg is classified by shape:
+
+| Shape | Role |
+|---|---|
+| Contains `/`, `github.com`, or starts with `~` / `.` / `/` | `repo` |
+| Matches `/\.[a-z]{2,}$/i` (has a TLD-looking suffix) | `domain` |
+| Otherwise | `display_name` |
+
+Shapes are disjoint — order doesn't matter. Fill any missing arg as follows:
+
+- **repo** — if not supplied, infer from cwd (Phase 0). If cwd is not a git repo, prompt the user.
+- **display_name** — if not supplied, derive (Phase 3).
+- **domain** — if not supplied, use the repo's `homepageUrl` when it's not a preview host; otherwise prompt (Phase 4). Strip `https://`, trailing `/`, and any path — store as a bare hostname.
+
+**Escape hatch:** when a display name itself looks like a domain (the product is literally called `go.dev`), pass it as the named arg `project=go.dev` to bypass shape classification for that value.
 
 ### Invocation examples
 
-Domain is **optional**. Omit it and Phase 2 will fall back to the repo's `homepage` field, prompting only if it looks like a preview URL.
-
 ```
-# Without domain — skill infers from homepage or asks if it's a preview URL
-onboard https://github.com/joedanz/picspot
-onboard joedanz/picspot
+# Inside a repo — coordinates come from cwd
+project-onboard                              # prompts for name + domain
+project-onboard <domain>                     # name inferred from domain root
+project-onboard <name>                       # domain prompts
+project-onboard <name> <domain>              # preferred
+project-onboard <domain> <name>              # same result — order-free
 
-# With domain — skill uses it directly, skips the Phase 2 prompt
-onboard https://github.com/joedanz/picspot domain picspot.app
-onboard joedanz/picspot at picspot.app
-onboard ~/code/picspot domain=picspot.app
+# Explicit repo (when running from outside the repo, or overriding cwd)
+project-onboard <owner>/<name>
+project-onboard https://github.com/<owner>/<name> <display-name> <domain>
+project-onboard ~/code/<repo-dir> <domain>
+
+# Multi-word display name — quote it
+project-onboard "<multi word name>" <domain>
 ```
 
 ## Phases
 
-### Phase 0 — Idempotency gate (MANDATORY FIRST STEP)
+### Phase 0 — Parse invocation and idempotency gate (MANDATORY FIRST STEP)
 
-Before doing any work, check whether this repo is already onboarded. The
-skill is wired to fire automatically on every session via the project-level
-`CLAUDE.md` declaration (see Phase 7), so running it in an already-onboarded
-repo must be a fast no-op.
+**Step 1 — Classify positional args by shape.** For each arg, apply the table in Inputs (slash/github.com/path → `repo`; TLD suffix → `domain`; else → `display_name`). Honor the `project=<value>` named escape hatch for display names that look like domains. Shapes are disjoint — order doesn't matter. Store any extracted values; unfilled slots are resolved in later phases.
+
+**Step 2 — Resolve repo coordinates if not supplied.** If `repo` was not passed as a positional arg, infer it from cwd:
+
+```bash
+git remote get-url origin
+```
+
+Canonicalize the result with `pbrain canonical-url` (Contract rule 11). If the command fails (cwd is not a git repo, or has no origin remote), prompt the user for the repo.
+
+**Step 3 — Idempotency gate.** If the repo was **inferred from cwd** (no explicit `repo` arg), run:
 
 ```bash
 pbrain whoami --json
@@ -82,6 +103,8 @@ If `slug` is null, proceed to Phase 1.
 
 The check is ~5ms end-to-end because `findRepoByUrl` is a GIN-indexed
 frontmatter containment query. Safe to invoke unconditionally on every session.
+
+When the repo was **explicitly supplied** (not from cwd), skip `whoami` — it reads cwd and would answer the wrong question. Phase 6's page-existence checks provide idempotency for this path (read-then-merge on every touched page).
 
 ### Phase 1 — Locate the brain root
 
@@ -127,19 +150,31 @@ Fetch in parallel:
 
 If README is 404 or a generic scaffold (e.g. Google AI Studio boilerplate), fall back to package.json + root listing for facts.
 
-### Phase 3 — Confirm domain
+### Phase 3 — Derive project slug and display name
 
 Resolution order (stop at first hit):
 
-1. **`real_domain` input was provided** — normalize to a bare hostname (strip `https://`, trailing `/`, any path), then use it directly. Do NOT prompt. Record `(supplied by user at invocation)` in the Phase 6 notes.
+1. **Explicit `display_name` from invocation** — `slug = slugify(display_name)` (lowercase, spaces → `-`, strip non-`[a-z0-9-]`); `display = display_name` with the user's original casing preserved for the H1 and `aliases:`.
+2. **Domain is known** — `slug = hostname.split('.')[0]` (the root label before the first dot). `display = title-case(slug)` (e.g. `foo-bar` → `Foo Bar`).
+3. **`package.json.name` stripped of scope** — `@scope/pkg-name` → `pkg-name`. Use as `slug`; `display = title-case(slug)`.
+4. **Repo name with suffix stripping** — strip any of `-web`, `-app`, `-monorepo`, `-mobile`, `-frontend`, `-backend`, `-api` from the end of the GitHub repo name. The stripped result is `slug`; `display = title-case(slug)`.
+5. **Prompt the user** — default = repo name. Ask *"What's the project's display name?"*.
+
+Record which resolution step fired in the Phase 9 notes so the user can verify.
+
+### Phase 4 — Confirm domain
+
+Resolution order (stop at first hit):
+
+1. **Domain was supplied as a positional arg in Phase 0** — already normalized to a bare hostname. Use it directly. Do NOT prompt. Record `(supplied by user at invocation)` in the Phase 9 notes.
 2. **GitHub `homepage` is a real domain** — any non-preview hostname. Use it.
 3. **`homepage` is a preview host or missing** — matches `*.vercel.app`, `*.netlify.app`, `*.fly.dev`, `*.onrender.com`, `*.github.io`, `*.pages.dev`, `*.workers.dev`, or empty. **Ask the user** for the real production domain before writing.
 
-If the supplied `real_domain` and the repo's `homepage` disagree, trust the input — the user is the source of truth — but surface the mismatch in the Phase 7 notes so they can fix the GitHub field if they want.
+If the supplied positional domain and the repo's `homepage` disagree, trust the user — but surface the mismatch in the Phase 9 notes so they can fix the GitHub field if they want.
 
 Never silently use a preview URL.
 
-### Phase 4 — Classify dependencies
+### Phase 5 — Classify dependencies
 
 Walk the dependency manifest. Bucket every dep into exactly one of:
 
@@ -155,7 +190,7 @@ Walk the dependency manifest. Bucket every dep into exactly one of:
 
 **skip** — everything else. Mention in prose on the repo page if architecturally notable (e.g., `@hebcal/core` for a Jewish calendar app) but don't stub.
 
-### Phase 5 — Materialize pages
+### Phase 6 — Materialize pages
 
 For each classified entity:
 
@@ -171,11 +206,11 @@ For each classified entity:
 
 Write the **project page** and **repo page** last, with wikilinks to every library and ai-tool classified above.
 
-### Phase 6 — Verify
+### Phase 7 — Verify
 
 Run `pbrain doctor --integrations`. Required: green (no broken wikilinks, no duplicate slugs, no leftover `.pbrain-tmp-*` files). If red, fix before reporting done.
 
-### Phase 7 — Self-install the CLAUDE.md declaration
+### Phase 8 — Self-install the CLAUDE.md declaration
 
 Append a pbrain declaration section to the project's `CLAUDE.md` (at
 `$PROJECT_ROOT/CLAUDE.md`, where `$PROJECT_ROOT` is the git root of the repo
@@ -206,9 +241,9 @@ This project is tracked in pbrain as `repos/<owner>/<name>`.
 
 Leading blank line is required to separate from whatever precedes it in an
 existing CLAUDE.md. Writing this section is the last mutating step before
-Phase 8 (Report).
+Phase 9 (Report).
 
-### Phase 8 — Report
+### Phase 9 — Report
 
 Output a concise summary:
 - Pages created / updated (counts by type)
@@ -349,7 +384,7 @@ tags: [company, <category>]
 
 ## Known limitations
 
-- Monorepos with per-app package.jsons require walking `apps/*/package.json` and `packages/*/package.json` — Phase 3 should recurse when root package.json has no meaningful deps (only `turbo` + `typescript`).
+- Monorepos with per-app package.jsons require walking `apps/*/package.json` and `packages/*/package.json` — Phase 5 should recurse when root package.json has no meaningful deps (only `turbo` + `typescript`).
 - Python / Rust / Go projects have less-structured dep info than `package.json`. Fall back to README + heuristics.
 - First-party internal packages (e.g., `@repo/db` in a monorepo) are not libraries — skip them.
 
@@ -391,7 +426,8 @@ CLAUDE.md: created | appended pbrain section | already-present (skipped)
 Doctor: [OK] <pages> pages, <wikilinks> wikilinks, 0 issues
 
 Notes:
-  - Real domain: <value> (confirmed with user | from README | from vercel.json)
+  - Real domain: <value> (supplied by user at invocation | from GitHub homepage | prompted)
+  - Project slug: <value> (from display_name | from domain root | from package.json | from repo name with <suffix> stripped | user-prompted)
   - Skipped N deps (list inline if interesting)
   - Any warnings worth reviewing
 ```

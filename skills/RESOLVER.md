@@ -28,7 +28,7 @@ This is the dispatcher. Skills are the implementation. **Read the skill file bef
 | Video, audio, PDF, book, YouTube, screenshot | `skills/media-ingest/SKILL.md` |
 | Meeting transcript received | `skills/meeting-ingestion/SKILL.md` |
 | Generic "ingest this" (auto-routes to above) | `skills/ingest/SKILL.md` |
-| "Onboard this repo", user pastes a GitHub URL to file | `skills/project-onboard/SKILL.md` |
+| "Onboard this repo", `project-onboard [<name>] [<domain>]` from inside a repo, or user pastes a GitHub URL to file | `skills/project-onboard/SKILL.md` |
 
 ## Tech-domain filing (PBrain adds these to GBrain's taxonomy)
 
