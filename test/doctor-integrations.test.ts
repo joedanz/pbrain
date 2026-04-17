@@ -59,16 +59,30 @@ test('checkIntegrations detects broken wikilinks', () => {
   rmSync(brain, { recursive: true });
 });
 
-test('checkIntegrations detects duplicate slugs', () => {
+test('checkIntegrations does NOT flag tail collision when all refs are path-qualified', () => {
+  const brain = mkBrain();
+  // Classic project-onboard case: projects/pbrain + repos/joedanz/pbrain
+  writePage(brain, 'projects/pbrain', 'The PBrain project.\n\nRepo: [[repos/joedanz/pbrain]].');
+  writePage(brain, 'repos/joedanz/pbrain', 'Project: [[projects/pbrain]].');
+  const report = checkIntegrations(brain);
+  const dup = report.issues.find(i => i.type === 'duplicate_slug');
+  expect(dup).toBeUndefined();
+  expect(report.ok).toBe(true);
+  rmSync(brain, { recursive: true });
+});
+
+test('checkIntegrations flags duplicate slug only when bare-slug wikilink references it', () => {
   const brain = mkBrain();
   writePage(brain, 'libraries/react', 'the JS library.');
   writePage(brain, 'concepts/react', 'the pattern of reacting.');
+  writePage(brain, 'notes/a', 'I used [[react]] yesterday.'); // bare-slug → ambiguous
   const report = checkIntegrations(brain);
   expect(report.ok).toBe(false);
   const dup = report.issues.find(i => i.type === 'duplicate_slug');
   expect(dup).toBeDefined();
   expect(dup!.path).toContain('libraries/react');
   expect(dup!.path).toContain('concepts/react');
+  expect(dup!.detail).toContain('notes/a');
   rmSync(brain, { recursive: true });
 });
 
