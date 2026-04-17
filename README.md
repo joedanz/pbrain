@@ -230,6 +230,25 @@ PBrain ships integration recipes that your agent sets up for you. Each recipe te
 
 Run `pbrain integrations` to see status.
 
+## Tracking coding projects
+
+To put a project in PBrain's brain, invoke the `project-onboard` skill once inside that project ("onboard this repo" in a Claude Code session). The skill performs a full knowledge-graph capture — `projects/`, `repos/<owner>/<name>`, auto-stubbed `libraries/`, `ai-tools/`, `companies/` pages with path-qualified wikilinks — AND appends a short declaration to the project's own `CLAUDE.md`:
+
+```markdown
+## pbrain
+
+This project is tracked in pbrain as `repos/<owner>/<name>`.
+
+- Before answering questions about architecture, dependencies, stack
+  history, or past decisions, query the brain: `pbrain query "<question>"`.
+- When a significant decision is made, record it with
+  `pbrain remember "<summary>"` — the command auto-detects the current
+  project and appends a timeline entry to `repos/<owner>/<name>`.
+- To re-onboard (e.g. after a brain wipe), run the `project-onboard` skill.
+```
+
+From then on, every Claude Code session in that project auto-recognizes it — no further setup. The skill's Phase 0 idempotency gate makes re-invocation a ~5ms no-op thanks to a GIN-indexed `frontmatter.github_url` lookup. To stop tracking a project, delete the `## pbrain` section from its `CLAUDE.md`. Per-project opt-in keeps client checkouts, scratch clones, and inspection directories out of the brain by default.
+
 ## Obsidian
 
 PBrain is an Obsidian-compatible vault out of the box. Every page PBrain writes is standard markdown with `[[wikilinks]]`, YAML frontmatter (`tags:`, `aliases:`), and inline `#tag` footers — so Obsidian's graph view, backlinks pane, and Dataview plugin read PBrain's output natively. No Obsidian-specific code in PBrain, no conversion step.

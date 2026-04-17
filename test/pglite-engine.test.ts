@@ -495,65 +495,90 @@ describe('PGLiteEngine: Cascade deletes', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// findRepoByUrl — matches repo pages by inline GitHub URL
+// findRepoByUrl — matches repo pages by frontmatter.github_url (GIN containment)
 // ─────────────────────────────────────────────────────────────────
 describe('PGLiteEngine: findRepoByUrl', () => {
   beforeEach(truncateAll);
 
-  test('finds a repo page by exact URL embedded in compiled_truth', async () => {
-    await engine.putPage('repos/joedanz-picspot', {
-      type: 'concept',
+  test('finds a repo page by exact canonical URL in frontmatter', async () => {
+    await engine.putPage('repos/joedanz/picspot', {
+      type: 'source',
       title: 'joedanz/picspot',
-      compiled_truth: 'GitHub: https://github.com/joedanz/picspot\n\nProject: [[projects/picspot]]',
+      compiled_truth: 'Project: [[projects/picspot]]',
+      frontmatter: { github_url: 'https://github.com/joedanz/picspot' },
     });
-    await engine.putPage('repos/other-repo', {
-      type: 'concept',
+    await engine.putPage('repos/other/repo', {
+      type: 'source',
       title: 'other/repo',
-      compiled_truth: 'GitHub: https://github.com/other/repo',
+      compiled_truth: 'stub',
+      frontmatter: { github_url: 'https://github.com/other/repo' },
     });
 
     const matches = await engine.findRepoByUrl('https://github.com/joedanz/picspot');
     expect(matches.length).toBe(1);
-    expect(matches[0].slug).toBe('repos/joedanz-picspot');
+    expect(matches[0].slug).toBe('repos/joedanz/picspot');
     expect(matches[0].title).toBe('joedanz/picspot');
   });
 
-  test('returns empty when no repo page references the URL', async () => {
+  test('returns empty when no repo page declares the URL', async () => {
     const matches = await engine.findRepoByUrl('https://github.com/nobody/home');
     expect(matches).toEqual([]);
   });
 
-  test('only matches pages under repos/ slug prefix', async () => {
-    // A non-repo page that happens to mention the URL shouldn't match.
-    await engine.putPage('concepts/ci-tips', {
-      type: 'concept',
-      title: 'CI tips',
-      compiled_truth: 'See https://github.com/joedanz/picspot for context.',
+  test('returns empty when a repo page mentions the URL in body but not frontmatter', async () => {
+    // Body-scan path is intentionally gone — frontmatter is the only lookup key.
+    await engine.putPage('repos/stale/page', {
+      type: 'source',
+      title: 'stale/page',
+      compiled_truth: 'GitHub: https://github.com/joedanz/picspot',
+      // no frontmatter.github_url
     });
 
     const matches = await engine.findRepoByUrl('https://github.com/joedanz/picspot');
     expect(matches).toEqual([]);
   });
 
-  test('URL match is case-insensitive', async () => {
-    await engine.putPage('repos/joedanz-picspot', {
+  test('only matches pages under repos/ slug prefix', async () => {
+    // A non-repo page with the frontmatter shouldn't match — slug filter is part of the query.
+    await engine.putPage('concepts/ci-tips', {
       type: 'concept',
-      title: 'joedanz/picspot',
-      compiled_truth: 'GitHub: https://GitHub.com/JoeDanz/PicSpot',
+      title: 'CI tips',
+      compiled_truth: 'stub',
+      frontmatter: { github_url: 'https://github.com/joedanz/picspot' },
     });
 
     const matches = await engine.findRepoByUrl('https://github.com/joedanz/picspot');
-    expect(matches.length).toBe(1);
+    expect(matches).toEqual([]);
   });
 
-  test('returns multiple matches when two repo pages reference the same URL', async () => {
-    await engine.putPage('repos/a-b', {
-      type: 'concept', title: 'a/b',
-      compiled_truth: 'GitHub: https://github.com/a/b',
+  test('match is case-sensitive — callers must canonicalize first', async () => {
+    // The engine does not lowercase; that's normalizeGitUrl's job at the caller.
+    await engine.putPage('repos/joedanz/picspot', {
+      type: 'source',
+      title: 'joedanz/picspot',
+      compiled_truth: 'stub',
+      frontmatter: { github_url: 'https://github.com/joedanz/picspot' },
     });
-    await engine.putPage('repos/a-b-alias', {
-      type: 'concept', title: 'a/b alias',
-      compiled_truth: 'GitHub: https://github.com/a/b',
+
+    const canonical = await engine.findRepoByUrl('https://github.com/joedanz/picspot');
+    expect(canonical.length).toBe(1);
+
+    const uppercase = await engine.findRepoByUrl('https://GitHub.com/JoeDanz/PicSpot');
+    expect(uppercase.length).toBe(0);
+  });
+
+  test('returns multiple matches when two repo pages declare the same URL', async () => {
+    await engine.putPage('repos/a/b', {
+      type: 'source',
+      title: 'a/b',
+      compiled_truth: 'stub',
+      frontmatter: { github_url: 'https://github.com/a/b' },
+    });
+    await engine.putPage('repos/a/b-alias', {
+      type: 'source',
+      title: 'a/b alias',
+      compiled_truth: 'stub',
+      frontmatter: { github_url: 'https://github.com/a/b' },
     });
 
     const matches = await engine.findRepoByUrl('https://github.com/a/b');

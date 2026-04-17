@@ -34,6 +34,15 @@ Every flag has an env-var equivalent. Flags win when both are set.
 | `PBRAIN_INSTALL_SKIP_SKILLS=1` | `--skip-skills` |
 | `PBRAIN_INSTALL_SKIP_INIT=1` | `--skip-init` |
 
+## After install: track your first project
+
+Onboarding a repo is a single gesture. In any coding project you want tracked, open a Claude Code session and say "onboard this repo" — that fires the `project-onboard` skill, which:
+
+1. Captures a rich knowledge graph (`projects/`, `repos/<owner>/<name>`, auto-stubbed `libraries/`, `ai-tools/`, `companies/` pages with wikilinks).
+2. Appends a short `## pbrain` section to the project's own `CLAUDE.md` so every future session in that project auto-recognizes it — no manual CLAUDE.md edit, no machine-wide hook.
+
+Record a decision at any time with `pbrain remember "<summary>"` — the command reads cwd, resolves the current project via git remote, and appends a timeline entry to `repos/<owner>/<name>`. To stop tracking a project, delete its `## pbrain` section from CLAUDE.md. Per-project opt-in keeps client checkouts and scratch clones out of the brain by default.
+
 ## What it does, step by step
 
 1. **Safety checks.** Refuses to run as root; refuses Windows native shells (MINGW/MSYS/Cygwin) with a WSL pointer; verifies `git` and `curl` are present.

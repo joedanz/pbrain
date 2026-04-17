@@ -199,4 +199,9 @@ Some content.`;
     expect(parseMarkdown('', 'concepts/thing.md').type).toBe('concept');
     expect(parseMarkdown('', 'companies/acme.md').type).toBe('company');
   });
+
+  test('infers type "source" for repos/ slugs', () => {
+    expect(parseMarkdown('', 'repos/joedanz/picspot.md').type).toBe('source');
+    expect(parseMarkdown('', 'repos/anthropics/claude-code.md').type).toBe('source');
+  });
 });

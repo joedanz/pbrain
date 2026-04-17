@@ -35,12 +35,12 @@ export interface BrainEngine {
   listPages(filters?: PageFilters): Promise<Page[]>;
   resolveSlugs(partial: string): Promise<string[]>;
   /**
-   * Find repo pages whose compiled_truth (or timeline) mentions the given URL.
-   * Scoped to slug prefix `repos/` since pbrain's data model puts repo pages there.
+   * Find repo pages declaring the given canonical GitHub URL via
+   * `frontmatter.github_url`. Scoped to slug prefix `repos/`.
    *
-   * TODO: graduate to a dedicated `github_url` frontmatter field + GIN index once
-   * the briefing formatter lands — at that point we update `project-onboard` to
-   * write it, backfill existing pages, and replace this body-scan query.
+   * Uses a JSONB containment query (`frontmatter @> {"github_url": $url}`)
+   * which is accelerated by the `idx_pages_frontmatter` GIN index. Callers
+   * MUST pass a canonical URL form (see `normalizeGitUrl()`).
    */
   findRepoByUrl(url: string): Promise<{ slug: string; title: string }[]>;
 

@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -301,6 +301,14 @@ async function handleCliOnly(command: string, args: string[]) {
     }
     return;
   }
+  if (command === 'canonical-url') {
+    const { runCanonicalUrl } = await import('./commands/canonical-url.ts');
+    const { output, stderr, exitCode } = runCanonicalUrl(args);
+    if (output) process.stdout.write(output);
+    if (stderr) process.stderr.write(stderr);
+    if (exitCode !== 0) process.exit(exitCode);
+    return;
+  }
 
   // All remaining CLI-only commands need a DB connection
   const engine = await connectEngine();
@@ -400,6 +408,20 @@ async function handleCliOnly(command: string, args: string[]) {
           home: process.env.HOME,
         });
         process.stdout.write(output);
+        if (exitCode !== 0) {
+          await engine.disconnect();
+          process.exit(exitCode);
+        }
+        break;
+      }
+      case 'remember': {
+        const { runRemember } = await import('./commands/remember.ts');
+        const { output, stderr, exitCode } = await runRemember(engine, args, {
+          cwd: process.cwd(),
+          home: process.env.HOME,
+        });
+        if (output) process.stdout.write(output);
+        if (stderr) process.stderr.write(stderr);
         if (exitCode !== 0) {
           await engine.disconnect();
           process.exit(exitCode);
