@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -385,6 +385,19 @@ async function handleCliOnly(command: string, args: string[]) {
         await runAutopilot(engine, args);
         return; // autopilot doesn't disconnect (long-running)
       }
+      case 'whoami': {
+        const { runWhoami } = await import('./commands/whoami.ts');
+        const { output, exitCode } = await runWhoami(engine, args, {
+          cwd: process.cwd(),
+          home: process.env.HOME,
+        });
+        process.stdout.write(output);
+        if (exitCode !== 0) {
+          await engine.disconnect();
+          process.exit(exitCode);
+        }
+        break;
+      }
     }
   } finally {
     if (command !== 'serve') await engine.disconnect();
@@ -498,6 +511,7 @@ ADMIN
   revert <slug> <version-id>         Revert to version
   features [--json] [--auto-fix]     Scan usage + recommend unused features
   autopilot [--repo] [--interval N]  Self-maintaining brain daemon
+  whoami [--verbose]                 Resolve cwd to a brain project (via marker or git remote)
   config [show|get|set] <key> [val]  Brain config
   serve                              MCP server (stdio)
   call <tool> '<json>'               Raw tool invocation

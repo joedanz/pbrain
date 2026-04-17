@@ -176,6 +176,24 @@ export class PostgresEngine implements BrainEngine {
     return fuzzy.map((r: { slug: string }) => r.slug);
   }
 
+  async findRepoByUrl(url: string): Promise<{ slug: string; title: string }[]> {
+    // Body-scan lookup — URL is stored as a prose line ("GitHub: https://...")
+    // in repos/* pages today. TODO: swap for a frontmatter `github_url` lookup
+    // once `project-onboard` is updated and existing pages are backfilled.
+    const sql = this.sql;
+    const FIND_REPO_LIMIT = 5;
+    const pattern = '%' + url + '%';
+    const rows = await sql`
+      SELECT slug, title
+      FROM pages
+      WHERE slug LIKE 'repos/%'
+        AND (compiled_truth ILIKE ${pattern} OR timeline ILIKE ${pattern})
+      ORDER BY slug
+      LIMIT ${FIND_REPO_LIMIT}
+    `;
+    return rows.map((r: { slug: string; title: string }) => ({ slug: r.slug, title: r.title }));
+  }
+
   // Search
   async searchKeyword(query: string, opts?: SearchOpts): Promise<SearchResult[]> {
     const sql = this.sql;

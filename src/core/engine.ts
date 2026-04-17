@@ -34,6 +34,15 @@ export interface BrainEngine {
   deletePage(slug: string): Promise<void>;
   listPages(filters?: PageFilters): Promise<Page[]>;
   resolveSlugs(partial: string): Promise<string[]>;
+  /**
+   * Find repo pages whose compiled_truth (or timeline) mentions the given URL.
+   * Scoped to slug prefix `repos/` since pbrain's data model puts repo pages there.
+   *
+   * TODO: graduate to a dedicated `github_url` frontmatter field + GIN index once
+   * the briefing formatter lands — at that point we update `project-onboard` to
+   * write it, backfill existing pages, and replace this body-scan query.
+   */
+  findRepoByUrl(url: string): Promise<{ slug: string; title: string }[]>;
 
   // Search
   searchKeyword(query: string, opts?: SearchOpts): Promise<SearchResult[]>;

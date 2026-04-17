@@ -492,6 +492,21 @@ const resolve_slugs: Operation = {
   },
 };
 
+const find_repo_by_url: Operation = {
+  name: 'find_repo_by_url',
+  description: 'Find repo pages that reference a given canonical GitHub URL',
+  params: {
+    url: {
+      type: 'string',
+      required: true,
+      description: 'Canonical URL (e.g., https://github.com/owner/repo)',
+    },
+  },
+  handler: async (ctx, p) => {
+    return ctx.engine.findRepoByUrl(p.url as string);
+  },
+};
+
 const get_chunks: Operation = {
   name: 'get_chunks',
   description: 'Get content chunks for a page',
@@ -670,7 +685,7 @@ export const operations: Operation[] = [
   // Raw data
   put_raw_data, get_raw_data,
   // Resolution & chunks
-  resolve_slugs, get_chunks,
+  resolve_slugs, find_repo_by_url, get_chunks,
   // Ingest log
   log_ingest, get_ingest_log,
   // Files

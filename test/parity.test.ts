@@ -66,8 +66,13 @@ describe('operations contract parity', () => {
     }
   });
 
-  test('operations count is at least 30', () => {
-    expect(operations.length).toBeGreaterThanOrEqual(30);
+  test('operations count is at least 31', () => {
+    expect(operations.length).toBeGreaterThanOrEqual(31);
+  });
+
+  test('find_repo_by_url is registered', () => {
+    expect(operationsByName['find_repo_by_url']).toBeDefined();
+    expect(operationsByName['find_repo_by_url'].params.url?.required).toBe(true);
   });
 
   test('MCP tool definitions can be generated from operations', () => {

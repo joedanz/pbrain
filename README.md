@@ -373,6 +373,7 @@ ADMIN
   pbrain doctor [--json] [--fast]       Health checks (resolver, skills, DB, embeddings)
   pbrain doctor --fix                   Auto-fix resolver issues
   pbrain stats                          Brain statistics
+  pbrain whoami [--verbose]             Resolve current directory to a brain project
   pbrain serve                          MCP server (stdio)
   pbrain integrations                   Integration recipe dashboard
   pbrain check-backlinks check|fix      Back-link enforcement
