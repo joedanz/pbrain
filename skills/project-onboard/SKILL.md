@@ -40,6 +40,36 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 
 ## Phases
 
+### Phase 0 — Locate the brain root (MANDATORY FIRST STEP)
+
+Before any fetch or write, resolve the absolute filesystem path of the brain. Do not guess, do not default to `~/brain`, and do not create a new empty directory. The brain is where the user's existing `projects/`, `repos/`, `libraries/`, `ai-tools/`, and `companies/` pages already live.
+
+Resolution order (stop at first hit):
+
+1. **`$PBRAIN_BRAIN_ROOT` env var** — if set and the directory exists.
+2. **`~/.pbrain/config.json`** — read the `brain_root` key if present.
+3. **Filesystem scan** — look for a directory containing all five taxonomy subdirectories (`projects`, `repos`, `libraries`, `ai-tools`, `companies`). Search in this order and take the first match:
+   - `~/brain`
+   - `~/Documents/brain`
+   - `~/Library/CloudStorage/*/My Drive/*/brain` (Google Drive — Obsidian vaults commonly live here)
+   - `~/Library/CloudStorage/*/*/brain` (Dropbox, OneDrive, iCloud Drive variants)
+   - `~/Dropbox/**/brain`, `~/iCloud*/**/brain` (fallback)
+   Concrete discovery command (macOS):
+   ```bash
+   find "$HOME" "$HOME/Library/CloudStorage" -maxdepth 6 -type d -name brain 2>/dev/null \
+     | while read d; do
+         [ -d "$d/projects" ] && [ -d "$d/libraries" ] && [ -d "$d/ai-tools" ] && echo "$d" && break
+       done
+   ```
+4. **Ask the user** — if none of the above resolves, ask: *"Where does your brain live? (absolute path to the folder containing `projects/`, `libraries/`, etc.)"*. Once they answer, offer to persist it to `~/.pbrain/config.json` as `brain_root` so future runs skip this step.
+
+**Guardrails:**
+- Never write into a directory that does not already contain at least `projects/` and `libraries/`. An empty git repo named `brain` or `pbrain-content` is **not** evidence of a brain — it is evidence of a placeholder.
+- Never silently fall back to the current working directory.
+- If two candidate brains are found, stop and ask the user which one to use.
+
+Store the resolved path as `$BRAIN` for the rest of the run. All subsequent paths in this skill (`projects/<slug>.md`, etc.) are relative to `$BRAIN`.
+
 ### Phase 1 — Fetch
 
 Fetch in parallel:
