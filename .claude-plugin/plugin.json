@@ -1,0 +1,23 @@
+{
+  "name": "pbrain",
+  "version": "1.0.0",
+  "description": "Personal knowledge brain for your Obsidian vault. Builds and maintains a wikilink-based knowledge graph across your notes — auto-files new content into people, companies, projects, and concepts; enriches entities from ingested sources (articles, meetings, X, PDFs); and keeps back-links in sync so the graph view stays useful. Also works with any markdown tree (Logseq, plain folders). 26 skills covering brain ops, signal detection, content ingestion, enrichment, reports, and identity. Fork of GBrain by Garry Tan.",
+  "author": {
+    "name": "Joe Danziger",
+    "email": "joe@ticc.net"
+  },
+  "repository": "https://github.com/joedanz/pbrain",
+  "license": "MIT",
+  "keywords": [
+    "knowledge-brain",
+    "rag",
+    "obsidian",
+    "skills",
+    "personal-ai",
+    "hybrid-search",
+    "pgvector",
+    "pglite",
+    "signal-detection",
+    "brain-ops"
+  ]
+}
