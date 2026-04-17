@@ -237,13 +237,13 @@ To put a project in PBrain's brain, invoke the `project-onboard` skill once insi
 ```markdown
 ## pbrain
 
-This project is tracked in pbrain as `repos/<owner>/<name>`.
+This project is tracked in pbrain as `projects/<slug>`.
 
 - Before answering questions about architecture, dependencies, stack
   history, or past decisions, query the brain: `pbrain query "<question>"`.
 - When a significant decision is made, record it with
   `pbrain remember "<summary>"` — the command auto-detects the current
-  project and appends a timeline entry to `repos/<owner>/<name>`.
+  project and appends a timeline entry.
 - To re-onboard (e.g. after a brain wipe), run the `project-onboard` skill.
 ```
 
