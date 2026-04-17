@@ -41,6 +41,8 @@ This skill guarantees:
 
 ## Iron Law: Back-Linking (MANDATORY)
 
+> **Quality rules:** See `skills/conventions/quality.md` for the canonical citation format and back-link rules. The steps below are the local procedure; the convention file is the source of truth.
+
 Every time this skill creates or updates a brain page that mentions a person or company:
 1. Check if that person/company has a brain page
 2. If yes → add a back-link FROM their page TO the page you just created/updated

@@ -225,6 +225,29 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Walk up from a resolved symlink target looking for the repo root
+ * (directory with package.json name=pbrain). Used to collapse per-skill
+ * `resolvedTo` paths to the single checkout directory for the status message.
+ */
+function resolveCheckoutRoot(resolvedPath: string): string {
+  if (!resolvedPath) return '';
+  let dir = resolvedPath;
+  for (let i = 0; i < 12; i++) {
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg && pkg.name === 'pbrain') return dir;
+      } catch { /* keep walking */ }
+    }
+    const parent = join(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return '';
+}
+
 /** Find the PBrain repo root by walking up from cwd looking for skills/RESOLVER.md */
 function findRepoRoot(): string | null {
   let dir = process.cwd();
@@ -300,12 +323,25 @@ function checkSkillSymlinks(repoRoot: string): Check {
     const shadowed: string[] = [];
     const partial: string[] = [];
 
+    // `ours-elsewhere` (symlink to another pbrain checkout, e.g. ~/.pbrain-repo
+    // when doctor runs from a dev clone) counts as installed — the skills fire
+    // correctly, the symlinks just don't point at this particular tree.
+    const elsewhereByTarget = new Map<string, string[]>();
     for (const t of targets) {
-      const present = new Set(entries.filter(e => e.target.dir === t.dir && e.state === 'ours-ok').map(e => e.name));
+      const present = new Set(entries.filter(e => e.target.dir === t.dir && (e.state === 'ours-ok' || e.state === 'ours-elsewhere')).map(e => e.name));
       const targetBroken = entries.filter(e => e.target.dir === t.dir && e.state === 'ours-broken');
       const targetShadowed = entries.filter(e => e.target.dir === t.dir && (e.state === 'foreign-symlink' || e.state === 'foreign-file' || e.state === 'foreign-dir') && skillNames.has(e.name));
+      const targetElsewhere = entries.filter(e => e.target.dir === t.dir && e.state === 'ours-elsewhere');
       for (const e of targetBroken) broken.push(`${t.client}:${e.name}`);
       for (const e of targetShadowed) shadowed.push(`${t.client}:${e.name}`);
+      if (targetElsewhere.length > 0) {
+        const checkouts = [...new Set(targetElsewhere.map(e => resolveCheckoutRoot(e.resolvedTo || '')).filter(Boolean))];
+        for (const root of checkouts) {
+          const list = elsewhereByTarget.get(root) || [];
+          list.push(`${t.client} ${targetElsewhere.length}`);
+          elsewhereByTarget.set(root, list);
+        }
+      }
       if (present.size > 0 && present.size < skills.length) {
         partial.push(`${t.client} ${present.size}/${skills.length}`);
       }
@@ -316,7 +352,7 @@ function checkSkillSymlinks(repoRoot: string): Check {
       const installedByClient = targets
         .map(t => ({
           client: t.client,
-          count: entries.filter(e => e.target.dir === t.dir && e.state === 'ours-ok').length,
+          count: entries.filter(e => e.target.dir === t.dir && (e.state === 'ours-ok' || e.state === 'ours-elsewhere')).length,
         }))
         .filter(x => x.count > 0);
       if (installedByClient.length === 0) {
@@ -327,10 +363,13 @@ function checkSkillSymlinks(repoRoot: string): Check {
         };
       }
       const summary = installedByClient.map(x => `${x.client}: ${x.count}`).join(', ');
+      const elsewhereNote = elsewhereByTarget.size > 0
+        ? ` (symlinks resolve to sibling checkout at ${[...elsewhereByTarget.keys()].join(', ')})`
+        : '';
       return {
         name: 'skill_symlinks',
         status: 'ok',
-        message: `installed — ${summary}`,
+        message: `installed — ${summary}${elsewhereNote}`,
       };
     }
 
