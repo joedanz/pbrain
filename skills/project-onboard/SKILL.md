@@ -81,21 +81,29 @@ project-onboard "<multi word name>" <domain>
 
 **Step 1 — Classify positional args by shape.** For each arg, apply the table in Inputs (slash/github.com/path → `repo`; TLD suffix → `domain`; else → `display_name`). Honor the `project=<value>` named escape hatch for display names that look like domains. Shapes are disjoint — order doesn't matter. Store any extracted values; unfilled slots are resolved in later phases.
 
-**Step 2 — Resolve repo coordinates if not supplied.** If `repo` was not passed as a positional arg, infer it from cwd:
+**Step 2 — Resolve repo coordinates and export `$PROJECT_ROOT`.** Handle three cases:
 
+**Case A — No `repo` arg supplied (cwd inference):**
 ```bash
-git remote get-url origin
+git remote get-url origin          # get remote URL
+git rev-parse --show-toplevel      # set PROJECT_ROOT
 ```
+Canonicalize the remote URL with `pbrain canonical-url` (Contract rule 11) to derive `<owner>/<name>`. If either command fails (not a git repo, no origin remote), prompt the user for the repo. On success, `$PROJECT_ROOT` is the git root of cwd.
 
-Canonicalize the result with `pbrain canonical-url` (Contract rule 11). If the command fails (cwd is not a git repo, or has no origin remote), prompt the user for the repo.
+**Case B — `repo` arg is a local path (starts with `~`, `.`, or `/`):**
+```bash
+PROJECT_ROOT=$(realpath "$repo")
+git -C "$PROJECT_ROOT" remote get-url origin      # derive <owner>/<name>
+git -C "$PROJECT_ROOT" rev-parse --show-toplevel  # confirm git root (handles subdirs)
+```
+Canonicalize the remote URL to get `<owner>/<name>` for the GitHub metadata call. If the directory is not a git repo or has no GitHub remote, warn and ask the user to provide the GitHub repo identifier separately. `$PROJECT_ROOT` is set to the resolved path — Phase 2 reads all file content from disk.
 
-**Also export `$PROJECT_ROOT` when the repo is on this machine.** This is the signal Phase 2 uses to read from the local filesystem instead of `gh api`:
+**Case C — `repo` arg is a GitHub URL or `<owner>/<name>` shorthand:**
+Ask the user: *"Do you have this repo cloned locally? If yes, enter the path — we'll read package.json, README, and the file tree from disk instead of the GitHub API. Press Enter to skip."*
+- If the user provides a path: set `$PROJECT_ROOT` to `realpath` of that path, run `git -C "$PROJECT_ROOT" rev-parse --show-toplevel` to confirm it's a git repo, then use it for local reads in Phase 2.
+- If the user skips (or the path isn't a git repo): leave `$PROJECT_ROOT` unset. Phase 2 uses the remote-only fallback.
 
-- If `repo` was inferred from cwd: `PROJECT_ROOT=$(git rev-parse --show-toplevel)`.
-- If `repo` was explicitly supplied as a local path (starts with `~`, `.`, or `/`): resolve to absolute (`realpath`) and export as `$PROJECT_ROOT`.
-- If `repo` was supplied as `<owner>/<name>` or a `https://github.com/...` URL without a local checkout: leave `$PROJECT_ROOT` unset.
-
-Phase 2 branches on `$PROJECT_ROOT` being set vs. unset.
+**Phase 2 branches on `$PROJECT_ROOT` being set vs. unset.** Set → local reads (Read/Glob) + one `gh api` metadata call. Unset → all `gh api` calls.
 
 **Step 3 — Idempotency gate.** If the repo was **inferred from cwd** (no explicit `repo` arg), run:
 
