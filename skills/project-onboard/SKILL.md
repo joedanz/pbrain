@@ -30,6 +30,7 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 7. **Never trust GitHub's `homepage` field as the real domain** — it's often a `*.vercel.app` preview. Ask the user to confirm the real domain.
 8. **All wikilinks path-qualified** (`[[projects/picspot]]`, not `[[picspot]]`). Doctor will flag ambiguous bare slugs.
 9. **Atomic-safe writes:** use the file-write pathway PBrain provides — never leave half-written files visible to Obsidian.
+10. **Fork → upstream tracking:** if the repo is a fork, stub the upstream repo at `repos/<upstream-owner>-<upstream-name>.md` and link it from the fork's repo page via an `Upstream:` field. The upstream stub is a thin pointer (no `Used by`, no full stack breakdown) — it exists so the ancestry shows up in the graph.
 
 ## Inputs
 
@@ -42,7 +43,7 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 ### Phase 1 — Fetch
 
 Fetch in parallel:
-- Repo metadata: `gh api repos/<owner>/<name> --jq '{name,description,language,topics,homepage,default_branch,pushed_at}'`
+- Repo metadata: `gh api repos/<owner>/<name> --jq '{name,description,language,topics,homepage,default_branch,pushed_at,fork,parent:(.parent // null) | if . then {owner:.owner.login, name:.name, url:.html_url} else null end}'` — `fork: true` triggers the upstream-tracking path; `parent` holds the upstream repo's `owner`/`name`
 - README: `gh api repos/<owner>/<name>/readme --jq '.content' | base64 -d`
 - Dependency manifest — try in order:
   - `gh api repos/<owner>/<name>/contents/package.json` (JS / TS)
@@ -143,6 +144,7 @@ tags: [repo, <language>, <arch-tag>]
 
 GitHub: https://github.com/<owner>/<name>
 Project: [[projects/<slug>]]
+Upstream: [[repos/<upstream-owner>-<upstream-name>]]   <!-- only if this repo is a fork; also create a stub for the upstream repo -->
 
 ## Stack
 <Prose describing framework, build tool, test stack. NO library wikilinks — those live on the project page.>
