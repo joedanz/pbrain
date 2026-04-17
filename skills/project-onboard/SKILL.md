@@ -89,6 +89,14 @@ git remote get-url origin
 
 Canonicalize the result with `pbrain canonical-url` (Contract rule 11). If the command fails (cwd is not a git repo, or has no origin remote), prompt the user for the repo.
 
+**Also export `$PROJECT_ROOT` when the repo is on this machine.** This is the signal Phase 2 uses to read from the local filesystem instead of `gh api`:
+
+- If `repo` was inferred from cwd: `PROJECT_ROOT=$(git rev-parse --show-toplevel)`.
+- If `repo` was explicitly supplied as a local path (starts with `~`, `.`, or `/`): resolve to absolute (`realpath`) and export as `$PROJECT_ROOT`.
+- If `repo` was supplied as `<owner>/<name>` or a `https://github.com/...` URL without a local checkout: leave `$PROJECT_ROOT` unset.
+
+Phase 2 branches on `$PROJECT_ROOT` being set vs. unset.
+
 **Step 3 — Idempotency gate.** If the repo was **inferred from cwd** (no explicit `repo` arg), run:
 
 ```bash
@@ -142,17 +150,28 @@ Store the resolved path as `$BRAIN` for the rest of the run. All subsequent path
 
 ### Phase 2 — Fetch
 
-Fetch in parallel:
-- Repo metadata: `gh api repos/<owner>/<name> --jq '{name,description,language,topics,homepage,default_branch,pushed_at,fork,parent:(.parent // null) | if . then {owner:.owner.login, name:.name, url:.html_url} else null end}'` — `fork: true` triggers the upstream-tracking path; `parent` holds the upstream repo's `owner`/`name`
+Prefer local filesystem reads when `$PROJECT_ROOT` is set (Phase 0 Step 2). Local reads avoid the network round-trip and the base64-encoded JSON envelope that `gh api /contents/...` wraps around every file payload — on a repo with a 30 KB README and a fat `package.json`, that's the difference between a handful of tokens (local bytes only) and thousands (base64 + JSON envelope × 3).
+
+**Local-first reads (when `$PROJECT_ROOT` is set):**
+- README: `Read` tool on `$PROJECT_ROOT/README.md`. If missing, try `README`, `README.MD`, `readme.md` in that order. Only if none exist locally, fall back to `gh api repos/<owner>/<name>/readme --jq '.content' | base64 -d`.
+- Dependency manifest — `Read` the first one that exists:
+  - `$PROJECT_ROOT/package.json` (JS / TS)
+  - `$PROJECT_ROOT/pyproject.toml` (Python)
+  - `$PROJECT_ROOT/Cargo.toml` (Rust)
+  - `$PROJECT_ROOT/go.mod` (Go)
+- Root file listing: `Glob` pattern `$PROJECT_ROOT/*` (include both files and dirs — used to detect monorepo layout, `.claude/`, `CLAUDE.md`, etc.).
+
+**GitHub API reads (always — these have no local analogue):**
+- Repo metadata: `gh api repos/<owner>/<name> --jq '{description,topics,homepage,default_branch,pushed_at,fork,parent:(.parent // null) | if . then {owner:.owner.login, name:.name, url:.html_url} else null end}'` — `fork: true` triggers the upstream-tracking path; `parent` holds the upstream repo's `owner`/`name`. When `$PROJECT_ROOT` is unset, also add `name,language` to the jq filter since they can't be derived locally.
+
+**Remote-only fallback (when `$PROJECT_ROOT` is unset):** the user passed a GitHub URL or `<owner>/<name>` without a local checkout. Fetch README, dependency manifest, and root listing via the `gh api /contents/...` endpoints exactly as before:
 - README: `gh api repos/<owner>/<name>/readme --jq '.content' | base64 -d`
-- Dependency manifest — try in order:
-  - `gh api repos/<owner>/<name>/contents/package.json` (JS / TS)
-  - `gh api repos/<owner>/<name>/contents/pyproject.toml` (Python)
-  - `gh api repos/<owner>/<name>/contents/Cargo.toml` (Rust)
-  - `gh api repos/<owner>/<name>/contents/go.mod` (Go)
-- Root file listing: `gh api repos/<owner>/<name>/contents --jq '.[].name'` (detects monorepo layout, `.claude/`, `CLAUDE.md`, etc.)
+- Dependency manifest — try in order: `gh api repos/<owner>/<name>/contents/package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`
+- Root file listing: `gh api repos/<owner>/<name>/contents --jq '.[].name'`
 
 If README is 404 or a generic scaffold (e.g. Google AI Studio boilerplate), fall back to package.json + root listing for facts.
+
+**Conflict rule:** if the local manifest or README disagrees with GitHub's copy (e.g. local has uncommitted edits), trust local. The user is onboarding the state of their workspace, not the state of `main`.
 
 ### Phase 3 — Derive project slug and display name
 
