@@ -6,6 +6,7 @@ import { checkIntegrations } from '../core/doctor-integrations.ts';
 import { loadConfig } from '../core/config.ts';
 import { join } from 'path';
 import { existsSync, readFileSync, readdirSync } from 'fs';
+import { detectClients, enumerateSkills, resolveTargetDirs, scanTargets } from '../core/skill-installer.ts';
 
 export interface Check {
   name: string;
@@ -89,6 +90,11 @@ export async function runDoctor(engine: BrainEngine | null, args: string[]) {
     const skillsDir = join(repoRoot, 'skills');
     const conformanceResult = checkSkillConformance(skillsDir);
     checks.push(conformanceResult);
+  }
+
+  // 2b. Skill symlinks (Claude Code / Cursor / Windsurf)
+  if (repoRoot) {
+    checks.push(checkSkillSymlinks(repoRoot));
   }
 
   // --- DB checks (skip if --fast or no engine) ---
@@ -255,6 +261,77 @@ function checkSkillConformance(skillsDir: string): Check {
     };
   } catch {
     return { name: 'skill_conformance', status: 'warn', message: 'Could not parse manifest.json' };
+  }
+}
+
+/**
+ * Check that PBrain skill symlinks in Claude Code / Cursor / Windsurf are
+ * intact. Only surfaces warnings for clients that exist on this machine —
+ * users who haven't installed Cursor don't need to see Cursor warnings.
+ * Never fails: the user may have intentionally not run install-skills, or
+ * may only want a subset of skills linked.
+ */
+function checkSkillSymlinks(repoRoot: string): Check {
+  try {
+    const clients = detectClients();
+    if (clients.length === 0) {
+      return { name: 'skill_symlinks', status: 'ok', message: 'no supported clients detected' };
+    }
+    const targets = resolveTargetDirs({ scope: 'user', clients });
+    const skills = enumerateSkills(repoRoot);
+    const skillNames = new Set(skills.map(s => s.name));
+    const entries = scanTargets(targets, repoRoot);
+
+    const broken: string[] = [];
+    const shadowed: string[] = [];
+    const partial: string[] = [];
+
+    for (const t of targets) {
+      const present = new Set(entries.filter(e => e.target.dir === t.dir && e.state === 'ours-ok').map(e => e.name));
+      const targetBroken = entries.filter(e => e.target.dir === t.dir && e.state === 'ours-broken');
+      const targetShadowed = entries.filter(e => e.target.dir === t.dir && (e.state === 'foreign-symlink' || e.state === 'foreign-file' || e.state === 'foreign-dir') && skillNames.has(e.name));
+      for (const e of targetBroken) broken.push(`${t.client}:${e.name}`);
+      for (const e of targetShadowed) shadowed.push(`${t.client}:${e.name}`);
+      if (present.size > 0 && present.size < skills.length) {
+        partial.push(`${t.client} ${present.size}/${skills.length}`);
+      }
+    }
+
+    if (broken.length === 0 && shadowed.length === 0 && partial.length === 0) {
+      // Silent green path covers both "all installed" and "none installed yet".
+      const installedByClient = targets
+        .map(t => ({
+          client: t.client,
+          count: entries.filter(e => e.target.dir === t.dir && e.state === 'ours-ok').length,
+        }))
+        .filter(x => x.count > 0);
+      if (installedByClient.length === 0) {
+        return {
+          name: 'skill_symlinks',
+          status: 'ok',
+          message: 'not installed (run `pbrain install-skills` to register)',
+        };
+      }
+      const summary = installedByClient.map(x => `${x.client}: ${x.count}`).join(', ');
+      return {
+        name: 'skill_symlinks',
+        status: 'ok',
+        message: `installed — ${summary}`,
+      };
+    }
+
+    const parts: string[] = [];
+    if (broken.length) parts.push(`${broken.length} broken: ${broken.join(', ')}`);
+    if (partial.length) parts.push(`partial: ${partial.join(', ')}`);
+    if (shadowed.length) parts.push(`shadowed by other plugins: ${shadowed.join(', ')}`);
+    return {
+      name: 'skill_symlinks',
+      status: 'warn',
+      message: `${parts.join('; ')} — run \`pbrain install-skills\` to fix`,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { name: 'skill_symlinks', status: 'warn', message: `check failed: ${msg}` };
   }
 }
 

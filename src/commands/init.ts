@@ -45,7 +45,7 @@ export async function runInit(args: string[]) {
       }
     }
 
-    return initPGLite({ jsonOutput, apiKey, customPath, brainPath });
+    return initPGLite({ jsonOutput, apiKey, customPath, brainPath, isNonInteractive });
   }
 
   // Supabase/Postgres mode
@@ -64,10 +64,10 @@ export async function runInit(args: string[]) {
     databaseUrl = await supabaseWizard();
   }
 
-  return initPostgres({ databaseUrl, jsonOutput, apiKey, brainPath });
+  return initPostgres({ databaseUrl, jsonOutput, apiKey, brainPath, isNonInteractive });
 }
 
-async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string | null }) {
+async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string | null; isNonInteractive: boolean }) {
   // Default index path moved to ~/.pbrain/indexes/ for Phase 3 — the PGLite
   // file is a rebuildable index now, not the brain itself. Existing users on
   // the legacy ~/.pbrain/brain.pglite path keep using that file; new installs
@@ -104,10 +104,11 @@ async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; cu
     console.log('');
     console.log('When you outgrow local: pbrain migrate --to supabase');
     reportModStatus();
+    await maybeInstallSkillsPrompt({ isNonInteractive: opts.isNonInteractive });
   }
 }
 
-async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null; brainPath: string | null }) {
+async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; apiKey: string | null; brainPath: string | null; isNonInteractive: boolean }) {
   const { databaseUrl } = opts;
 
   // Detect Supabase direct connection URLs and warn about IPv6
@@ -176,6 +177,7 @@ async function initPostgres(opts: { databaseUrl: string; jsonOutput: boolean; ap
     if (opts.brainPath) console.log(`Brain folder: ${opts.brainPath}`);
     console.log(`Next: pbrain index${opts.brainPath ? '' : ' <dir>'}`);
     reportModStatus();
+    await maybeInstallSkillsPrompt({ isNonInteractive: opts.isNonInteractive });
   }
 }
 
@@ -380,6 +382,38 @@ export function installDefaultTemplates(workspaceDir: string): string[] {
   }
 
   return installed;
+}
+
+/**
+ * After a successful init, offer to symlink PBrain's skills into whichever
+ * supported clients (Claude Code, Cursor, Windsurf) the user has installed.
+ * Skipped silently in --non-interactive mode or when stdin isn't a TTY
+ * (e.g., piped installs) — the user can always run `pbrain install-skills`
+ * later.
+ */
+async function maybeInstallSkillsPrompt(opts: { isNonInteractive: boolean }): Promise<void> {
+  if (opts.isNonInteractive) return;
+  if (!process.stdin.isTTY) return;
+
+  const { detectClients } = await import('../core/skill-installer.ts');
+  const clients = detectClients();
+  if (clients.length === 0) return;
+
+  const label = clients.map(c => ({ claude: 'Claude Code', cursor: 'Cursor', windsurf: 'Windsurf' }[c])).join(' / ');
+  const answer = await readLine(`Install PBrain skills into ${label}? [Y/n]: `);
+  const normalized = (answer || '').trim().toLowerCase();
+  if (normalized !== '' && normalized !== 'y' && normalized !== 'yes') {
+    console.log('Skipped. Run `pbrain install-skills` later to register them.');
+    return;
+  }
+
+  // Shell out so install-skills's exit codes don't terminate init itself.
+  // A conflict (exit 2) is informational, not a failure of init.
+  try {
+    execSync('pbrain install-skills', { stdio: 'inherit', timeout: 30_000 });
+  } catch {
+    // best-effort; user can always rerun the command
+  }
 }
 
 /**

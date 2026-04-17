@@ -65,6 +65,20 @@ PBrain exposes 30+ MCP tools via stdio:
 
 Add to `~/.claude/server.json` (Claude Code), Settings > MCP Servers (Cursor), or your client's MCP config.
 
+Then register the 26 skills in your client's skill discovery:
+
+```bash
+pbrain install-skills
+```
+
+Auto-run by `pbrain init` and `pbrain upgrade`, so you rarely need it by hand.
+Symlinks every PBrain skill into `~/.claude/skills/`, `~/.cursor/skills/`, and
+`~/.windsurf/skills/` (whichever of those dirs exist). Idempotent. Never
+silently overwrites skills owned by other plugins — pass `--force` to replace
+conflicts. See `pbrain install-skills --help` for scope (`--project` for
+per-repo), client filtering (`--client claude`), and `status`/`uninstall`
+subcommands.
+
 ### Remote MCP (Claude Desktop, Cowork, Perplexity)
 
 ```bash

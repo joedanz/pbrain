@@ -79,6 +79,7 @@ pattern pages that use it.
 | Trigger | Skill |
 |---------|-------|
 | "Set up PBrain", first boot | `skills/setup/SKILL.md` |
+| "Install skills", "why isn't skill X firing in Claude Code?" | Run `pbrain install-skills` (see `INSTALL_FOR_AGENTS.md` Step 5) |
 | "Migrate from Obsidian/Notion/Logseq" | `skills/migrate/SKILL.md` |
 | Brain health check, maintenance run | `skills/maintain/SKILL.md` |
 | "Extract links", "build link graph", "populate timeline" | `skills/maintain/SKILL.md` (extraction sections) |
