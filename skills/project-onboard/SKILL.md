@@ -4,6 +4,8 @@ description: Onboard a coding project (repo URL or local path) into the brain �
 triggers:
   - "onboard this repo"
   - "onboard this project"
+  - "onboard <repo> domain <domain>"
+  - "onboard <repo> at <domain>"
   - "add this project to the brain"
   - "import this repo into pbrain"
 tools:
@@ -36,7 +38,26 @@ Onboards a coding project into the brain. Produces a **complete graph**: project
 
 - **repo** (required) — `https://github.com/owner/name`, `owner/name`, or a local path.
 - **owner** (optional) — derived from the URL; override if the canonical owner differs.
-- **real_domain** (optional) — the production domain. If omitted, skill will ask the user.
+- **real_domain** (optional) — the production domain (e.g. `picspot.app`, `https://picspot.app`). When supplied, the skill treats it as the authoritative answer to Phase 2 and skips the confirmation prompt entirely. Accept it in any of these forms and normalize to a bare hostname before writing:
+  - `domain=picspot.app`
+  - `at picspot.app`
+  - `https://picspot.app`
+  - `picspot.app`
+
+### Invocation examples
+
+Domain is **optional**. Omit it and Phase 2 will fall back to the repo's `homepage` field, prompting only if it looks like a preview URL.
+
+```
+# Without domain — skill infers from homepage or asks if it's a preview URL
+onboard https://github.com/joedanz/picspot
+onboard joedanz/picspot
+
+# With domain — skill uses it directly, skips the Phase 2 prompt
+onboard https://github.com/joedanz/picspot domain picspot.app
+onboard joedanz/picspot at picspot.app
+onboard ~/code/picspot domain=picspot.app
+```
 
 ## Phases
 
@@ -86,7 +107,13 @@ If README is 404 or a generic scaffold (e.g. Google AI Studio boilerplate), fall
 
 ### Phase 2 — Confirm domain
 
-If GitHub's `homepage` field matches `*.vercel.app`, `*.netlify.app`, `*.fly.dev`, `*.onrender.com`, `*.github.io`, or is missing: **ask the user** for the real production domain before writing.
+Resolution order (stop at first hit):
+
+1. **`real_domain` input was provided** — normalize to a bare hostname (strip `https://`, trailing `/`, any path), then use it directly. Do NOT prompt. Record `(supplied by user at invocation)` in the Phase 6 notes.
+2. **GitHub `homepage` is a real domain** — any non-preview hostname. Use it.
+3. **`homepage` is a preview host or missing** — matches `*.vercel.app`, `*.netlify.app`, `*.fly.dev`, `*.onrender.com`, `*.github.io`, `*.pages.dev`, `*.workers.dev`, or empty. **Ask the user** for the real production domain before writing.
+
+If the supplied `real_domain` and the repo's `homepage` disagree, trust the input — the user is the source of truth — but surface the mismatch in the Phase 6 notes so they can fix the GitHub field if they want.
 
 Never silently use a preview URL.
 
