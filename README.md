@@ -12,7 +12,18 @@ PBrain is GBrain's patterns, retargeted at software engineering knowledge. 25 sk
 
 ## Install
 
-### On an agent platform (recommended)
+### Claude Code plugin (skills-only, fastest)
+
+Just want the 26 skills in Claude Code without cloning the repo?
+
+```
+/plugin marketplace add joedanz/pbrain
+/plugin install pbrain
+```
+
+Restart your session — the skills auto-discover. Your agent can now file notes into your Obsidian vault, maintain the wikilink graph, enrich people/company pages, and route queries through the brain-ops protocol. For full brain functionality (hybrid search, `pbrain query`, autopilot, cron jobs), install the CLI as described below; the plugin is skills-only.
+
+### On an agent platform (recommended for the full stack)
 
 PBrain is designed to be installed and operated by an AI agent. If you don't have one running yet:
 
