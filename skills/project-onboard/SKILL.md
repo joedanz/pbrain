@@ -112,8 +112,12 @@ Before any fetch or write, resolve the absolute filesystem path of the brain. Do
 
 Resolution order (stop at first hit):
 
-1. **`$PBRAIN_BRAIN_ROOT` env var** — if set and the directory exists.
-2. **`~/.pbrain/config.json`** — read the `brain_root` key if present.
+1. **`$PBRAIN_BRAIN_PATH` env var** — if set and the directory exists.
+2. **`~/.pbrain/config.json`** — read the `brain_path` key if present. Concrete command:
+   ```bash
+   jq -r '.brain_path // empty' ~/.pbrain/config.json 2>/dev/null
+   ```
+   (This is the key `pbrain init` writes. Do NOT look for `brain_root` — that key does not exist.)
 3. **Filesystem scan** — look for a directory containing all five taxonomy subdirectories (`projects`, `repos`, `libraries`, `ai-tools`, `companies`). Search in this order and take the first match:
    - `~/brain`
    - `~/Documents/brain`
@@ -127,7 +131,7 @@ Resolution order (stop at first hit):
          [ -d "$d/projects" ] && [ -d "$d/libraries" ] && [ -d "$d/ai-tools" ] && echo "$d" && break
        done
    ```
-4. **Ask the user** — if none of the above resolves, ask: *"Where does your brain live? (absolute path to the folder containing `projects/`, `libraries/`, etc.)"*. Once they answer, offer to persist it to `~/.pbrain/config.json` as `brain_root` so future runs skip this step.
+4. **Ask the user** — if none of the above resolves, ask: *"Where does your brain live? (absolute path to the folder containing `projects/`, `libraries/`, etc.)"*. Once they answer, offer to persist it to `~/.pbrain/config.json` as `brain_path` so future runs skip this step.
 
 **Guardrails:**
 - Never write into a directory that does not already contain at least `projects/` and `libraries/`. An empty git repo named `brain` or `pbrain-content` is **not** evidence of a brain — it is evidence of a placeholder.
