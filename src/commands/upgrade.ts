@@ -28,9 +28,8 @@ export async function runUpgrade(args: string[]) {
       break;
 
     case 'binary':
-      console.log('Binary self-update not yet implemented.');
-      console.log('Download the latest binary from GitHub Releases:');
-      console.log('  https://github.com/joedanz/pbrain/releases');
+      console.log('PBrain is source-distributed. To upgrade:');
+      console.log('  cd $(dirname $(which pbrain))/.. && git pull && bun install');
       break;
 
     case 'clawhub':
@@ -46,9 +45,9 @@ export async function runUpgrade(args: string[]) {
     default:
       console.error('Could not detect installation method.');
       console.log('Try one of:');
+      console.log('  cd <pbrain repo> && git pull && bun install');
       console.log('  bun update pbrain');
       console.log('  clawhub update pbrain');
-      console.log('  Download from https://github.com/joedanz/pbrain/releases');
   }
 
   if (upgraded) {

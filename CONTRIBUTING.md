@@ -65,9 +65,15 @@ DATABASE_URL=postgresql://... bun run test:e2e
 
 ## Building
 
+PBrain is source-distributed — users `git clone && bun install && bun link`. There's no binary release.
+
+For local dev convenience you can compile a single-file binary:
+
 ```bash
-bun build --compile --outfile bin/pbrain src/cli.ts
+bun run build   # -> bin/pbrain
 ```
+
+Note: `bun build --compile` does not bundle PGLite's WASM assets, so the compiled binary cannot run `pbrain init` with the default PGLite engine. Use `bun run src/cli.ts` or `bun link` for day-to-day dev.
 
 ## Adding a new operation
 
