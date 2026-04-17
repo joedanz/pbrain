@@ -31,8 +31,10 @@ describe('.claude-plugin/plugin.json', () => {
 describe('.claude-plugin/marketplace.json', () => {
   const marketplace = JSON.parse(readFileSync(MARKETPLACE_JSON, 'utf-8'));
 
-  test('declares exactly one plugin named pbrain', () => {
-    expect(marketplace.name).toBe('pbrain');
+  test('declares exactly one plugin named pbrain under the joedanz marketplace', () => {
+    // Marketplace name is the owner/namespace shown as "from <name>" in the
+    // Claude Code plugin browser. Keep distinct from the plugin name itself.
+    expect(marketplace.name).toBe('joedanz');
     expect(Array.isArray(marketplace.plugins)).toBe(true);
     expect(marketplace.plugins).toHaveLength(1);
     expect(marketplace.plugins[0].name).toBe('pbrain');
