@@ -58,17 +58,70 @@ export function walkMarkdownFiles(dir: string): { path: string; relPath: string 
 
 // --- Link extraction ---
 
-/** Extract markdown links to .md files (relative paths only) */
+/**
+ * Extract markdown links to .md files (relative paths only).
+ *
+ * Handles two syntaxes:
+ *   1. Standard markdown:  [text](relative/path.md)
+ *   2. Wikilinks:          [[relative/path]] or [[relative/path|Display Text]]
+ *
+ * Both are resolved relative to the file that contains them. External URLs
+ * (containing ://) are always skipped. For wikilinks, the .md suffix is added
+ * if absent and section anchors (#heading) are stripped.
+ */
 export function extractMarkdownLinks(content: string): { name: string; relTarget: string }[] {
   const results: { name: string; relTarget: string }[] = [];
-  const pattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
+
+  const mdPattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
   let match;
-  while ((match = pattern.exec(content)) !== null) {
+  while ((match = mdPattern.exec(content)) !== null) {
     const target = match[2];
-    if (target.includes('://')) continue; // skip external URLs
+    if (target.includes('://')) continue;
     results.push({ name: match[1], relTarget: target });
   }
+
+  const wikiPattern = /\[\[([^|\]]+?)(?:\|[^\]]*?)?\]\]/g;
+  while ((match = wikiPattern.exec(content)) !== null) {
+    const rawPath = match[1].trim();
+    if (rawPath.includes('://')) continue;
+    const hashIdx = rawPath.indexOf('#');
+    const pagePath = hashIdx >= 0 ? rawPath.slice(0, hashIdx) : rawPath;
+    if (!pagePath) continue;
+    const relTarget = pagePath.endsWith('.md') ? pagePath : pagePath + '.md';
+    const pipeIdx = match[0].indexOf('|');
+    const displayName = pipeIdx >= 0 ? match[0].slice(pipeIdx + 1, -2).trim() : rawPath;
+    results.push({ name: displayName, relTarget });
+  }
+
   return results;
+}
+
+/**
+ * Resolve a wikilink target to a canonical slug, given the directory of the
+ * containing page and the set of all known slugs in the brain.
+ *
+ * Wiki KBs often use inconsistent relative depths. Authors omit one or more
+ * leading `../` because they think in "wiki-root-relative" terms. Resolution
+ * order (first match wins):
+ *   1. Standard `join(fileDir, relTarget)` — exact relative path as written
+ *   2. Ancestor search — strip leading path components from fileDir, retry
+ *
+ * Returns null when no matching slug is found (dangling link).
+ */
+export function resolveSlug(fileDir: string, relTarget: string, allSlugs: Set<string>): string | null {
+  const targetNoExt = relTarget.endsWith('.md') ? relTarget.slice(0, -3) : relTarget;
+
+  const s1 = join(fileDir, targetNoExt);
+  if (allSlugs.has(s1)) return s1;
+
+  const parts = fileDir.split('/').filter(Boolean);
+  for (let strip = 1; strip <= parts.length; strip++) {
+    const ancestor = parts.slice(0, parts.length - strip).join('/');
+    const candidate = ancestor ? join(ancestor, targetNoExt) : targetNoExt;
+    if (allSlugs.has(candidate)) return candidate;
+  }
+
+  return null;
 }
 
 /** Infer link type from directory structure */
@@ -128,8 +181,8 @@ export function extractLinksFromFile(
   const fm = parseFrontmatterFromContent(content, relPath);
 
   for (const { name, relTarget } of extractMarkdownLinks(content)) {
-    const resolved = join(fileDir, relTarget).replace('.md', '');
-    if (allSlugs.has(resolved)) {
+    const resolved = resolveSlug(fileDir, relTarget, allSlugs);
+    if (resolved !== null) {
       links.push({
         from_slug: slug, to_slug: resolved,
         link_type: inferLinkType(fileDir, dirname(resolved), fm),

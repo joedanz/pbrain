@@ -422,6 +422,8 @@ ADMIN
   pbrain integrations                   Integration recipe dashboard
   pbrain check-backlinks check|fix      Back-link enforcement
   pbrain lint [--fix]                   LLM artifact detection
+  pbrain apply-migrations [--list]      Run pending migration orchestrators
+  pbrain repair-jsonb [--dry-run]       Repair v0.12.0 double-encoded JSONB (Postgres)
   pbrain transcribe <audio>             Transcribe audio (Groq Whisper)
   pbrain research init <name>           Scaffold a data-research recipe
   pbrain research list                  Show available recipes

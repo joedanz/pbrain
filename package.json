@@ -18,8 +18,9 @@
     "build": "bun build --compile --outfile bin/pbrain src/cli.ts",
     "build:all": "bun build --compile --target=bun-darwin-arm64 --outfile bin/pbrain-darwin-arm64 src/cli.ts && bun build --compile --target=bun-linux-x64 --outfile bin/pbrain-linux-x64 src/cli.ts",
     "build:schema": "bash scripts/build-schema.sh",
-    "test": "bun test",
-    "test:e2e": "bun test test/e2e/"
+    "test": "scripts/check-jsonb-pattern.sh && bun test",
+    "test:e2e": "bun test test/e2e/",
+    "check:jsonb": "scripts/check-jsonb-pattern.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

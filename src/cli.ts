@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations', 'repair-jsonb']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -293,6 +293,11 @@ async function handleCliOnly(command: string, args: string[]) {
     // `pbrain init --migrate-only`.
     const { runApplyMigrations } = await import('./commands/apply-migrations.ts');
     await runApplyMigrations(args);
+    return;
+  }
+  if (command === 'repair-jsonb') {
+    const { runRepairJsonbCli } = await import('./commands/repair-jsonb.ts');
+    await runRepairJsonbCli(args);
     return;
   }
   if (command === 'doctor') {

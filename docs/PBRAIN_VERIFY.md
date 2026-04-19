@@ -183,6 +183,44 @@ system context. See `skills/setup/SKILL.md` Phase D.
 
 ---
 
+## 7. JSONB Frontmatter Integrity (v0.12.2)
+
+Postgres-backed brains created before v0.12.2 had double-encoded JSONB columns
+(`frontmatter->>'key'` returned NULL, GIN indexes were inert). `pbrain apply-migrations`
+runs `pbrain repair-jsonb` automatically via the `v0_12_2` orchestrator.
+Verify the repair succeeded.
+
+**Command:**
+
+```bash
+pbrain repair-jsonb --dry-run --json
+```
+
+**Expected:** `totalRepaired: 0` across all 5 columns (`pages.frontmatter`,
+`raw_data.data`, `ingest_log.pages_updated`, `files.metadata`,
+`page_versions.frontmatter`). A zero count means every row is properly-typed
+JSON objects, not string-encoded JSON.
+
+**If the count is > 0:** The repair didn't run or was interrupted. Re-run
+without `--dry-run`:
+
+```bash
+pbrain repair-jsonb
+```
+
+Idempotent. PGLite brains always report 0 (unaffected by the original bug).
+
+**Bonus check** — frontmatter-keyed queries actually resolve:
+
+```bash
+pbrain call list_pages '{"frontmatterKey": "type", "frontmatterValue": "person"}'
+```
+
+If this returns rows on a brain with person pages, the JSONB path is healthy.
+
+---
+
+
 ## Quick Verification (all checks in one pass)
 
 ```bash
@@ -203,7 +241,10 @@ pbrain embed --stale
 
 # 6. Auto-update
 pbrain check-update --json
+
+# 7. JSONB integrity (v0.12.2 — Postgres only, PGLite always 0)
+pbrain repair-jsonb --dry-run --json
 ```
 
-If all six return successfully, the installation is healthy. For the full
+If all seven return successfully, the installation is healthy. For the full
 end-to-end sync test (4c), push a real change and verify it appears in search.

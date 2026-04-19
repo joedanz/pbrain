@@ -17,8 +17,10 @@
  */
 
 import type { Migration } from './types.ts';
+import { v0_12_2 } from './v0_12_2.ts';
 
 export const migrations: Migration[] = [
+  v0_12_2,
 ];
 
 /** Look up a migration by exact version string. */
