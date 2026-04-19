@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -284,6 +284,15 @@ async function handleCliOnly(command: string, args: string[]) {
   if (command === 'report') {
     const { runReport } = await import('./commands/report.ts');
     await runReport(args);
+    return;
+  }
+  if (command === 'apply-migrations') {
+    // Does not need connectEngine — each phase (schema, smoke, host-rewrite)
+    // manages its own subprocess or file-layer access directly. Avoids
+    // connecting a second time when an orchestrator shells out to
+    // `pbrain init --migrate-only`.
+    const { runApplyMigrations } = await import('./commands/apply-migrations.ts');
+    await runApplyMigrations(args);
     return;
   }
   if (command === 'doctor') {
