@@ -716,7 +716,9 @@ describeE2E('E2E: Setup Journey', () => {
   afterAll(teardownDB);
 
   const cliCwd = join(import.meta.dir, '../..');
-  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
+  // HOME: isolated sandbox so `pbrain init`'s saveConfig() writes to a scratch
+  // ~/.pbrain/config.json instead of clobbering the developer's real one.
+  const cliEnv = () => ({ ...process.env, HOME: mkdtempSync(join(tmpdir(), 'pbrain-e2e-home-')), DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
 
   test('pbrain init --non-interactive connects and initializes', () => {
     const result = Bun.spawnSync({
@@ -976,7 +978,9 @@ describeE2E('E2E: Doctor Command', () => {
   afterAll(teardownDB);
 
   const cliCwd = join(import.meta.dir, '../..');
-  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
+  // HOME: isolated sandbox so `pbrain init`'s saveConfig() writes to a scratch
+  // ~/.pbrain/config.json instead of clobbering the developer's real one.
+  const cliEnv = () => ({ ...process.env, HOME: mkdtempSync(join(tmpdir(), 'pbrain-e2e-home-')), DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
 
   test('pbrain doctor exits 0 on healthy DB', () => {
     // Init first so config exists for CLI
@@ -1021,7 +1025,9 @@ describeE2E('E2E: Parallel Import', () => {
   afterAll(teardownDB);
 
   const cliCwd = join(import.meta.dir, '../..');
-  const cliEnv = () => ({ ...process.env, DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
+  // HOME: isolated sandbox so `pbrain init`'s saveConfig() writes to a scratch
+  // ~/.pbrain/config.json instead of clobbering the developer's real one.
+  const cliEnv = () => ({ ...process.env, HOME: mkdtempSync(join(tmpdir(), 'pbrain-e2e-home-')), DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_DATABASE_URL: process.env.DATABASE_URL!, PBRAIN_BRAIN_PATH: mkdtempSync(join(tmpdir(), 'pbrain-e2e-brain-')) });
 
   function initCli() {
     Bun.spawnSync({

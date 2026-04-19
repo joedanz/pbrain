@@ -104,6 +104,12 @@ CREATE TABLE IF NOT EXISTS timeline_entries (
 CREATE INDEX IF NOT EXISTS idx_timeline_page ON timeline_entries(page_id);
 CREATE INDEX IF NOT EXISTS idx_timeline_date ON timeline_entries(date);
 
+-- Dedup constraint: same (page, date, summary) treated as same event.
+-- Required by addTimelineEntriesBatch's `ON CONFLICT (page_id, date, summary)`.
+-- Mirrors upstream's fresh-install shape so the constraint is present without
+-- waiting for migration v9 to run.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_timeline_dedup ON timeline_entries(page_id, date, summary);
+
 -- ============================================================
 -- page_versions: snapshot history for compiled_truth
 -- ============================================================
