@@ -88,6 +88,28 @@ export function parseEmbedding(value: unknown): Float32Array | null {
   return null;
 }
 
+let _tryParseEmbeddingWarned = false;
+
+/**
+ * Availability-path sibling of parseEmbedding(). Returns null + warns once
+ * on any shape parseEmbedding would throw on. Use this on read/rescore paths
+ * where one corrupt row should degrade ranking, not kill the whole query.
+ * Use parseEmbedding() (throws) on ingest/migrate paths where silent skips
+ * would be data loss.
+ */
+export function tryParseEmbedding(value: unknown): Float32Array | null {
+  try {
+    return parseEmbedding(value);
+  } catch (err) {
+    if (!_tryParseEmbeddingWarned) {
+      _tryParseEmbeddingWarned = true;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`tryParseEmbedding: skipping corrupt embedding row (${msg}). Further warnings suppressed this session.`);
+    }
+    return null;
+  }
+}
+
 export function rowToChunk(row: Record<string, unknown>, includeEmbedding = false): Chunk {
   return {
     id: row.id as number,

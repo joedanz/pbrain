@@ -4,6 +4,156 @@ All notable changes to PBrain will be documented in this file.
 
 > **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[0.1.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
+<!-- GBRAIN_HISTORICAL_v0.12.3 -->
+## [0.12.3] - 2026-04-19
+
+## **Reliability wave: the pieces v0.12.2 didn't cover.**
+## **Sync stops hanging. Search timeouts stop leaking. `[[Wikilinks]]` are edges.**
+
+v0.12.2 shipped the data-correctness hotfix (JSONB double-encode, splitBody, `/wiki/` types, parseEmbedding). This wave lands the remaining reliability fixes from the same community review pass, plus a graph-layer feature a 2,100-page brain needed to stop bleeding edges. No schema changes. No migration. `gbrain upgrade` pulls it.
+
+### What was broken
+
+**Incremental sync deadlocked past 10 files.** `src/commands/sync.ts` wrapped the whole import in `engine.transaction`, and `importFromContent` also wrapped each file. PGLite's `_runExclusiveTransaction` is non-reentrant — the inner call parks on the mutex the outer call holds, forever. In practice: 3 files synced fine, 15 files hung in `ep_poll` until you killed the process. Bulk Minions jobs and citation-fixer dream-cycles regularly hit this. Discovered by @sunnnybala.
+
+**`statement_timeout` leaked across the postgres.js pool.** `searchKeyword` and `searchVector` bounded queries with `SET statement_timeout='8s'` + `finally SET 0`. But every tagged template picks an arbitrary pool connection, so the SET, the query, and the reset could land on three different sockets. The 8s cap stuck to whichever connection ran the SET, got returned to the pool, and the next unrelated caller inherited it. Long-running `embed --all` jobs and imports clipped silently. Fix by @garagon.
+
+**Obsidian `[[WikiLinks]]` were invisible to the auto-link post-hook.** `extractEntityRefs` only matched `[Name](people/slug)`. On a 2,100-page brain with wikilinks throughout, `put_page` extracted zero auto-links. `DIR_PATTERN` also missed domain-organized wiki roots (`entities`, `projects`, `tech`, `finance`, `personal`, `openclaw`). After the fix: 1,377 new typed edges on a single `extract --source db` pass. Discovered and fixed by @knee5.
+
+**Corrupt embedding rows broke every query that touched them.** `getEmbeddingsByChunkIds` on Supabase could return a pgvector string instead of a `Float32Array`. v0.12.2 fixed the normal path by normalizing inputs, but one genuinely bad row still threw and killed the ranking pass. Availability matters more than strictness on the read path.
+
+### What you can do now that you couldn't before
+
+- **Sync 100 files without hanging.** Per-file atomicity preserved, outer wrap removed. Regression test asserts `engine.transaction` is not called at the top level of `src/commands/sync.ts`. Contributed by @sunnnybala.
+- **Run a long `embed --all` on Supabase without strangling unrelated queries.** `searchKeyword` / `searchVector` use `sql.begin` + `SET LOCAL` so the timeout dies with the transaction. 5 regression tests in `test/postgres-engine.test.ts` pin the new shape. Contributed by @garagon.
+- **Write `[[people/balaji|Balaji Srinivasan]]` in a page and see a typed edge.** Same extractor, two syntaxes. Matches the filesystem walker — the db and fs sources now produce the same link graph from the same content. Contributed by @knee5.
+- **Find your under-connected pages.** `gbrain orphans` surfaces pages with zero inbound wikilinks, grouped by domain. `--json`, `--count`, and `--include-pseudo` flags. Also exposed as the `find_orphans` MCP operation so agents can run enrichment cycles without CLI glue. Contributed by @knee5.
+- **Degraded embedding rows skip+warn instead of throwing.** New `tryParseEmbedding()` sibling of `parseEmbedding()`: returns `null` on unknown input and warns once per process. Used on the search/rescore path. Migration and ingest paths still throw — data integrity there is non-negotiable.
+- **`gbrain doctor` tells you which brains still need repair.** Two new checks: `jsonb_integrity` scans the four v0.12.0 write sites and reports rows where `jsonb_typeof = 'string'`; `markdown_body_completeness` heuristically flags pages whose `compiled_truth` is <30% of raw source length when raw has multiple H2/H3 boundaries. Fix hint points at `gbrain repair-jsonb` and `gbrain sync --force`.
+
+### How to upgrade
+
+```bash
+gbrain upgrade
+```
+
+No migration, no schema change, no data touch. If you're on Postgres and haven't run `gbrain repair-jsonb` since v0.12.2, the v0.12.2 orchestrator still runs on upgrade. New `gbrain doctor` will tell you if anything still looks off.
+
+### Itemized changes
+
+**Sync deadlock fix (#132)**
+- `src/commands/sync.ts` — remove outer `engine.transaction` wrap; per-file atomicity preserved by `importFromContent`'s own wrap.
+- `test/sync.test.ts` — new regression guard asserting top-level `engine.transaction` is not called on > 10-file sync paths.
+- Contributed by @sunnnybala.
+
+**postgres-engine statement_timeout scoping (#158)**
+- `src/core/postgres-engine.ts` — `searchKeyword` and `searchVector` rewritten to `sql.begin(async (tx) => { await tx\`SET LOCAL statement_timeout = ...\`; ... })`. GUC dies with the transaction; pool reuse is safe.
+- `test/postgres-engine.test.ts` — 5 regression tests including a source-level guardrail grep against the production file (not a test fixture) asserting no bare `SET statement_timeout` outside `sql.begin`.
+- Contributed by @garagon.
+
+**Obsidian wikilinks + extended domain patterns (#187 slice)**
+- `src/core/link-extraction.ts` — `extractEntityRefs` matches both `[Name](people/slug)` and `[[people/slug|Name]]`. `DIR_PATTERN` extended with `entities`, `projects`, `tech`, `finance`, `personal`, `openclaw`.
+- Matches existing filesystem-walker behavior.
+- Contributed by @knee5.
+
+**`gbrain orphans` command (#187 slice)**
+- `src/commands/orphans.ts` — new command with text/JSON/count outputs and domain grouping.
+- `src/core/operations.ts` — `find_orphans` MCP operation.
+- `src/cli.ts` — `orphans` added to `CLI_ONLY`.
+- `test/orphans.test.ts` — 203 lines covering detection, filters, and all output modes.
+- Contributed by @knee5.
+
+**`tryParseEmbedding()` availability helper**
+- `src/core/utils.ts` — new `tryParseEmbedding(value)`: returns `null` on unknown input, warns once per process via a module-level flag.
+- `src/core/postgres-engine.ts` — `getEmbeddingsByChunkIds` uses `tryParseEmbedding` so one bad row degrades ranking instead of killing the query.
+- `test/utils.test.ts` — new cases for null-return and single-warn.
+- Hand-authored; codifies the split-by-call-site rule from the #97/#175 review.
+
+**Doctor detection checks**
+- `src/commands/doctor.ts` — `jsonb_integrity` scans `pages.frontmatter`, `raw_data.data`, `ingest_log.pages_updated`, `files.metadata` and reports `jsonb_typeof='string'` counts; `markdown_body_completeness` heuristic for ≥30% shrinkage vs raw source on multi-H2 pages.
+- `test/doctor.test.ts` — detection unit tests assert both checks exist and cover the four JSONB sites.
+- `test/e2e/jsonb-roundtrip.test.ts` — the regression test that should have caught the original v0.12.0 double-encode bug; round-trips all four JSONB write sites against real Postgres.
+- `docs/integrations/reliability-repair.md` — guide for v0.12.0 users: detect via `gbrain doctor`, repair via `gbrain repair-jsonb`.
+
+**No schema changes. No migration. No data touch.**
+
+## [0.12.2] - 2026-04-19
+
+## **Postgres frontmatter queries actually work now.**
+## **Wiki articles stop disappearing when you import them.**
+
+This is a data-correctness hotfix for the `v0.12.0`-and-earlier Postgres-backed brains. If you run gbrain on Postgres or Supabase, you've been losing data without knowing it. PGLite users were unaffected. Upgrade auto-repairs your existing rows. Lands on top of v0.12.1 (extract N+1 fix + migration timeout fix) — pull `gbrain upgrade` and you get both.
+
+### What was broken
+
+**Frontmatter columns were silently stored as quoted strings, not JSON.** Every `put_page` wrote `frontmatter` to Postgres via `${JSON.stringify(value)}::jsonb` — postgres.js v3 stringified again on the wire, so the column ended up holding `"\"{\\\"author\\\":\\\"garry\\\"}\""` instead of `{"author":"garry"}`. Every `frontmatter->>'key'` query returned NULL. GIN indexes on JSONB were inert. Same bug on `raw_data.data`, `ingest_log.pages_updated`, `files.metadata`, and `page_versions.frontmatter`. PGLite hid this entirely (different driver path) — which is exactly why it slipped past the existing test suite.
+
+**Wiki articles got truncated by 83% on import.** `splitBody` treated *any* standalone `---` line in body content as a timeline separator. Discovered by @knee5 migrating a 1,991-article wiki where a 23,887-byte article landed in the DB as 593 bytes (4,856 of 6,680 wikilinks lost).
+
+**`/wiki/` subdirectories silently typed as `concept`.** Articles under `/wiki/analysis/`, `/wiki/guides/`, `/wiki/hardware/`, `/wiki/architecture/`, and `/writing/` defaulted to `type='concept'` — type-filtered queries lost everything in those buckets.
+
+**pgvector embeddings sometimes returned as strings → NaN search scores.** Discovered by @leonardsellem on Supabase, where `getEmbeddingsByChunkIds` returned `"[0.1,0.2,…]"` instead of `Float32Array`, producing `[NaN]` query scores.
+
+### What you can do now that you couldn't before
+
+- **`frontmatter->>'author'` returns `garry`, not NULL.** GIN indexes work. Postgres queries by frontmatter key actually retrieve pages.
+- **Wiki articles round-trip intact.** Markdown horizontal rules in body text are horizontal rules, not timeline separators.
+- **Recover already-truncated pages with `gbrain sync --full`.** Re-import from your source-of-truth markdown rebuilds `compiled_truth` correctly.
+- **Search scores stop going `NaN` on Supabase.** Cosine rescoring sees real `Float32Array` embeddings.
+- **Type-filtered queries find your wiki articles.** `/wiki/analysis/` becomes type `analysis`, `/writing/` becomes `writing`, etc.
+
+### How to upgrade
+
+```bash
+gbrain upgrade
+```
+
+The `v0.12.2` orchestrator runs automatically: applies any schema changes, then `gbrain repair-jsonb` rewrites every double-encoded row in place using `jsonb_typeof = 'string'` as the guard. Idempotent — re-running is a no-op. PGLite engines short-circuit cleanly. Batches well on large brains.
+
+If you want to recover pages that were truncated by the splitBody bug:
+
+```bash
+gbrain sync --full
+```
+
+That re-imports every page from disk, so the new `splitBody` rebuilds the full `compiled_truth` correctly.
+
+### What's new under the hood
+
+- **`gbrain repair-jsonb`** — standalone command for the JSONB fix. Run it manually if needed; the migration runs it automatically. `--dry-run` shows what would be repaired without touching data. `--json` for scripting.
+- **CI grep guard** at `scripts/check-jsonb-pattern.sh` — fails the build if anyone reintroduces the `${JSON.stringify(x)}::jsonb` interpolation pattern. Wired into `bun test` so it runs on every CI invocation.
+- **New E2E regression test** at `test/e2e/postgres-jsonb.test.ts` — round-trips all four JSONB write sites against real Postgres and asserts `jsonb_typeof = 'object'` plus `->>` returns the expected scalar. The test that should have caught the original bug.
+- **Wikilink extraction** — `[[page]]` and `[[page|Display Text]]` syntaxes now extracted alongside standard `[text](page.md)` markdown links. Includes ancestor-search resolution for wiki KBs where authors omit one or more leading `../`.
+
+### Migration scope
+
+The repair touches five JSONB columns:
+- `pages.frontmatter`
+- `raw_data.data`
+- `ingest_log.pages_updated`
+- `files.metadata`
+- `page_versions.frontmatter` (downstream of `pages.frontmatter` via INSERT...SELECT)
+
+Other JSONB columns in the schema (`minion_jobs.{data,result,progress,stacktrace}`, `minion_inbox.payload`) were always written via the parameterized `$N::jsonb` form so they were never affected.
+
+### Behavior changes (read this if you upgrade)
+
+`splitBody` now requires an explicit sentinel for timeline content. Recognized markers (in priority order):
+1. `<!-- timeline -->` (preferred — what `serializeMarkdown` emits)
+2. `--- timeline ---` (decorated separator)
+3. `---` directly before `## Timeline` or `## History` heading (backward-compat fallback)
+
+If you intentionally used a plain `---` to mark your timeline section in source markdown, add `<!-- timeline -->` above it manually. The fallback covers the common case (`---` followed by `## Timeline`).
+
+### Attribution
+
+Built from community PRs #187 (@knee5) and #175 (@leonardsellem). The original PRs reported the bugs and proposed the fixes; this release re-implements them on top of the v0.12.0 knowledge graph release with expanded migration scope, schema audit (all 5 affected columns vs the 3 originally reported), engine-aware behavior, CI grep guard, and an E2E regression test that should have caught this in the first place. Codex outside-voice review during planning surfaced the missed `page_versions.frontmatter` propagation path and the noisy-truncated-diagnostic anti-pattern that was dropped from this scope. Thanks for finding the bugs and providing the recovery path — both PRs left work to do but the foundation was right.
+
+Co-Authored-By: @knee5 (PR #187 — splitBody, inferType wiki, JSONB triple-fix)
+Co-Authored-By: @leonardsellem (PR #175 — parseEmbedding, getEmbeddingsByChunkIds fix)
+
+<!-- /GBRAIN_HISTORICAL_v0.12.3 -->
+
 <!-- GBRAIN_HISTORICAL_v0.12.1 -->
 ## [0.12.1] - 2026-04-19
 
@@ -78,6 +228,7 @@ Pulling forward security, data-correctness, and reliability fixes that landed in
 - **Migrations runner infrastructure (subset of upstream #130).** Adds `pbrain apply-migrations` and the `src/commands/migrations/` framework. The runner framework is in place; the actual orchestrators (Minions adoption, knowledge-graph auto-wire) are deferred to Wave-2. Registry begins empty and is populated by the JSONB repair entry below.
 - **Data correctness — JSONB double-encode + splitBody + parseEmbedding (from upstream #196).** Fixes the `${JSON.stringify(x)}::jsonb` interpolation bug that silently stored Postgres JSONB columns as quoted strings (broke every `frontmatter->>'key'` query on Postgres-backed brains — PGLite was unaffected). Fixes the `splitBody` greedy `---` match that truncated wiki articles by up to 83%. Fixes `parseEmbedding` returning strings instead of `Float32Array` on Supabase, yielding NaN search scores. Adds `pbrain repair-jsonb`, the `scripts/check-jsonb-pattern.sh` CI grep guard, and an E2E regression test. Original fixes contributed by @knee5 (#187) and @leonardsellem (#175). See the historical `[0.12.2]` entry below for the full breakdown.
 - **Perf — extract N+1 hang fix (from upstream #198).** New `addLinksBatch` and `addTimelineEntriesBatch` engine methods that use a single `INSERT ... SELECT FROM unnest(...) ... ON CONFLICT DO NOTHING RETURNING 1` query regardless of batch size. File-source `pbrain extract` now flushes candidates 100 at a time instead of issuing one write per link/entry. Mirrors the same pattern across PGLite and Postgres engines. Original fix was bundled with the Minions work by upstream; here it's isolated to the batch-insert API surface so it stands independent of the knowledge-graph layer. See the historical `[0.12.1]` entry below for the full breakdown.
+- **Reliability wave (from upstream #216).** Sync deadlock fix on PGLite's non-reentrant transaction mutex (10+ files hung; now cleanly processes bulk syncs). `statement_timeout` scoped to the search transaction via `sql.begin` + `SET LOCAL` so it can't leak onto pooled connections and clip unrelated `embed --all` jobs. `tryParseEmbedding` in search/rescore paths skips+warns on one corrupt row instead of killing the query. New `pbrain orphans` command (and `find_orphans` MCP op) for content-enrichment cycles. Two new `doctor` checks (`jsonb_integrity`, `markdown_body_completeness`) surface v0.12.0-era residual data issues with actionable fix hints. Contributed by @sunnnybala and @garagon (upstream community). See the historical `[0.12.3]` entry above for the full breakdown.
 
 ## [0.12.2] - 2026-04-19
 

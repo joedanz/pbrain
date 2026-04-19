@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validateSlug, contentHash, parseEmbedding, rowToPage, rowToChunk, rowToSearchResult } from '../src/core/utils.ts';
+import { validateSlug, contentHash, parseEmbedding, tryParseEmbedding, rowToPage, rowToChunk, rowToSearchResult } from '../src/core/utils.ts';
 
 describe('validateSlug', () => {
   test('accepts valid slugs', () => {
@@ -143,6 +143,33 @@ describe('parseEmbedding', () => {
   test('throws on vector-like string with non-numeric content (no silent NaN)', () => {
     expect(() => parseEmbedding('[abc, def]')).toThrow();
     expect(() => parseEmbedding('[1, NaN, 3]')).toThrow();
+  });
+});
+
+describe('tryParseEmbedding', () => {
+  test('returns null on corrupt embedding instead of throwing', () => {
+    expect(tryParseEmbedding('[0.1,NaN,0.3]')).toBeNull();
+    expect(tryParseEmbedding(['bad' as unknown as number, 1])).toBeNull();
+  });
+
+  test('delegates happy path to parseEmbedding', () => {
+    const out = tryParseEmbedding('[0.1, 0.2]');
+    expect(out).toBeInstanceOf(Float32Array);
+    expect(out?.length).toBe(2);
+  });
+
+  test('warns once per session on corrupt rows', () => {
+    const orig = console.warn;
+    let warnCount = 0;
+    console.warn = () => { warnCount++; };
+    try {
+      tryParseEmbedding('[NaN]');
+      tryParseEmbedding('[NaN]');
+      tryParseEmbedding('[NaN]');
+    } finally {
+      console.warn = orig;
+    }
+    expect(warnCount).toBeLessThanOrEqual(1);
   });
 });
 

@@ -9,7 +9,7 @@ cron scheduling, reports, identity, and access control.
 
 ## Architecture
 
-Contract-first: `src/core/operations.ts` defines ~30 shared operations. CLI and MCP
+Contract-first: `src/core/operations.ts` defines ~30 shared operations (adds `find_orphans` from the upstream v0.12.3 reliability wave). CLI and MCP
 server are both generated from this single source. Engine factory (`src/core/engine-factory.ts`)
 dynamically imports the configured engine (`'pglite'` or `'postgres'`). Skills are fat
 markdown files (tool-agnostic, work with the CLI and MCP server contexts).
@@ -27,8 +27,8 @@ strict behavior when unset.
 - `src/core/engine-factory.ts` — Engine factory with dynamic imports (`'pglite'` | `'postgres'`)
 - `src/core/pglite-engine.ts` — PGLite (embedded Postgres 17.5 via WASM) implementation. `addLinksBatch` / `addTimelineEntriesBatch` use multi-row `unnest()` with manual `$N` placeholders.
 - `src/core/pglite-schema.ts` — PGLite-specific DDL (pgvector, pg_trgm, triggers)
-- `src/core/postgres-engine.ts` — Postgres + pgvector implementation (Supabase / self-hosted). `addLinksBatch` / `addTimelineEntriesBatch` use `INSERT ... SELECT FROM unnest($1::text[], ...) JOIN pages ON CONFLICT DO NOTHING RETURNING 1` — 4-5 array params regardless of batch size, sidesteps the 65535-parameter cap.
-- `src/core/utils.ts` — Shared SQL utilities extracted from postgres-engine.ts
+- `src/core/postgres-engine.ts` — Postgres + pgvector implementation (Supabase / self-hosted). `addLinksBatch` / `addTimelineEntriesBatch` use `INSERT ... SELECT FROM unnest($1::text[], ...) JOIN pages ON CONFLICT DO NOTHING RETURNING 1` — 4-5 array params regardless of batch size, sidesteps the 65535-parameter cap. As of v0.12.3, `searchKeyword` / `searchVector` scope `statement_timeout` via `sql.begin` + `SET LOCAL` so the GUC dies with the transaction instead of leaking across the pooled postgres.js connection (contributed by @garagon). `getEmbeddingsByChunkIds` uses `tryParseEmbedding` so one corrupt row skips+warns instead of killing the query.
+- `src/core/utils.ts` — Shared SQL utilities extracted from postgres-engine.ts. Exports `parseEmbedding(value)` (throws on unknown input, used by migration + ingest paths where data integrity matters) and as of v0.12.3 `tryParseEmbedding(value)` (returns `null` + warns once per process, used by search/rescore paths where availability matters more than strictness).
 - `src/core/db.ts` — Connection management, schema initialization
 - `src/commands/migrate-engine.ts` — Bidirectional engine migration (`pbrain migrate --to supabase/pglite`)
 - `src/core/import-file.ts` — importFromFile + importFromContent (chunk + embed + tags)
@@ -57,6 +57,8 @@ strict behavior when unset.
 - `src/commands/apply-migrations.ts` — `pbrain apply-migrations [--list] [--dry-run] [--migration vX.Y.Z]`: runs pending migration orchestrators from the TS registry.
 - `src/commands/migrations/` — TS migration registry (compiled into the binary; no filesystem walk of `skills/migrations/*.md` needed at runtime). `index.ts` lists migrations in semver order. `v0_12_2.ts` = JSONB double-encode repair orchestrator (4 phases: schema → repair-jsonb → verify → record). All orchestrators are idempotent and resumable from `partial` status. Upstream's v0.11.0 (Minions) and v0.12.0 (knowledge-graph) orchestrators are intentionally NOT registered in this fork.
 - `src/commands/repair-jsonb.ts` — `pbrain repair-jsonb [--dry-run] [--json]`: rewrites `jsonb_typeof='string'` rows in place across 5 affected columns (pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata, page_versions.frontmatter). Fixes v0.12.0 double-encode bug on Postgres; PGLite no-ops. Idempotent.
+- `src/commands/orphans.ts` — `pbrain orphans [--json] [--count] [--include-pseudo]`: surfaces pages with zero inbound wikilinks, grouped by domain. Auto-generated/raw/pseudo pages filtered by default. Also exposed as `find_orphans` MCP operation. Integrated from upstream's v0.12.3 reliability wave (contributed by @knee5).
+- `src/commands/doctor.ts` — `pbrain doctor [--json] [--fast] [--fix]`: health checks. v0.12.3 adds two reliability detection checks: `jsonb_integrity` (scans pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata for `jsonb_typeof='string'` rows left over from v0.12.0) and `markdown_body_completeness` (flags pages whose compiled_truth is <30% of raw source when raw has multiple H2/H3 boundaries). Fix hints point at `pbrain repair-jsonb` and `pbrain sync --force`.
 - `src/core/markdown.ts` — Frontmatter parsing + body splitter. `splitBody` requires an explicit timeline sentinel (`<!-- timeline -->`, `--- timeline ---`, or `---` immediately before `## Timeline`/`## History`). Plain `---` in body text is a markdown horizontal rule, not a separator. `inferType` auto-types `/wiki/analysis/` → analysis, `/wiki/guides/` → guide, `/wiki/hardware/` → hardware, `/wiki/architecture/` → architecture, `/writing/` → writing (plus the existing people/companies/deals/etc heuristics).
 - `scripts/check-jsonb-pattern.sh` — CI grep guard. Fails the build if anyone reintroduces the `${JSON.stringify(x)}::jsonb` interpolation pattern (which postgres.js v3 double-encodes). Wired into `bun test`.
 - `src/core/schema-embedded.ts` — AUTO-GENERATED from schema.sql (run `bun run build:schema`)
@@ -118,23 +120,27 @@ Key commands added in v0.7:
 Key commands added in v0.12.2:
 - `gbrain repair-jsonb [--dry-run] [--json]` — repair double-encoded JSONB rows left over from v0.12.0-and-earlier Postgres writes. Idempotent; PGLite no-ops. The `v0_12_2` migration runs this automatically on `gbrain upgrade`.
 
+Key commands added in v0.12.3:
+- `gbrain orphans [--json] [--count] [--include-pseudo]` — surface pages with zero inbound wikilinks, grouped by domain. Auto-generated/raw/pseudo pages filtered by default. Also exposed as `find_orphans` MCP operation. The natural consumer of the v0.12.0 knowledge graph layer: once edges are captured, find the gaps.
+- `gbrain doctor` gains two new reliability detection checks: `jsonb_integrity` (v0.12.0 Postgres double-encode damage) and `markdown_body_completeness` (pages truncated by the old splitBody bug). Detection only; fix hints point at `gbrain repair-jsonb` and `gbrain sync --force`.
+
 ## Testing
 
 `bun test` runs all tests. Unit tests run
 without a database. E2E tests skip gracefully when `DATABASE_URL` is not set.
 
 Unit tests: `test/markdown.test.ts` (frontmatter parsing), `test/chunkers/recursive.test.ts`
-(chunking), `test/sync.test.ts` (sync logic), `test/parity.test.ts` (operations contract
+(chunking), `test/parity.test.ts` (operations contract
 parity), `test/cli.test.ts` (CLI structure), `test/config.test.ts` (config redaction),
 `test/files.test.ts` (MIME/hash), `test/import-file.test.ts` (import pipeline),
-`test/upgrade.test.ts` (schema migrations), `test/doctor.test.ts` (doctor command),
+`test/upgrade.test.ts` (schema migrations),
 `test/file-migration.test.ts` (file migration), `test/file-resolver.test.ts` (file resolution),
 `test/import-resume.test.ts` (import checkpoints), `test/migrate.test.ts` (migration; v8/v9 helper-btree-index SQL structural assertions + 1000-row wall-clock fixtures that guard the O(n²)→O(n log n) fix),
 `test/setup-branching.test.ts` (setup flow), `test/slug-validation.test.ts` (slug validation),
 `test/storage.test.ts` (storage backends), `test/supabase-admin.test.ts` (Supabase admin),
 `test/yaml-lite.test.ts` (YAML parsing), `test/check-update.test.ts` (version check + update CLI),
 `test/pglite-engine.test.ts` (PGLite engine, all 40 BrainEngine methods including 11 cases for `addLinksBatch` / `addTimelineEntriesBatch`: empty batch, missing optionals, within-batch dedup via ON CONFLICT, missing-slug rows dropped by JOIN, half-existing batch, batch of 100),
-`test/utils.test.ts` (shared SQL utilities), `test/engine-factory.test.ts` (engine factory + dynamic imports),
+`test/engine-factory.test.ts` (engine factory + dynamic imports),
 `test/integrations.test.ts` (recipe parsing, CLI routing, recipe validation),
 `test/publish.test.ts` (content stripping, encryption, password generation, HTML output),
 `test/backlinks.test.ts` (entity extraction, back-link detection, timeline entry generation),
@@ -160,12 +166,18 @@ parity), `test/cli.test.ts` (CLI structure), `test/config.test.ts` (config redac
 `test/search-limit.test.ts` (clampSearchLimit default/cap behavior across list_pages and get_ingest_log),
 `test/repair-jsonb.test.ts` (v0.12.2 JSONB repair: TARGETS list, idempotency, engine-awareness),
 `test/migrations-v0_12_2.test.ts` (v0.12.2 orchestrator phases: schema → repair → verify → record),
-`test/markdown.test.ts` (splitBody sentinel precedence, horizontal-rule preservation, inferType wiki subtypes).
+`test/markdown.test.ts` (splitBody sentinel precedence, horizontal-rule preservation, inferType wiki subtypes),
+`test/orphans.test.ts` (v0.12.3 orphans command: detection, pseudo filtering, text/json/count outputs, MCP op),
+`test/postgres-engine.test.ts` (v0.12.3 statement_timeout scoping: `sql.begin` + `SET LOCAL` shape, source-level grep guardrail against reintroduced bare `SET statement_timeout`),
+`test/sync.test.ts` (sync logic + v0.12.3 regression guard asserting top-level `engine.transaction` is not called),
+`test/doctor.test.ts` (doctor command + v0.12.3 assertions that `jsonb_integrity` scans the four v0.12.0 write sites and `markdown_body_completeness` is present),
+`test/utils.test.ts` (shared SQL utilities + `tryParseEmbedding` null-return and single-warn semantics).
 
 E2E tests (`test/e2e/`): Run against real Postgres+pgvector. Require `DATABASE_URL`.
 - `bun run test:e2e` runs Tier 1 (mechanical, all operations, no API keys). Includes 9 dedicated cases for the postgres-engine `addLinksBatch` / `addTimelineEntriesBatch` bind path — postgres-js's `unnest()` binding is structurally different from PGLite's and gets its own coverage.
 - `test/e2e/search-quality.test.ts` runs search quality E2E against PGLite (no API keys, in-memory)
 - `test/e2e/postgres-jsonb.test.ts` — v0.12.2 regression test. Round-trips all 5 JSONB write sites (pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata, page_versions.frontmatter) against real Postgres and asserts `jsonb_typeof='object'` plus `->>'key'` returns the expected scalar. The test that should have caught the original double-encode bug.
+- `test/e2e/jsonb-roundtrip.test.ts` — v0.12.3 companion regression against the 4 doctor-scanned JSONB sites. Assertion-level overlap with `postgres-jsonb.test.ts` is intentional defense-in-depth: if doctor's scan surface ever drifts from the actual write surface, one of these tests catches it.
 - `test/e2e/upgrade.test.ts` runs check-update E2E against real GitHub API (network required)
 - Tier 2 (`skills.test.ts`) requires OpenClaw + API keys, runs nightly in CI
 - If `.env.testing` doesn't exist in this directory, check sibling worktrees for one:
