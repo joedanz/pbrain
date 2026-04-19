@@ -78,6 +78,13 @@ bun run src/commands/auth.ts test \
 All 30 PBrain operations are available remotely, including `sync_brain` and
 `file_upload` (no timeout limits with self-hosted server).
 
+**Security note on `file_upload`:** remote MCP callers are confined to the working
+directory where `pbrain serve` was launched. Symlinks, `..` traversal, and absolute
+paths outside cwd are rejected. Page slugs and filenames are allowlist-validated
+(alphanumeric + hyphens; no control chars, RTL overrides, or backslashes). Local
+CLI callers (`pbrain file upload ...`) keep unrestricted filesystem access since
+the user owns the machine.
+
 ## Deployment Options
 
 See [ALTERNATIVES.md](ALTERNATIVES.md) for a comparison of ngrok, Tailscale
