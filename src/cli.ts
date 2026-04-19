@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations', 'repair-jsonb', 'orphans']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -145,6 +145,9 @@ function makeContext(engine: BrainEngine, params: Record<string, unknown>): Oper
     config: loadConfig() || { engine: 'postgres' },
     logger: { info: console.log, warn: console.warn, error: console.error },
     dryRun: (params.dry_run as boolean) || false,
+    // Local CLI invocation — the user owns the machine; do not apply remote-caller
+    // confinement (e.g., cwd-locked file_upload).
+    remote: false,
   };
 }
 
@@ -281,6 +284,20 @@ async function handleCliOnly(command: string, args: string[]) {
   if (command === 'report') {
     const { runReport } = await import('./commands/report.ts');
     await runReport(args);
+    return;
+  }
+  if (command === 'apply-migrations') {
+    // Does not need connectEngine — each phase (schema, smoke, host-rewrite)
+    // manages its own subprocess or file-layer access directly. Avoids
+    // connecting a second time when an orchestrator shells out to
+    // `pbrain init --migrate-only`.
+    const { runApplyMigrations } = await import('./commands/apply-migrations.ts');
+    await runApplyMigrations(args);
+    return;
+  }
+  if (command === 'repair-jsonb') {
+    const { runRepairJsonbCli } = await import('./commands/repair-jsonb.ts');
+    await runRepairJsonbCli(args);
     return;
   }
   if (command === 'doctor') {
@@ -428,6 +445,11 @@ async function handleCliOnly(command: string, args: string[]) {
         }
         break;
       }
+      case 'orphans': {
+        const { runOrphans } = await import('./commands/orphans.ts');
+        await runOrphans(engine, args);
+        break;
+      }
     }
   } finally {
     if (command !== 'serve') await engine.disconnect();
@@ -532,6 +554,7 @@ TOOLS
   publish <page.md> [--password]     Shareable HTML (strips private data, optional AES-256)
   check-backlinks <check|fix> [dir]  Find/fix missing back-links across brain
   lint <dir|file> [--fix]            Catch LLM artifacts, placeholder dates, bad frontmatter
+  orphans [--json] [--count]         Find pages with no inbound wikilinks
   report --type <name> --content ... Save timestamped report to brain/reports/
 
 ADMIN

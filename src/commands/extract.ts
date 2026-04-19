@@ -9,8 +9,16 @@
 
 import { readFileSync, readdirSync, lstatSync, existsSync } from 'fs';
 import { join, relative, dirname } from 'path';
-import type { BrainEngine } from '../core/engine.ts';
+import type { BrainEngine, LinkBatchInput, TimelineBatchInput } from '../core/engine.ts';
+import type { PageType } from '../core/types.ts';
 import { parseMarkdown } from '../core/markdown.ts';
+
+// Batch size for addLinksBatch / addTimelineEntriesBatch.
+// Postgres bind-parameter limit is 65535. Links use 4 cols/row → 16K hard ceiling;
+// timeline uses 5 cols/row → 13K hard ceiling. 100 is conservative on round-trip
+// count but safe at any future schema width and keeps per-batch error blast radius
+// small (a malformed row aborts at most 100, not thousands).
+const BATCH_SIZE = 100;
 
 // --- Types ---
 
@@ -58,17 +66,70 @@ export function walkMarkdownFiles(dir: string): { path: string; relPath: string 
 
 // --- Link extraction ---
 
-/** Extract markdown links to .md files (relative paths only) */
+/**
+ * Extract markdown links to .md files (relative paths only).
+ *
+ * Handles two syntaxes:
+ *   1. Standard markdown:  [text](relative/path.md)
+ *   2. Wikilinks:          [[relative/path]] or [[relative/path|Display Text]]
+ *
+ * Both are resolved relative to the file that contains them. External URLs
+ * (containing ://) are always skipped. For wikilinks, the .md suffix is added
+ * if absent and section anchors (#heading) are stripped.
+ */
 export function extractMarkdownLinks(content: string): { name: string; relTarget: string }[] {
   const results: { name: string; relTarget: string }[] = [];
-  const pattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
+
+  const mdPattern = /\[([^\]]+)\]\(([^)]+\.md)\)/g;
   let match;
-  while ((match = pattern.exec(content)) !== null) {
+  while ((match = mdPattern.exec(content)) !== null) {
     const target = match[2];
-    if (target.includes('://')) continue; // skip external URLs
+    if (target.includes('://')) continue;
     results.push({ name: match[1], relTarget: target });
   }
+
+  const wikiPattern = /\[\[([^|\]]+?)(?:\|[^\]]*?)?\]\]/g;
+  while ((match = wikiPattern.exec(content)) !== null) {
+    const rawPath = match[1].trim();
+    if (rawPath.includes('://')) continue;
+    const hashIdx = rawPath.indexOf('#');
+    const pagePath = hashIdx >= 0 ? rawPath.slice(0, hashIdx) : rawPath;
+    if (!pagePath) continue;
+    const relTarget = pagePath.endsWith('.md') ? pagePath : pagePath + '.md';
+    const pipeIdx = match[0].indexOf('|');
+    const displayName = pipeIdx >= 0 ? match[0].slice(pipeIdx + 1, -2).trim() : rawPath;
+    results.push({ name: displayName, relTarget });
+  }
+
   return results;
+}
+
+/**
+ * Resolve a wikilink target to a canonical slug, given the directory of the
+ * containing page and the set of all known slugs in the brain.
+ *
+ * Wiki KBs often use inconsistent relative depths. Authors omit one or more
+ * leading `../` because they think in "wiki-root-relative" terms. Resolution
+ * order (first match wins):
+ *   1. Standard `join(fileDir, relTarget)` — exact relative path as written
+ *   2. Ancestor search — strip leading path components from fileDir, retry
+ *
+ * Returns null when no matching slug is found (dangling link).
+ */
+export function resolveSlug(fileDir: string, relTarget: string, allSlugs: Set<string>): string | null {
+  const targetNoExt = relTarget.endsWith('.md') ? relTarget.slice(0, -3) : relTarget;
+
+  const s1 = join(fileDir, targetNoExt);
+  if (allSlugs.has(s1)) return s1;
+
+  const parts = fileDir.split('/').filter(Boolean);
+  for (let strip = 1; strip <= parts.length; strip++) {
+    const ancestor = parts.slice(0, parts.length - strip).join('/');
+    const candidate = ancestor ? join(ancestor, targetNoExt) : targetNoExt;
+    if (allSlugs.has(candidate)) return candidate;
+  }
+
+  return null;
 }
 
 /** Infer link type from directory structure */
@@ -128,8 +189,8 @@ export function extractLinksFromFile(
   const fm = parseFrontmatterFromContent(content, relPath);
 
   for (const { name, relTarget } of extractMarkdownLinks(content)) {
-    const resolved = join(fileDir, relTarget).replace('.md', '');
-    if (allSlugs.has(resolved)) {
+    const resolved = resolveSlug(fileDir, relTarget, allSlugs);
+    if (resolved !== null) {
       links.push({
         from_slug: slug, to_slug: resolved,
         link_type: inferLinkType(fileDir, dirname(resolved), fm),
@@ -217,34 +278,42 @@ async function extractLinksFromDir(
   const files = walkMarkdownFiles(brainDir);
   const allSlugs = new Set(files.map(f => f.relPath.replace('.md', '')));
 
-  // Load existing links for O(1) dedup
-  const existing = new Set<string>();
-  try {
-    const pages = await engine.listPages({ limit: 100000 });
-    for (const page of pages) {
-      for (const link of await engine.getLinks(page.slug)) {
-        existing.add(`${link.from_slug}::${link.to_slug}`);
-      }
-    }
-  } catch { /* fresh brain */ }
+  // Dedup in dry-run only — DB enforces uniqueness via ON CONFLICT in batch writes.
+  // Without this, the same link extracted from N files would print N times in --dry-run.
+  const dryRunSeen = dryRun ? new Set<string>() : null;
 
   let created = 0;
+  const batch: LinkBatchInput[] = [];
+  async function flush() {
+    if (batch.length === 0) return;
+    try {
+      created += await engine.addLinksBatch(batch);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (jsonMode) {
+        process.stderr.write(JSON.stringify({ event: 'batch_error', size: batch.length, error: msg }) + '\n');
+      } else {
+        console.error(`  batch error (${batch.length} link rows lost): ${msg}`);
+      }
+    } finally {
+      batch.length = 0;
+    }
+  }
+
   for (let i = 0; i < files.length; i++) {
     try {
       const content = readFileSync(files[i].path, 'utf-8');
       const links = extractLinksFromFile(content, files[i].relPath, allSlugs);
       for (const link of links) {
-        const key = `${link.from_slug}::${link.to_slug}`;
-        if (existing.has(key)) continue;
-        existing.add(key);
-        if (dryRun) {
+        if (dryRunSeen) {
+          const key = `${link.from_slug}::${link.to_slug}::${link.link_type}`;
+          if (dryRunSeen.has(key)) continue;
+          dryRunSeen.add(key);
           if (!jsonMode) console.log(`  ${link.from_slug} → ${link.to_slug} (${link.link_type})`);
           created++;
         } else {
-          try {
-            await engine.addLink(link.from_slug, link.to_slug, link.context, link.link_type);
-            created++;
-          } catch { /* UNIQUE or page not found */ }
+          batch.push(link);
+          if (batch.length >= BATCH_SIZE) await flush();
         }
       }
     } catch { /* skip unreadable */ }
@@ -252,6 +321,7 @@ async function extractLinksFromDir(
       process.stderr.write(JSON.stringify({ event: 'progress', phase: 'extracting_links', done: i + 1, total: files.length }) + '\n');
     }
   }
+  await flush();
 
   if (!jsonMode) {
     const label = dryRun ? '(dry run) would create' : 'created';
@@ -265,34 +335,41 @@ async function extractTimelineFromDir(
 ): Promise<{ created: number; pages: number }> {
   const files = walkMarkdownFiles(brainDir);
 
-  // Load existing timeline entries for O(1) dedup
-  const existing = new Set<string>();
-  try {
-    const pages = await engine.listPages({ limit: 100000 });
-    for (const page of pages) {
-      for (const entry of await engine.getTimeline(page.slug)) {
-        existing.add(`${page.slug}::${entry.date}::${entry.summary}`);
-      }
-    }
-  } catch { /* fresh brain */ }
+  // Dedup in dry-run only — DB enforces uniqueness via ON CONFLICT in batch writes.
+  const dryRunSeen = dryRun ? new Set<string>() : null;
 
   let created = 0;
+  const batch: TimelineBatchInput[] = [];
+  async function flush() {
+    if (batch.length === 0) return;
+    try {
+      created += await engine.addTimelineEntriesBatch(batch);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (jsonMode) {
+        process.stderr.write(JSON.stringify({ event: 'batch_error', size: batch.length, error: msg }) + '\n');
+      } else {
+        console.error(`  batch error (${batch.length} timeline rows lost): ${msg}`);
+      }
+    } finally {
+      batch.length = 0;
+    }
+  }
+
   for (let i = 0; i < files.length; i++) {
     try {
       const content = readFileSync(files[i].path, 'utf-8');
       const slug = files[i].relPath.replace('.md', '');
       for (const entry of extractTimelineFromContent(content, slug)) {
-        const key = `${entry.slug}::${entry.date}::${entry.summary}`;
-        if (existing.has(key)) continue;
-        existing.add(key);
-        if (dryRun) {
+        if (dryRunSeen) {
+          const key = `${entry.slug}::${entry.date}::${entry.summary}`;
+          if (dryRunSeen.has(key)) continue;
+          dryRunSeen.add(key);
           if (!jsonMode) console.log(`  ${entry.slug}: ${entry.date} — ${entry.summary}`);
           created++;
         } else {
-          try {
-            await engine.addTimelineEntry(entry.slug, { date: entry.date, source: entry.source, summary: entry.summary, detail: entry.detail });
-            created++;
-          } catch { /* page not in DB or constraint */ }
+          batch.push({ slug: entry.slug, date: entry.date, source: entry.source, summary: entry.summary, detail: entry.detail });
+          if (batch.length >= BATCH_SIZE) await flush();
         }
       }
     } catch { /* skip unreadable */ }
@@ -300,6 +377,7 @@ async function extractTimelineFromDir(
       process.stderr.write(JSON.stringify({ event: 'progress', phase: 'extracting_timeline', done: i + 1, total: files.length }) + '\n');
     }
   }
+  await flush();
 
   if (!jsonMode) {
     const label = dryRun ? '(dry run) would create' : 'created';

@@ -6,7 +6,7 @@ import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-import { loadConfig, saveConfig, type PBrainConfig } from '../core/config.ts';
+import { loadConfig, saveConfig, toEngineConfig, type PBrainConfig } from '../core/config.ts';
 import { createEngine } from '../core/engine-factory.ts';
 import { detectClients } from '../core/skill-installer.ts';
 
@@ -14,6 +14,7 @@ export async function runInit(args: string[]) {
   const isSupabase = args.includes('--supabase');
   const isPGLite = args.includes('--pglite');
   const isNonInteractive = args.includes('--non-interactive');
+  const isMigrateOnly = args.includes('--migrate-only');
   const jsonOutput = args.includes('--json');
   const urlIndex = args.indexOf('--url');
   const manualUrl = urlIndex !== -1 ? args[urlIndex + 1] : null;
@@ -26,6 +27,14 @@ export async function runInit(args: string[]) {
     brainPathIndex !== -1
       ? args[brainPathIndex + 1]
       : process.env.PBRAIN_BRAIN_PATH || null;
+
+  // Schema-only path: apply initSchema against the already-configured engine
+  // without ever calling saveConfig. Used by apply-migrations and postinstall
+  // hooks. Bare `pbrain init` defaults to PGLite and could overwrite an
+  // existing Postgres config — this branch must never take that path.
+  if (isMigrateOnly) {
+    return initMigrateOnly({ jsonOutput });
+  }
 
   await maybeMigrateGBrainConfigDir({ isNonInteractive, jsonOutput });
   const existingConfig = loadConfig();
@@ -68,6 +77,39 @@ export async function runInit(args: string[]) {
   }
 
   return initPostgres({ databaseUrl, jsonOutput, apiKey, brainPath, isNonInteractive });
+}
+
+/**
+ * Apply the schema against the already-configured engine. No saveConfig.
+ * No PGLite fallback when no config exists. Used by migration orchestrators
+ * to bump an existing brain's schema to the latest version without
+ * clobbering the user's chosen engine.
+ */
+async function initMigrateOnly(opts: { jsonOutput: boolean }) {
+  const config = loadConfig();
+  if (!config) {
+    const msg = 'No brain configured. Run `pbrain init` (interactive) or `pbrain init --pglite` / `pbrain init --supabase` first.';
+    if (opts.jsonOutput) {
+      console.log(JSON.stringify({ status: 'error', reason: 'no_config', message: msg }));
+    } else {
+      console.error(msg);
+    }
+    process.exit(1);
+  }
+
+  const engine = await createEngine(toEngineConfig(config));
+  try {
+    await engine.connect(toEngineConfig(config));
+    await engine.initSchema();
+  } finally {
+    try { await engine.disconnect(); } catch { /* best-effort */ }
+  }
+
+  if (opts.jsonOutput) {
+    console.log(JSON.stringify({ status: 'success', engine: config.engine, mode: 'migrate-only' }));
+  } else {
+    console.log(`Schema up to date (engine: ${config.engine}).`);
+  }
 }
 
 async function initPGLite(opts: { jsonOutput: boolean; apiKey: string | null; customPath: string | null; brainPath: string; isNonInteractive: boolean }) {

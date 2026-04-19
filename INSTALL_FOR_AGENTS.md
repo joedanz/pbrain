@@ -175,3 +175,14 @@ pbrain install-skills         # refresh IDE skill symlinks if Claude Code / Curs
 
 Re-running `pbrain init` with no flags on an already-configured machine reuses the
 `brain_path` saved in `~/.pbrain/config.json` — no re-prompt.
+
+Then read `~/pbrain/skills/migrations/v<NEW_VERSION>.md` (and any intermediate
+versions you skipped) and run any backfill or verification steps it lists. Skipping
+this is how features ship in the binary but stay dormant in the user's brain.
+
+For the v0.12.2 JSONB fix specifically: if your brain is Postgres- or Supabase-backed
+and was written against a v0.12.0-or-earlier schema, run `pbrain apply-migrations`
+(or it auto-runs during `pbrain upgrade`) to invoke `pbrain repair-jsonb`, which
+rewrites every double-encoded JSONB row in place. PGLite brains no-op. If wiki-style
+imports were truncated by the old `splitBody` bug, run `pbrain sync --full` after
+upgrading to rebuild `compiled_truth` from source markdown.

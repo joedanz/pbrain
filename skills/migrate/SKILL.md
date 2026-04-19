@@ -50,10 +50,18 @@ Universal migration from any wiki, note tool, or brain system into PBrain.
 ## Obsidian Migration
 
 1. Import the vault directory into pbrain (Obsidian vaults are markdown directories)
-2. Convert `[[wikilinks]]` to pbrain links:
-   - Read each page from pbrain
-   - For each `[[Name]]` found, resolve to a slug and create a link in pbrain
-   - `[[Name|alias]]` uses the alias for context
+2. Wire the graph with native wikilink support:
+
+   ```bash
+   pbrain extract links --source db --dry-run | head -20    # preview
+   pbrain extract links --source db                         # commit
+   ```
+
+   `extract links` natively parses `[[relative/path]]` and `[[relative/path|Display Text]]`
+   alongside standard `[text](page.md)` markdown syntax. Ancestor-search resolution handles
+   wiki KBs where authors omit one or more leading `../` prefixes. The `.md` suffix is
+   inferred automatically for wikilinks. For `[[Name|alias]]`, the alias is used for
+   context.
 
 Obsidian-specific:
 - Tags (`#tag`) become pbrain tags

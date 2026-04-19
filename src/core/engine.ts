@@ -11,14 +11,31 @@ import type {
   EngineConfig,
 } from './types.ts';
 
+/** Input row for addLinksBatch. Optional fields default to '' (matches NOT NULL DDL). */
+export interface LinkBatchInput {
+  from_slug: string;
+  to_slug: string;
+  link_type?: string;
+  context?: string;
+}
+
+/** Input row for addTimelineEntriesBatch. Optional fields default to '' (matches NOT NULL DDL). */
+export interface TimelineBatchInput {
+  slug: string;
+  date: string;
+  source?: string;
+  summary: string;
+  detail?: string;
+}
+
 /** Maximum results returned by search operations. Internal bulk operations (listPages) are not clamped. */
 export const MAX_SEARCH_LIMIT = 100;
 
 /** Clamp a user-provided search limit to a safe range. */
-export function clampSearchLimit(limit: number | undefined, defaultLimit = 20): number {
+export function clampSearchLimit(limit: number | undefined, defaultLimit = 20, cap = MAX_SEARCH_LIMIT): number {
   if (limit === undefined || limit === null || !Number.isFinite(limit) || Number.isNaN(limit)) return defaultLimit;
   if (limit <= 0) return defaultLimit;
-  return Math.min(Math.floor(limit), MAX_SEARCH_LIMIT);
+  return Math.min(Math.floor(limit), cap);
 }
 
 export interface BrainEngine {
@@ -56,7 +73,19 @@ export interface BrainEngine {
 
   // Links
   addLink(from: string, to: string, context?: string, linkType?: string): Promise<void>;
-  removeLink(from: string, to: string): Promise<void>;
+  /**
+   * Bulk insert links via a single multi-row INSERT...SELECT FROM (VALUES) JOIN pages
+   * statement with ON CONFLICT DO NOTHING. Returns the count of rows actually inserted
+   * (RETURNING clause excludes conflicts and JOIN-dropped rows whose slugs don't exist).
+   * Used by extract.ts to avoid 47K sequential round-trips on large brains.
+   */
+  addLinksBatch(links: LinkBatchInput[]): Promise<number>;
+  /**
+   * Remove links from `from` to `to`. If linkType is provided, only that specific
+   * (from, to, type) row is removed. If omitted, ALL link types between the pair
+   * are removed (matches pre-multi-type-link behavior).
+   */
+  removeLink(from: string, to: string, linkType?: string): Promise<void>;
   getLinks(slug: string): Promise<Link[]>;
   getBacklinks(slug: string): Promise<Link[]>;
   traverseGraph(slug: string, depth?: number): Promise<GraphNode[]>;
@@ -67,7 +96,24 @@ export interface BrainEngine {
   getTags(slug: string): Promise<string[]>;
 
   // Timeline
-  addTimelineEntry(slug: string, entry: TimelineInput): Promise<void>;
+  /**
+   * Insert a timeline entry. By default verifies the page exists and throws if not.
+   * Pass opts.skipExistenceCheck=true for batch operations where the slug is already
+   * known to exist (e.g., from a getAllSlugs() snapshot). Duplicates are silently
+   * deduplicated by the (page_id, date, summary) UNIQUE index (ON CONFLICT DO NOTHING).
+   */
+  addTimelineEntry(
+    slug: string,
+    entry: TimelineInput,
+    opts?: { skipExistenceCheck?: boolean },
+  ): Promise<void>;
+  /**
+   * Bulk insert timeline entries via a single multi-row INSERT...SELECT FROM (VALUES)
+   * JOIN pages statement with ON CONFLICT DO NOTHING. Returns the count of rows
+   * actually inserted (RETURNING excludes conflicts and JOIN-dropped rows whose
+   * slugs don't exist). Used by extract.ts to avoid sequential round-trips.
+   */
+  addTimelineEntriesBatch(entries: TimelineBatchInput[]): Promise<number>;
   getTimeline(slug: string, opts?: TimelineOpts): Promise<TimelineEntry[]>;
 
   // Raw data
