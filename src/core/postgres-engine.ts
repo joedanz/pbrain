@@ -1,5 +1,5 @@
 import postgres from 'postgres';
-import type { BrainEngine } from './engine.ts';
+import type { BrainEngine, LinkBatchInput, TimelineBatchInput } from './engine.ts';
 import { MAX_SEARCH_LIMIT, clampSearchLimit } from './engine.ts';
 import { runMigrations } from './migrate.ts';
 import { SCHEMA_SQL } from './schema-embedded.ts';
@@ -375,21 +375,53 @@ export class PostgresEngine implements BrainEngine {
       SELECT f.id, t.id, ${linkType || ''}, ${context || ''}
       FROM pages f, pages t
       WHERE f.slug = ${from} AND t.slug = ${to}
-      ON CONFLICT (from_page_id, to_page_id) DO UPDATE SET
-        link_type = EXCLUDED.link_type,
+      ON CONFLICT (from_page_id, to_page_id, link_type) DO UPDATE SET
         context = EXCLUDED.context
       RETURNING id
     `;
     if (result.length === 0) throw new Error(`addLink failed: page "${from}" or "${to}" not found`);
   }
 
-  async removeLink(from: string, to: string): Promise<void> {
+  async addLinksBatch(links: LinkBatchInput[]): Promise<number> {
+    if (links.length === 0) return 0;
     const sql = this.sql;
-    await sql`
-      DELETE FROM links
-      WHERE from_page_id = (SELECT id FROM pages WHERE slug = ${from})
-        AND to_page_id = (SELECT id FROM pages WHERE slug = ${to})
+    // unnest() pattern: 4 array-typed bound parameters regardless of batch size.
+    // Avoids the 65535-parameter cap and the postgres-js sql(rows, ...) helper's
+    // identifier-escape gotcha when used inside a (VALUES) subquery.
+    const fromSlugs = links.map(l => l.from_slug);
+    const toSlugs = links.map(l => l.to_slug);
+    // Normalize optional fields to '' to match per-row addLink + NOT NULL DDL.
+    const linkTypes = links.map(l => l.link_type || '');
+    const contexts = links.map(l => l.context || '');
+    const result = await sql`
+      INSERT INTO links (from_page_id, to_page_id, link_type, context)
+      SELECT f.id, t.id, v.link_type, v.context
+      FROM unnest(${fromSlugs}::text[], ${toSlugs}::text[], ${linkTypes}::text[], ${contexts}::text[])
+        AS v(from_slug, to_slug, link_type, context)
+      JOIN pages f ON f.slug = v.from_slug
+      JOIN pages t ON t.slug = v.to_slug
+      ON CONFLICT (from_page_id, to_page_id, link_type) DO NOTHING
+      RETURNING 1
     `;
+    return result.length;
+  }
+
+  async removeLink(from: string, to: string, linkType?: string): Promise<void> {
+    const sql = this.sql;
+    if (linkType !== undefined) {
+      await sql`
+        DELETE FROM links
+        WHERE from_page_id = (SELECT id FROM pages WHERE slug = ${from})
+          AND to_page_id = (SELECT id FROM pages WHERE slug = ${to})
+          AND link_type = ${linkType}
+      `;
+    } else {
+      await sql`
+        DELETE FROM links
+        WHERE from_page_id = (SELECT id FROM pages WHERE slug = ${from})
+          AND to_page_id = (SELECT id FROM pages WHERE slug = ${to})
+      `;
+    }
   }
 
   async getLinks(slug: string): Promise<Link[]> {
@@ -495,6 +527,28 @@ export class PostgresEngine implements BrainEngine {
       RETURNING id
     `;
     if (result.length === 0) throw new Error(`addTimelineEntry failed: page "${slug}" not found`);
+  }
+
+  async addTimelineEntriesBatch(entries: TimelineBatchInput[]): Promise<number> {
+    if (entries.length === 0) return 0;
+    const sql = this.sql;
+    // unnest() pattern: 5 array-typed bound parameters regardless of batch size.
+    const slugs = entries.map(e => e.slug);
+    const dates = entries.map(e => e.date);
+    // Normalize optional fields to '' to match per-row addTimelineEntry + NOT NULL DDL.
+    const sources = entries.map(e => e.source || '');
+    const summaries = entries.map(e => e.summary);
+    const details = entries.map(e => e.detail || '');
+    const result = await sql`
+      INSERT INTO timeline_entries (page_id, date, source, summary, detail)
+      SELECT p.id, v.date::date, v.source, v.summary, v.detail
+      FROM unnest(${slugs}::text[], ${dates}::text[], ${sources}::text[], ${summaries}::text[], ${details}::text[])
+        AS v(slug, date, source, summary, detail)
+      JOIN pages p ON p.slug = v.slug
+      ON CONFLICT (page_id, date, summary) DO NOTHING
+      RETURNING 1
+    `;
+    return result.length;
   }
 
   async getTimeline(slug: string, opts?: TimelineOpts): Promise<TimelineEntry[]> {

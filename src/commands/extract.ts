@@ -9,8 +9,16 @@
 
 import { readFileSync, readdirSync, lstatSync, existsSync } from 'fs';
 import { join, relative, dirname } from 'path';
-import type { BrainEngine } from '../core/engine.ts';
+import type { BrainEngine, LinkBatchInput, TimelineBatchInput } from '../core/engine.ts';
+import type { PageType } from '../core/types.ts';
 import { parseMarkdown } from '../core/markdown.ts';
+
+// Batch size for addLinksBatch / addTimelineEntriesBatch.
+// Postgres bind-parameter limit is 65535. Links use 4 cols/row → 16K hard ceiling;
+// timeline uses 5 cols/row → 13K hard ceiling. 100 is conservative on round-trip
+// count but safe at any future schema width and keeps per-batch error blast radius
+// small (a malformed row aborts at most 100, not thousands).
+const BATCH_SIZE = 100;
 
 // --- Types ---
 
@@ -270,34 +278,42 @@ async function extractLinksFromDir(
   const files = walkMarkdownFiles(brainDir);
   const allSlugs = new Set(files.map(f => f.relPath.replace('.md', '')));
 
-  // Load existing links for O(1) dedup
-  const existing = new Set<string>();
-  try {
-    const pages = await engine.listPages({ limit: 100000 });
-    for (const page of pages) {
-      for (const link of await engine.getLinks(page.slug)) {
-        existing.add(`${link.from_slug}::${link.to_slug}`);
-      }
-    }
-  } catch { /* fresh brain */ }
+  // Dedup in dry-run only — DB enforces uniqueness via ON CONFLICT in batch writes.
+  // Without this, the same link extracted from N files would print N times in --dry-run.
+  const dryRunSeen = dryRun ? new Set<string>() : null;
 
   let created = 0;
+  const batch: LinkBatchInput[] = [];
+  async function flush() {
+    if (batch.length === 0) return;
+    try {
+      created += await engine.addLinksBatch(batch);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (jsonMode) {
+        process.stderr.write(JSON.stringify({ event: 'batch_error', size: batch.length, error: msg }) + '\n');
+      } else {
+        console.error(`  batch error (${batch.length} link rows lost): ${msg}`);
+      }
+    } finally {
+      batch.length = 0;
+    }
+  }
+
   for (let i = 0; i < files.length; i++) {
     try {
       const content = readFileSync(files[i].path, 'utf-8');
       const links = extractLinksFromFile(content, files[i].relPath, allSlugs);
       for (const link of links) {
-        const key = `${link.from_slug}::${link.to_slug}`;
-        if (existing.has(key)) continue;
-        existing.add(key);
-        if (dryRun) {
+        if (dryRunSeen) {
+          const key = `${link.from_slug}::${link.to_slug}::${link.link_type}`;
+          if (dryRunSeen.has(key)) continue;
+          dryRunSeen.add(key);
           if (!jsonMode) console.log(`  ${link.from_slug} → ${link.to_slug} (${link.link_type})`);
           created++;
         } else {
-          try {
-            await engine.addLink(link.from_slug, link.to_slug, link.context, link.link_type);
-            created++;
-          } catch { /* UNIQUE or page not found */ }
+          batch.push(link);
+          if (batch.length >= BATCH_SIZE) await flush();
         }
       }
     } catch { /* skip unreadable */ }
@@ -305,6 +321,7 @@ async function extractLinksFromDir(
       process.stderr.write(JSON.stringify({ event: 'progress', phase: 'extracting_links', done: i + 1, total: files.length }) + '\n');
     }
   }
+  await flush();
 
   if (!jsonMode) {
     const label = dryRun ? '(dry run) would create' : 'created';
@@ -318,34 +335,41 @@ async function extractTimelineFromDir(
 ): Promise<{ created: number; pages: number }> {
   const files = walkMarkdownFiles(brainDir);
 
-  // Load existing timeline entries for O(1) dedup
-  const existing = new Set<string>();
-  try {
-    const pages = await engine.listPages({ limit: 100000 });
-    for (const page of pages) {
-      for (const entry of await engine.getTimeline(page.slug)) {
-        existing.add(`${page.slug}::${entry.date}::${entry.summary}`);
-      }
-    }
-  } catch { /* fresh brain */ }
+  // Dedup in dry-run only — DB enforces uniqueness via ON CONFLICT in batch writes.
+  const dryRunSeen = dryRun ? new Set<string>() : null;
 
   let created = 0;
+  const batch: TimelineBatchInput[] = [];
+  async function flush() {
+    if (batch.length === 0) return;
+    try {
+      created += await engine.addTimelineEntriesBatch(batch);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (jsonMode) {
+        process.stderr.write(JSON.stringify({ event: 'batch_error', size: batch.length, error: msg }) + '\n');
+      } else {
+        console.error(`  batch error (${batch.length} timeline rows lost): ${msg}`);
+      }
+    } finally {
+      batch.length = 0;
+    }
+  }
+
   for (let i = 0; i < files.length; i++) {
     try {
       const content = readFileSync(files[i].path, 'utf-8');
       const slug = files[i].relPath.replace('.md', '');
       for (const entry of extractTimelineFromContent(content, slug)) {
-        const key = `${entry.slug}::${entry.date}::${entry.summary}`;
-        if (existing.has(key)) continue;
-        existing.add(key);
-        if (dryRun) {
+        if (dryRunSeen) {
+          const key = `${entry.slug}::${entry.date}::${entry.summary}`;
+          if (dryRunSeen.has(key)) continue;
+          dryRunSeen.add(key);
           if (!jsonMode) console.log(`  ${entry.slug}: ${entry.date} — ${entry.summary}`);
           created++;
         } else {
-          try {
-            await engine.addTimelineEntry(entry.slug, { date: entry.date, source: entry.source, summary: entry.summary, detail: entry.detail });
-            created++;
-          } catch { /* page not in DB or constraint */ }
+          batch.push({ slug: entry.slug, date: entry.date, source: entry.source, summary: entry.summary, detail: entry.detail });
+          if (batch.length >= BATCH_SIZE) await flush();
         }
       }
     } catch { /* skip unreadable */ }
@@ -353,6 +377,7 @@ async function extractTimelineFromDir(
       process.stderr.write(JSON.stringify({ event: 'progress', phase: 'extracting_timeline', done: i + 1, total: files.length }) + '\n');
     }
   }
+  await flush();
 
   if (!jsonMode) {
     const label = dryRun ? '(dry run) would create' : 'created';

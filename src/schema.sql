@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS links (
   link_type    TEXT    NOT NULL DEFAULT '',
   context      TEXT    NOT NULL DEFAULT '',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(from_page_id, to_page_id)
+  CONSTRAINT links_from_to_type_unique UNIQUE(from_page_id, to_page_id, link_type)
 );
 
 CREATE INDEX IF NOT EXISTS idx_links_from ON links(from_page_id);
@@ -249,7 +249,7 @@ CREATE TRIGGER trg_timeline_search_vector
 -- ============================================================
 -- Row Level Security: block anon access, postgres role bypasses
 -- ============================================================
--- The postgres role (used by gbrain via pooler) has BYPASSRLS.
+-- The postgres role (used by pbrain via pooler) has BYPASSRLS.
 -- Enabling RLS with no policies means the anon key can't read anything.
 -- Only enable if the current role actually has BYPASSRLS privilege,
 -- otherwise we'd lock ourselves out.
