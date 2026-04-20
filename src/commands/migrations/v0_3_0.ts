@@ -12,15 +12,12 @@
  *
  * Phases (all idempotent):
  *   A. Schema  — pbrain init --migrate-only (runs migrate.ts version 11).
- *   B. Verify  — assert columns exist and partial index is in place.
- *   C. Record  — append completed.jsonl.
+ *   B. Smoke   — confirm pbrain is reachable post-migration (best-effort).
  */
 
 import { execSync } from 'child_process';
 import type { Migration, OrchestratorOpts, OrchestratorResult, OrchestratorPhaseResult } from './types.ts';
-import { appendCompletedMigration } from '../../core/preferences.ts';
-
-// ── Phase A — Schema ────────────────────────────────────────
+import { finalizeResult } from './finalize.ts';
 
 function phaseASchema(opts: OrchestratorOpts): OrchestratorPhaseResult {
   if (opts.dryRun) return { name: 'schema', status: 'skipped', detail: 'dry-run' };
@@ -33,28 +30,22 @@ function phaseASchema(opts: OrchestratorOpts): OrchestratorPhaseResult {
   }
 }
 
-// ── Phase B — Verify ────────────────────────────────────────
-
 function phaseBVerify(opts: OrchestratorOpts): OrchestratorPhaseResult {
   if (opts.dryRun) return { name: 'verify', status: 'skipped', detail: 'dry-run' };
   try {
-    // Verify columns exist by querying information_schema.
-    // If pbrain is accessible, the columns were added by phase A.
-    const out = execSync(
+    // Best-effort reachability smoke test. The schema migration (phase A) is
+    // transactional — it either completes fully or rolls back — so we don't
+    // assert column existence here; we just confirm pbrain responds.
+    execSync(
       `pbrain query "links table schema" --json 2>/dev/null || echo '[]'`,
       { encoding: 'utf-8', timeout: 30_000, env: process.env }
     );
-    // The verify step is best-effort — if query fails we still record complete
-    // because the schema migration is transactional and either succeeds fully or rolls back.
-    void out;
     return { name: 'verify', status: 'complete', detail: 'schema migration applied idempotently' };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { name: 'verify', status: 'failed', detail: msg };
   }
 }
-
-// ── Orchestrator ────────────────────────────────────────────
 
 async function orchestrator(opts: OrchestratorOpts): Promise<OrchestratorResult> {
   console.log('');
@@ -66,28 +57,15 @@ async function orchestrator(opts: OrchestratorOpts): Promise<OrchestratorResult>
 
   const a = phaseASchema(opts);
   phases.push(a);
-  if (a.status === 'failed') return finalizeResult(phases, 'failed');
+  if (a.status === 'failed') return finalizeResult('0.3.0', phases, 'failed');
 
   const b = phaseBVerify(opts);
   phases.push(b);
 
   const overallStatus: 'complete' | 'partial' | 'failed' =
-    a.status === 'failed' ? 'failed' :
-    b.status === 'failed' ? 'partial' :
-    'complete';
+    b.status === 'failed' ? 'partial' : 'complete';
 
-  return finalizeResult(phases, overallStatus);
-}
-
-function finalizeResult(phases: OrchestratorPhaseResult[], status: 'complete' | 'partial' | 'failed'): OrchestratorResult {
-  if (status !== 'failed') {
-    try {
-      appendCompletedMigration({ version: '0.3.0', status: status as 'complete' | 'partial' });
-    } catch {
-      // Recording is best-effort.
-    }
-  }
-  return { version: '0.3.0', status, phases };
+  return finalizeResult('0.3.0', phases, overallStatus);
 }
 
 export const v0_3_0: Migration = {

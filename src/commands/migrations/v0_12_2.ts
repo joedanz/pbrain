@@ -22,7 +22,7 @@
 
 import { execSync } from 'child_process';
 import type { Migration, OrchestratorOpts, OrchestratorResult, OrchestratorPhaseResult } from './types.ts';
-import { appendCompletedMigration } from '../../core/preferences.ts';
+import { finalizeResult } from './finalize.ts';
 
 // ── Phase A — Schema ────────────────────────────────────────
 
@@ -86,11 +86,11 @@ async function orchestrator(opts: OrchestratorOpts): Promise<OrchestratorResult>
 
   const a = phaseASchema(opts);
   phases.push(a);
-  if (a.status === 'failed') return finalizeResult(phases, 'failed');
+  if (a.status === 'failed') return finalizeResult('0.12.2', phases, 'failed');
 
   const b = phaseBRepair(opts);
   phases.push(b);
-  if (b.status === 'failed') return finalizeResult(phases, 'failed');
+  if (b.status === 'failed') return finalizeResult('0.12.2', phases, 'failed');
 
   const c = phaseCVerify(opts);
   phases.push(c);
@@ -100,22 +100,7 @@ async function orchestrator(opts: OrchestratorOpts): Promise<OrchestratorResult>
     c.status === 'failed' ? 'partial' :
     'complete';
 
-  return finalizeResult(phases, overallStatus);
-}
-
-function finalizeResult(phases: OrchestratorPhaseResult[], status: 'complete' | 'partial' | 'failed'): OrchestratorResult {
-  if (status !== 'failed') {
-    try {
-      appendCompletedMigration({ version: '0.12.2', status: status as 'complete' | 'partial' });
-    } catch {
-      // Recording is best-effort.
-    }
-  }
-  return {
-    version: '0.12.2',
-    status,
-    phases,
-  };
+  return finalizeResult('0.12.2', phases, overallStatus);
 }
 
 export const v0_12_2: Migration = {

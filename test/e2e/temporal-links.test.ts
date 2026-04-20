@@ -4,7 +4,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
-import { setupDB, teardownDB, getEngine } from './helpers.ts';
+import { setupDB, teardownDB, getEngine, getConn } from './helpers.ts';
 
 const skip = !process.env.DATABASE_URL;
 const describeE2E = skip ? describe.skip : describe;
@@ -27,7 +27,6 @@ describeE2E('E2E: bi-temporal links', () => {
     await engine.removeLink('people/alice', 'companies/google', 'works_at');
     await engine.addLink('people/alice', 'companies/google', 're-hired', 'works_at');
 
-    const { getConn } = await import('./helpers.ts');
     const conn = getConn();
     const rows = await conn`
       SELECT valid_until FROM links l
@@ -66,10 +65,7 @@ describeE2E('E2E: bi-temporal links', () => {
   });
 
   test('migration v11: existing links have valid_until IS NULL and valid_from IS NULL', async () => {
-    const { getConn } = await import('./helpers.ts');
     const conn = getConn();
-    // All rows we inserted above should have valid_until IS NULL (current)
-    // and valid_from IS NULL (unknown provenance) unless explicitly provided
     const currentRows = await conn`SELECT valid_from, valid_until FROM links WHERE valid_until IS NULL`;
     expect(currentRows.length).toBeGreaterThan(0);
     // valid_from should be null for rows created without explicit date
@@ -79,14 +75,10 @@ describeE2E('E2E: bi-temporal links', () => {
 
   test('addLinksBatch ON CONFLICT with partial index: no error, no duplicate', async () => {
     const engine = getEngine();
-    // Pre-seed one link (alice→anthropic works_at may already exist from above)
     await engine.addLink('people/alice', 'companies/anthropic', 'existing', 'works_at');
 
-    const countBefore = await (async () => {
-      const conn = (await import('./helpers.ts')).getConn();
-      const rows = await conn`SELECT COUNT(*)::int AS n FROM links WHERE valid_until IS NULL`;
-      return (rows[0] as { n: number }).n;
-    })();
+    const conn = getConn();
+    const countBefore = (await conn`SELECT COUNT(*)::int AS n FROM links WHERE valid_until IS NULL`)[0].n as number;
 
     const batch = [
       { from_slug: 'people/alice', to_slug: 'companies/anthropic', link_type: 'works_at' }, // conflict
@@ -95,12 +87,7 @@ describeE2E('E2E: bi-temporal links', () => {
     const inserted = await engine.addLinksBatch(batch);
     expect(inserted).toBe(1); // only the new row
 
-    const countAfter = await (async () => {
-      const conn = (await import('./helpers.ts')).getConn();
-      const rows = await conn`SELECT COUNT(*)::int AS n FROM links WHERE valid_until IS NULL`;
-      return (rows[0] as { n: number }).n;
-    })();
-
+    const countAfter = (await conn`SELECT COUNT(*)::int AS n FROM links WHERE valid_until IS NULL`)[0].n as number;
     expect(countAfter).toBe(countBefore + 1); // exactly one new current row
   });
 
@@ -108,7 +95,6 @@ describeE2E('E2E: bi-temporal links', () => {
     const engine = getEngine();
     await engine.addLink('people/bob', 'companies/google', 'summer intern', 'worked_at', '2019-06-01');
 
-    const { getConn } = await import('./helpers.ts');
     const conn = getConn();
     const rows = await conn`
       SELECT valid_from::text AS vf FROM links l
