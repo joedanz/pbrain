@@ -55,11 +55,15 @@ CREATE TABLE IF NOT EXISTS links (
   link_type    TEXT    NOT NULL DEFAULT '',
   context      TEXT    NOT NULL DEFAULT '',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT links_from_to_type_unique UNIQUE(from_page_id, to_page_id, link_type)
+  valid_from   DATE,
+  valid_until  DATE
 );
 
 CREATE INDEX IF NOT EXISTS idx_links_from ON links(from_page_id);
 CREATE INDEX IF NOT EXISTS idx_links_to ON links(to_page_id);
+-- One current edge per (from, to, type) triplet; unlimited historical rows (valid_until IS NOT NULL).
+-- Page deletion cascades and purges all link history — accepted tradeoff (soft-delete pages is a future wave).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_links_current_unique ON links(from_page_id, to_page_id, link_type) WHERE valid_until IS NULL;
 
 -- ============================================================
 -- tags

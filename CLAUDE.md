@@ -10,7 +10,7 @@ cron scheduling, reports, identity, and access control.
 ## Architecture
 
 Contract-first: `src/core/operations.ts` defines ~30 shared operations (adds `find_orphans` from the upstream v0.12.3 reliability wave). CLI and MCP
-server are both generated from this single source. Engine factory (`src/core/engine-factory.ts`)
+server are both generated from this single source. As of v0.3.0, the `links` table is bi-temporal: `valid_from`/`valid_until` DATE columns + partial unique index (`WHERE valid_until IS NULL`) allow unlimited historical edge versions while enforcing one current version per (from, to, type) triplet. `removeLink` soft-deletes (sets `valid_until`); `getLinks`/`getBacklinks`/`traverseGraph` filter to `valid_until IS NULL`. Engine factory (`src/core/engine-factory.ts`)
 dynamically imports the configured engine (`'pglite'` or `'postgres'`). Skills are fat
 markdown files (tool-agnostic, work with the CLI and MCP server contexts).
 
@@ -220,13 +220,16 @@ parity), `test/cli.test.ts` (CLI structure), `test/config.test.ts` (config redac
 `test/postgres-engine.test.ts` (v0.12.3 statement_timeout scoping: `sql.begin` + `SET LOCAL` shape, source-level grep guardrail against reintroduced bare `SET statement_timeout`),
 `test/sync.test.ts` (sync logic + v0.12.3 regression guard asserting top-level `engine.transaction` is not called),
 `test/doctor.test.ts` (doctor command + v0.12.3 assertions that `jsonb_integrity` scans the four v0.12.0 write sites and `markdown_body_completeness` is present),
-`test/utils.test.ts` (shared SQL utilities + `tryParseEmbedding` null-return and single-warn semantics).
+`test/utils.test.ts` (shared SQL utilities + `tryParseEmbedding` null-return and single-warn semantics),
+`test/temporal-links.test.ts` (v0.3.0 bi-temporal link semantics: addLink upsert, removeLink soft-delete, getLinks/getBacklinks/traverseGraph current-only filter, re-open lifecycle, addLinksBatch partial-index conflict),
+`test/migrations-v0_3_0.test.ts` (v0.3.0 orchestrator phases: schema → verify; dry-run, idempotency, failure propagation).
 
 E2E tests (`test/e2e/`): Run against real Postgres+pgvector. Require `DATABASE_URL`.
 - `bun run test:e2e` runs Tier 1 (mechanical, all operations, no API keys). Includes 9 dedicated cases for the postgres-engine `addLinksBatch` / `addTimelineEntriesBatch` bind path — postgres-js's `unnest()` binding is structurally different from PGLite's and gets its own coverage.
 - `test/e2e/search-quality.test.ts` runs search quality E2E against PGLite (no API keys, in-memory)
 - `test/e2e/postgres-jsonb.test.ts` — v0.12.2 regression test. Round-trips all 5 JSONB write sites (pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata, page_versions.frontmatter) against real Postgres and asserts `jsonb_typeof='object'` plus `->>'key'` returns the expected scalar. The test that should have caught the original double-encode bug.
 - `test/e2e/jsonb-roundtrip.test.ts` — v0.12.3 companion regression against the 4 doctor-scanned JSONB sites. Assertion-level overlap with `postgres-jsonb.test.ts` is intentional defense-in-depth: if doctor's scan surface ever drifts from the actual write surface, one of these tests catches it.
+- `test/e2e/temporal-links.test.ts` — v0.3.0 bi-temporal links E2E against real Postgres. Full addLink→removeLink→addLink lifecycle (2 rows: 1 historical, 1 current), traverseGraph skips closed intermediate edges, migration v11 row-state assertions, addLinksBatch partial-index conflict handling.
 - `test/e2e/upgrade.test.ts` runs check-update E2E against real GitHub API (network required)
 - Tier 2 (`skills.test.ts`) requires OpenClaw + API keys, runs nightly in CI
 - If `.env.testing` doesn't exist in this directory, check sibling worktrees for one:

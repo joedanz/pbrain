@@ -372,15 +372,17 @@ export class PostgresEngine implements BrainEngine {
   }
 
   // Links
-  async addLink(from: string, to: string, context?: string, linkType?: string): Promise<void> {
+  async addLink(from: string, to: string, context?: string, linkType?: string, validFrom?: string): Promise<void> {
     const sql = this.sql;
+    const vf = validFrom || null;
     const result = await sql`
-      INSERT INTO links (from_page_id, to_page_id, link_type, context)
-      SELECT f.id, t.id, ${linkType || ''}, ${context || ''}
+      INSERT INTO links (from_page_id, to_page_id, link_type, context, valid_from)
+      SELECT f.id, t.id, ${linkType || ''}, ${context || ''}, ${vf}::date
       FROM pages f, pages t
       WHERE f.slug = ${from} AND t.slug = ${to}
-      ON CONFLICT (from_page_id, to_page_id, link_type) DO UPDATE SET
-        context = EXCLUDED.context
+      ON CONFLICT (from_page_id, to_page_id, link_type) WHERE valid_until IS NULL DO UPDATE SET
+        context = EXCLUDED.context,
+        valid_from = COALESCE(links.valid_from, EXCLUDED.valid_from)
       RETURNING id
     `;
     if (result.length === 0) throw new Error(`addLink failed: page "${from}" or "${to}" not found`);
@@ -389,7 +391,7 @@ export class PostgresEngine implements BrainEngine {
   async addLinksBatch(links: LinkBatchInput[]): Promise<number> {
     if (links.length === 0) return 0;
     const sql = this.sql;
-    // unnest() pattern: 4 array-typed bound parameters regardless of batch size.
+    // unnest() pattern: 5 array-typed bound parameters regardless of batch size.
     // Avoids the 65535-parameter cap and the postgres-js sql(rows, ...) helper's
     // identifier-escape gotcha when used inside a (VALUES) subquery.
     const fromSlugs = links.map(l => l.from_slug);
@@ -397,14 +399,15 @@ export class PostgresEngine implements BrainEngine {
     // Normalize optional fields to '' to match per-row addLink + NOT NULL DDL.
     const linkTypes = links.map(l => l.link_type || '');
     const contexts = links.map(l => l.context || '');
+    const validFroms = links.map(l => l.valid_from || null);
     const result = await sql`
-      INSERT INTO links (from_page_id, to_page_id, link_type, context)
-      SELECT f.id, t.id, v.link_type, v.context
-      FROM unnest(${fromSlugs}::text[], ${toSlugs}::text[], ${linkTypes}::text[], ${contexts}::text[])
-        AS v(from_slug, to_slug, link_type, context)
+      INSERT INTO links (from_page_id, to_page_id, link_type, context, valid_from)
+      SELECT f.id, t.id, v.link_type, v.context, v.valid_from::date
+      FROM unnest(${fromSlugs}::text[], ${toSlugs}::text[], ${linkTypes}::text[], ${contexts}::text[], ${validFroms}::text[])
+        AS v(from_slug, to_slug, link_type, context, valid_from)
       JOIN pages f ON f.slug = v.from_slug
       JOIN pages t ON t.slug = v.to_slug
-      ON CONFLICT (from_page_id, to_page_id, link_type) DO NOTHING
+      ON CONFLICT (from_page_id, to_page_id, link_type) WHERE valid_until IS NULL DO NOTHING
       RETURNING 1
     `;
     return result.length;
@@ -412,18 +415,22 @@ export class PostgresEngine implements BrainEngine {
 
   async removeLink(from: string, to: string, linkType?: string): Promise<void> {
     const sql = this.sql;
-    if (linkType !== undefined) {
+    // Normalize '' → undefined so callers passing empty string close all types.
+    const type = linkType === '' ? undefined : linkType;
+    if (type !== undefined) {
       await sql`
-        DELETE FROM links
+        UPDATE links SET valid_until = CURRENT_DATE
         WHERE from_page_id = (SELECT id FROM pages WHERE slug = ${from})
           AND to_page_id = (SELECT id FROM pages WHERE slug = ${to})
-          AND link_type = ${linkType}
+          AND link_type = ${type}
+          AND valid_until IS NULL
       `;
     } else {
       await sql`
-        DELETE FROM links
+        UPDATE links SET valid_until = CURRENT_DATE
         WHERE from_page_id = (SELECT id FROM pages WHERE slug = ${from})
           AND to_page_id = (SELECT id FROM pages WHERE slug = ${to})
+          AND valid_until IS NULL
       `;
     }
   }
@@ -436,6 +443,7 @@ export class PostgresEngine implements BrainEngine {
       JOIN pages f ON f.id = l.from_page_id
       JOIN pages t ON t.id = l.to_page_id
       WHERE f.slug = ${slug}
+        AND l.valid_until IS NULL
     `;
     return rows as unknown as Link[];
   }
@@ -448,6 +456,7 @@ export class PostgresEngine implements BrainEngine {
       JOIN pages f ON f.id = l.from_page_id
       JOIN pages t ON t.id = l.to_page_id
       WHERE t.slug = ${slug}
+        AND l.valid_until IS NULL
     `;
     return rows as unknown as Link[];
   }
@@ -463,7 +472,7 @@ export class PostgresEngine implements BrainEngine {
 
         SELECT p2.id, p2.slug, p2.title, p2.type, g.depth + 1
         FROM graph g
-        JOIN links l ON l.from_page_id = g.id
+        JOIN links l ON l.from_page_id = g.id AND l.valid_until IS NULL
         JOIN pages p2 ON p2.id = l.to_page_id
         WHERE g.depth < ${depth}
       )
@@ -472,7 +481,8 @@ export class PostgresEngine implements BrainEngine {
           (SELECT jsonb_agg(jsonb_build_object('to_slug', p3.slug, 'link_type', l2.link_type))
            FROM links l2
            JOIN pages p3 ON p3.id = l2.to_page_id
-           WHERE l2.from_page_id = g.id),
+           WHERE l2.from_page_id = g.id
+             AND l2.valid_until IS NULL),
           '[]'::jsonb
         ) as links
       FROM graph g

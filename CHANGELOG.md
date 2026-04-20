@@ -4,6 +4,41 @@ All notable changes to PBrain will be documented in this file.
 
 > **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[0.1.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
+## [0.3.0] - 2026-04-20
+
+## **The temporal foundation: links now remember their history.**
+## **Remove a link and the graph keeps the record. Re-add it later and the brain tracks both periods.**
+
+When someone leaves a company, changes roles, or two people stop collaborating, the old `remove_link` hard-deleted the edge. The history was gone. Now it's not.
+
+v0.3.0 adds bi-temporal semantics to the `links` table: two nullable `DATE` columns (`valid_from`, `valid_until`) and soft-delete semantics. Removing a link sets `valid_until = today` and preserves the row as history. Re-add the link and the graph holds both the old period and the new one. All existing queries (`getLinks`, `getBacklinks`, `traverseGraph`) automatically see only current edges — nothing breaks, nothing changes for callers who don't use the new columns.
+
+### What you can do now that you couldn't before
+
+- **Remove a link without losing history.** `remove_link` now sets `valid_until = today` instead of deleting the row. The edge stays in the database as a closed period. Query the current graph and it's invisible; query the full table and the history is there.
+- **Record when a link became true in the real world.** `add_link` now accepts an optional `valid_from` date. Pass `2019-06-01` and the brain knows Alice started at Google in June 2019, not just "whenever this link was inserted." Existing links stay honest — `valid_from` is `NULL` (unknown provenance) rather than backfilling `created_at` as false precision.
+- **Re-hire someone and the graph tracks both stints.** Add a link, remove it, add it again. The database holds two rows: one closed (first period), one current (second period). `getLinks` shows only the current one; the full history is preserved for future time-range queries.
+- **Soft-close only one relationship type at a time.** `remove_link` now accepts an optional `link_type` parameter. Omit it to close all relationship types between two entities; pass `works_at` to close only that type while leaving `invested_in` open.
+- **Batch-insert links with safe conflict handling.** `add_links_batch` now targets the partial unique index (`WHERE valid_until IS NULL`), so batch imports against an existing brain are safe — duplicate current edges are skipped, new edges are inserted, and the return count is truthful (real new rows only).
+- **Run `pbrain apply-migrations --migration 0.3.0` to apply the schema change.** Migration v11 (`bitemporal_links`) adds the two `DATE` columns and replaces the old named UNIQUE constraint with a partial unique index. Idempotent, transactional, no data loss.
+
+### What v0.3 deliberately does NOT ship
+
+- **`getLinkHistory` MCP op.** No skill invokes it today. Dead code with a test burden. Ships when a concrete workflow needs it.
+- **Auto Dream (`pbrain dream`).** Two doctrine violations in the first draft: the LLM consolidation call is unmeasured, and autopilot auto-wiring is auto-push. Deferred to v0.3.1 after the schema soaks.
+- **Soft-delete for pages.** Would preserve link history across page deletes. Larger schema change; its own wave.
+
+### How to upgrade
+
+```bash
+pbrain upgrade
+pbrain apply-migrations --migration 0.3.0
+```
+
+No data loss. Existing links keep `valid_from = NULL` (honest: unknown provenance) and `valid_until = NULL` (still current).
+
+---
+
 ## [0.2.0] - 2026-04-20
 
 ## **The subtraction release: fewer tools in context, one user-invoked brief command, and a doctrine that gates future work.**

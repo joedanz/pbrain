@@ -284,6 +284,24 @@ export const MIGRATIONS: Migration[] = [
       DROP FUNCTION IF EXISTS update_page_search_vector_from_timeline();
     `,
   },
+  {
+    version: 11,
+    name: 'bitemporal_links',
+    sql: `
+      ALTER TABLE links ADD COLUMN IF NOT EXISTS valid_from DATE;
+      ALTER TABLE links ADD COLUMN IF NOT EXISTS valid_until DATE;
+
+      -- ORDER MATTERS: drop the named constraint before creating the partial index.
+      -- The old constraint covers the full (from, to, type) triplet unconditionally;
+      -- the new partial index covers the same triplet WHERE valid_until IS NULL.
+      -- Creating the partial index while the named constraint exists would conflict.
+      ALTER TABLE links DROP CONSTRAINT IF EXISTS links_from_to_type_unique;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_links_current_unique
+        ON links(from_page_id, to_page_id, link_type)
+        WHERE valid_until IS NULL;
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS.length > 0

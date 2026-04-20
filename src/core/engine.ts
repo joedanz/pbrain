@@ -17,6 +17,7 @@ export interface LinkBatchInput {
   to_slug: string;
   link_type?: string;
   context?: string;
+  valid_from?: string;  // ISO date string; null/undefined = unknown provenance
 }
 
 /** Input row for addTimelineEntriesBatch. Optional fields default to '' (matches NOT NULL DDL). */
@@ -72,7 +73,7 @@ export interface BrainEngine {
   deleteChunks(slug: string): Promise<void>;
 
   // Links
-  addLink(from: string, to: string, context?: string, linkType?: string): Promise<void>;
+  addLink(from: string, to: string, context?: string, linkType?: string, validFrom?: string): Promise<void>;
   /**
    * Bulk insert links via a single multi-row INSERT...SELECT FROM (VALUES) JOIN pages
    * statement with ON CONFLICT DO NOTHING. Returns the count of rows actually inserted
@@ -81,9 +82,10 @@ export interface BrainEngine {
    */
   addLinksBatch(links: LinkBatchInput[]): Promise<number>;
   /**
-   * Remove links from `from` to `to`. If linkType is provided, only that specific
-   * (from, to, type) row is removed. If omitted, ALL link types between the pair
-   * are removed (matches pre-multi-type-link behavior).
+   * Soft-close links from `from` to `to` by setting valid_until = today.
+   * If linkType is provided, only that specific (from, to, type) row is closed.
+   * If omitted (or ''), ALL current link types between the pair are closed.
+   * Historical rows (valid_until IS NOT NULL) are untouched.
    */
   removeLink(from: string, to: string, linkType?: string): Promise<void>;
   getLinks(slug: string): Promise<Link[]>;

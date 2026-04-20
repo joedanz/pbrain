@@ -410,6 +410,7 @@ const add_link: Operation = {
     to: { type: 'string', required: true },
     link_type: { type: 'string', description: 'Link type (e.g., invested_in, works_at)' },
     context: { type: 'string', description: 'Context for the link' },
+    valid_from: { type: 'string', description: 'ISO date when this link became true (default: unknown)' },
   },
   mutating: true,
   handler: async (ctx, p) => {
@@ -417,6 +418,7 @@ const add_link: Operation = {
     await ctx.engine.addLink(
       p.from as string, p.to as string,
       (p.context as string) || '', (p.link_type as string) || '',
+      (p.valid_from as string) || undefined,
     );
     return { status: 'ok' };
   },
@@ -425,15 +427,16 @@ const add_link: Operation = {
 
 const remove_link: Operation = {
   name: 'remove_link',
-  description: 'Remove link between pages',
+  description: 'Soft-close link between pages (sets valid_until; preserves history)',
   params: {
     from: { type: 'string', required: true },
     to: { type: 'string', required: true },
+    link_type: { type: 'string', description: 'Close only links of this type; omit to close all types' },
   },
   mutating: true,
   handler: async (ctx, p) => {
     if (ctx.dryRun) return { dry_run: true, action: 'remove_link', from: p.from, to: p.to };
-    await ctx.engine.removeLink(p.from as string, p.to as string);
+    await ctx.engine.removeLink(p.from as string, p.to as string, (p.link_type as string) || undefined);
     return { status: 'ok' };
   },
   cliHints: { name: 'unlink', positional: ['from', 'to'] },
