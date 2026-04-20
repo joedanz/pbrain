@@ -102,8 +102,27 @@ Extract people, companies, concepts from the incoming signal.
 
 For each entity:
 - `pbrain search "name"` -- does a page already exist?
-- **If yes:** UPDATE path (add new signal, update compiled truth if material)
-- **If no:** CREATE path (check notability gate first, then create)
+- Search for **name variants** too: initials (`J. Doe`), full form (`Jane Doe`), common nicknames, and any known aliases. Fragmentation usually starts here — an agent searches one variant, doesn't find it, and creates a duplicate under a different slug.
+- **If yes:** UPDATE path (add new signal, update compiled truth if material). If the name variant you received isn't already in the page's `aliases:` field, add it.
+- **If no:** CREATE path (check notability gate first, then create).
+
+### Step 2a: Heed the `similar` hint on create
+
+`put_page` returns a `similar: [...]` array when you create a new `people/` or
+`companies/` page and an existing page has a suspiciously close slug. Example:
+
+```json
+{ "slug": "people/j-doe", "status": "created_or_updated",
+  "similar": [{ "slug": "people/jane-doe", "title": "Jane Doe", "overlap": 1.0 }] }
+```
+
+When you see this:
+1. Read the suggested page: `pbrain get people/jane-doe`
+2. Decide: same entity, or genuinely different?
+3. **Same entity** → delete the page you just created (`pbrain delete people/j-doe`), merge your new information into the canonical page, and add the variant (`j-doe`, `J. Doe`) to its `aliases:` field.
+4. **Different entity** → keep both, but add `aliases:` entries to each page that disambiguate them (e.g., `aliases: [Jane Doe (Acme), J. Doe Acme]`).
+
+Ignoring the hint is how duplicate-page fragmentation accumulates.
 
 ### Step 3: Extract signal from source
 
@@ -209,6 +228,7 @@ type: person
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: []
+aliases: [List, every, known, variant]    # REQUIRED — see "Aliases" below
 company: Current Company
 relationship: How the user knows them
 email:
@@ -274,6 +294,7 @@ type: company
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: []
+aliases: [List, every, known, variant]    # REQUIRED — see "Aliases" below
 ---
 
 # Company Name
@@ -320,6 +341,30 @@ these entities, prefer GitHub / package registry / product docs as primary sourc
 - Update related project/deal pages if relevant context surfaced
 - Add back-links from every entity mentioned (MANDATORY)
 - Check index files if the brain uses them
+
+## Aliases (MANDATORY on every person/company page)
+
+Every new `people/` or `companies/` page MUST populate the `aliases:` frontmatter
+field with every known name variant. This is how PBrain prevents duplicate pages:
+`resolveWikilink` consults each page's `aliases:` when routing `[[J. Doe]]` →
+`people/jane-doe`.
+
+**People — always list:**
+- Full legal name (`Jane Doe`)
+- Initials form (`J. Doe`, `J Doe`)
+- Common shorthand (`Jane`, `Janie`)
+- Handle/username if public (`janedoe`, `@jane`)
+- Past-name / maiden-name / previous-name variants if known
+
+**Companies — always list:**
+- Canonical name (`Anthropic`)
+- Legal form (`Anthropic PBC`, `Anthropic, Inc.`)
+- Dash/no-dash variants (`Open AI` for `OpenAI`, `ai-safety-institute` for `AISI`)
+- Common abbreviations (`YC` for `Y Combinator`, `a16z` for `Andreessen Horowitz`)
+
+When you UPDATE a page with a newly-encountered name variant, append it to the
+existing `aliases:` list. Never let a variant you've seen in the wild go
+unrecorded — the next agent will re-create the same duplicate.
 
 ## Bulk Enrichment Rules
 
