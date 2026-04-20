@@ -103,7 +103,7 @@ skill, feature, or MCP op is gated through them. Full reasoning and citations li
 - `src/commands/auth.ts` — Standalone token management (create/list/revoke/test)
 - `src/commands/upgrade.ts` — Self-update CLI with post-upgrade feature discovery + features hook
 - `src/commands/apply-migrations.ts` — `pbrain apply-migrations [--list] [--dry-run] [--migration vX.Y.Z]`: runs pending migration orchestrators from the TS registry.
-- `src/commands/migrations/` — TS migration registry (compiled into the binary; no filesystem walk of `skills/migrations/*.md` needed at runtime). `index.ts` lists migrations in semver order. `v0_12_2.ts` = JSONB double-encode repair orchestrator (4 phases: schema → repair-jsonb → verify → record). All orchestrators are idempotent and resumable from `partial` status. Upstream's v0.11.0 (Minions) and v0.12.0 (knowledge-graph) orchestrators are intentionally NOT registered in this fork.
+- `src/commands/migrations/` — TS migration registry (compiled into the binary; no filesystem walk of `skills/migrations/*.md` needed at runtime). `index.ts` lists migrations in semver order: `v0_3_0` first, then `v0_12_2`. `v0_3_0.ts` = bi-temporal links orchestrator (2 phases: schema → verify); adds `valid_from`/`valid_until` DATE columns and replaces the named UNIQUE constraint with a partial index. `v0_12_2.ts` = JSONB double-encode repair orchestrator (4 phases: schema → repair-jsonb → verify → record). `finalize.ts` = shared helper extracted from `v0_12_2.ts`; both orchestrators use it to record completion. All orchestrators are idempotent and resumable from `partial` status. Upstream's v0.11.0 (Minions) and v0.12.0 (knowledge-graph) orchestrators are intentionally NOT registered in this fork.
 - `src/commands/repair-jsonb.ts` — `pbrain repair-jsonb [--dry-run] [--json]`: rewrites `jsonb_typeof='string'` rows in place across 5 affected columns (pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata, page_versions.frontmatter). Fixes v0.12.0 double-encode bug on Postgres; PGLite no-ops. Idempotent.
 - `src/commands/orphans.ts` — `pbrain orphans [--json] [--count] [--include-pseudo]`: surfaces pages with zero inbound wikilinks, grouped by domain. Auto-generated/raw/pseudo pages filtered by default. Also exposed as `find_orphans` MCP operation. Integrated from upstream's v0.12.3 reliability wave (contributed by @knee5).
 - `src/commands/doctor.ts` — `pbrain doctor [--json] [--fast] [--fix]`: health checks. v0.12.3 adds two reliability detection checks: `jsonb_integrity` (scans pages.frontmatter, raw_data.data, ingest_log.pages_updated, files.metadata for `jsonb_typeof='string'` rows left over from v0.12.0) and `markdown_body_completeness` (flags pages whose compiled_truth is <30% of raw source when raw has multiple H2/H3 boundaries). Fix hints point at `pbrain repair-jsonb` and `pbrain sync --force`.
@@ -165,6 +165,11 @@ Run `pbrain --help` or `pbrain --tools-json` for full command reference.
 Key commands added in v0.7:
 - `pbrain init` — defaults to PGLite (no Supabase needed), scans repo size, suggests Supabase for 1000+ files
 - `pbrain migrate --to supabase` / `pbrain migrate --to pglite` — bidirectional engine migration
+
+Key commands added in v0.3.0:
+- `pbrain apply-migrations --migration 0.3.0` — applies migration v11 (`bitemporal_links`): adds `valid_from`/`valid_until` DATE columns to `links` and replaces the named UNIQUE constraint with a partial unique index. Idempotent, transactional, no data loss.
+- `add_link` operation gains optional `valid_from` DATE param — record when a relationship became true in the real world.
+- `remove_link` operation gains optional `link_type` param — soft-delete only one relationship type between two entities, leaving others open.
 
 Key commands added in v0.12.2:
 - `gbrain repair-jsonb [--dry-run] [--json]` — repair double-encoded JSONB rows left over from v0.12.0-and-earlier Postgres writes. Idempotent; PGLite no-ops. The `v0_12_2` migration runs this automatically on `gbrain upgrade`.
