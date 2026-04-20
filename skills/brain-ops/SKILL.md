@@ -50,12 +50,20 @@ broken brain. See `skills/conventions/quality.md` for format.
 Before using ANY external API to research a person, company, or topic:
 
 1. `pbrain search "name"` — keyword search for existing pages
-2. `pbrain query "natural question about name"` — hybrid search for context
-3. `pbrain get <slug>` — if you know the slug, read the full page
-4. Check backlinks: who references this entity?
-5. Check timeline: recent events involving this entity
+2. Search **every name variant** you can think of (`Jane Doe`, `J. Doe`, `Jane`, nicknames, handles). Duplicate-page fragmentation almost always starts with an agent searching one variant, missing the existing page, and creating a second one.
+3. `pbrain query "natural question about name"` — hybrid search for context
+4. `pbrain get <slug>` — if you know the slug, read the full page
+5. Check backlinks: who references this entity?
+6. Check timeline: recent events involving this entity
 
 The brain almost always has something. External APIs fill gaps, not start from scratch.
+
+**The `similar` hint on `put_page`.** When you create a new `people/` or
+`companies/` page, the response may include a `similar: [{slug, title, overlap}]`
+array listing existing pages with suspiciously close slugs. Always read those
+before continuing — if it's the same entity under a different slug, delete what
+you just created, merge into the canonical page, and add the new variant to its
+`aliases:` frontmatter. See `skills/enrich/SKILL.md` Step 2a.
 
 ### Phase 2: On Every Inbound Signal (READ → ENRICH → WRITE)
 

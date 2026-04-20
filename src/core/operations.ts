@@ -12,6 +12,7 @@ import { importFromContent } from './import-file.ts';
 import { hybridSearch } from './search/hybrid.ts';
 import { expandQuery } from './search/expansion.ts';
 import { dedupResults } from './search/dedup.ts';
+import { findSimilarEntitySlugs } from './similar-slugs.ts';
 import * as db from './db.ts';
 
 // --- Types ---
@@ -227,8 +228,31 @@ const put_page: Operation = {
   mutating: true,
   handler: async (ctx, p) => {
     if (ctx.dryRun) return { dry_run: true, action: 'put_page', slug: p.slug };
-    const result = await importFromContent(ctx.engine, p.slug as string, p.content as string);
-    return { slug: result.slug, status: result.status === 'imported' ? 'created_or_updated' : result.status, chunks: result.chunks };
+    const slug = p.slug as string;
+
+    // Detect fresh create of a people/ or companies/ page so we can surface a
+    // "did you mean" hint. Redundant getPage() with importFromContent's own
+    // existence check, but scoped to entity slugs so overhead is negligible.
+    const isEntitySlug = slug.startsWith('people/') || slug.startsWith('companies/');
+    const existedBefore = isEntitySlug ? Boolean(await ctx.engine.getPage(slug)) : false;
+
+    const result = await importFromContent(ctx.engine, slug, p.content as string);
+    const response: Record<string, unknown> = {
+      slug: result.slug,
+      status: result.status === 'imported' ? 'created_or_updated' : result.status,
+      chunks: result.chunks,
+    };
+
+    if (isEntitySlug && !existedBefore && result.status === 'imported') {
+      try {
+        const similar = await findSimilarEntitySlugs(ctx.engine, slug, 3);
+        if (similar.length > 0) response.similar = similar;
+      } catch (e) {
+        ctx.logger.warn(`similar-slugs hint failed for ${slug}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
+    return response;
   },
   cliHints: { name: 'put', positional: ['slug'], stdin: 'content' },
 };

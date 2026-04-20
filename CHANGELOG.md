@@ -220,6 +220,17 @@ This release was reviewed by `/plan-eng-review` (5 issues, all addressed includi
 
 ## [Unreleased]
 
+### Added — Duplicate-page prevention hint on `put_page`
+
+Creating a new `people/` or `companies/` page now returns a `similar` array in the response when an existing entity page has a suspiciously close slug. Your agent sees `people/jane-doe` when it's about to create `people/j-doe`, reads the canonical page, merges into it, and adds the new variant to `aliases:` — instead of accumulating fragmented duplicates nobody's ever going to clean up.
+
+- **New:** `src/core/similar-slugs.ts` — pure token-set matching with dash-stripping and initial expansion. No embeddings, no scoring model, no LLM. Scoped to `people/` and `companies/` directories; returns nothing for any other slug shape.
+- **New:** non-blocking hint in `put_page` handler — fires only on fresh creates (not updates), fails open on error (the hint never blocks a write). Trust-boundary safe for MCP callers (the data returned is just sibling slugs that `list_pages` already exposes).
+- **Skills updated:** `skills/enrich/SKILL.md` requires populating `aliases:` frontmatter on every new person/company page and documents how to handle the `similar` response; `skills/brain-ops/SKILL.md` reinforces name-variant search during brain-first lookup.
+- **Tests:** 19 cases in `test/similar-slugs.test.ts` covering canonical cases (`j-doe`↔`jane-doe`, `openai`↔`open-ai`, comma-reversed, middle-initial, non-entity slugs, cross-directory scoping, threshold filtering).
+
+Why this instead of a full entity-resolution system: most of the prevention is already built into Obsidian's native `aliases:` machinery and PBrain's deterministic `slugifyEntity`. The remaining gap — agents not knowing that a similar page already exists — is closed by a cheap hint, not by a scoring model or a merge command. This is ~155 LOC instead of 1500.
+
 ### Integrated from upstream GBrain
 
 Pulling forward security, data-correctness, and reliability fixes that landed in upstream GBrain (`garrytan/gbrain`) after our v0.1.0 fork point. This wave takes only the must-have fixes; large new feature layers (Minions agent orchestration, knowledge graph) are deferred to a separate Wave-2 evaluation. See individual section entries below for per-fix detail.

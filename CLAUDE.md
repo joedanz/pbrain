@@ -65,6 +65,7 @@ strict behavior when unset.
 - `src/schema.sql` — Full Postgres + pgvector DDL (source of truth, generates schema-embedded.ts)
 - `src/commands/integrations.ts` — Standalone integration recipe management (no DB needed). Exports `getRecipeDirs()` (trust-tagged recipe sources), SSRF helpers (`isInternalUrl`, `parseOctet`, `hostnameToOctets`, `isPrivateIpv4`). Only package-bundled recipes are `embedded=true`; `$PBRAIN_RECIPES_DIR` and cwd `./recipes/` are untrusted and cannot run `command`/`http`/string health checks.
 - `src/core/search/expansion.ts` — Multi-query expansion via Haiku. Exports `sanitizeQueryForPrompt` + `sanitizeExpansionOutput` (prompt-injection defense-in-depth). Sanitized query is only used for the LLM channel; original query still drives search.
+- `src/core/similar-slugs.ts` — Duplicate-page prevention hint. `findSimilarEntitySlugs(engine, slug, limit)` scans `people/`/`companies/` for slugs with close token overlap (identical, dash-stripped equal, substring, or initial-expansion match on `-`-split tokens). Pure function, no embeddings, no LLM. `put_page` wires this into the response as `similar: [...]` on fresh creates so agents can merge into the canonical page instead of accumulating variants.
 - `recipes/` — Integration recipe files (YAML frontmatter + markdown setup instructions)
 - `docs/guides/` — Individual SKILLPACK guides (broken out from monolith)
 - `docs/integrations/` — "Getting Data In" guides and integration docs
