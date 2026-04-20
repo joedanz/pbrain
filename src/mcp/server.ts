@@ -32,7 +32,12 @@ export async function startMcpServer(engine: BrainEngine) {
     { capabilities: { tools: {} } },
   );
 
-  // Generate tool definitions from operations
+  // Generate tool definitions from operations.
+  //
+  // Ops with `agentSurface: 'deferred'` emit `defer_loading: true` so Claude Code's
+  // Tool Search gates their full schema until the agent searches by keyword or
+  // invokes them by exact name. Deferral is schema-gating, not removal — the tool
+  // stays fully invokable via CallTool. See docs/ethos/CONTEXT_ENGINEERING.md.
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: operations.map(op => ({
       name: op.name,
@@ -51,6 +56,7 @@ export async function startMcpServer(engine: BrainEngine) {
           .filter(([, v]) => v.required)
           .map(([k]) => k),
       },
+      ...(op.agentSurface === 'deferred' ? { defer_loading: true } : {}),
     })),
   }));
 

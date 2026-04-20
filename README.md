@@ -452,6 +452,7 @@ See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for the full
 **For humans:**
 - [PBRAIN_RECOMMENDED_SCHEMA.md](docs/PBRAIN_RECOMMENDED_SCHEMA.md) ... Brain repo directory structure
 - [Thin Harness, Fat Skills](docs/ethos/THIN_HARNESS_FAT_SKILLS.md) ... Architecture philosophy
+- [Context Engineering](docs/ethos/CONTEXT_ENGINEERING.md) ... v0.2 doctrine: minimalism, just-in-time retrieval, sub-agent quarantine, structured resets
 - [ENGINES.md](docs/ENGINES.md) ... Pluggable engine interface
 
 **Reference:**

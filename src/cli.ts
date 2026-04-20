@@ -18,7 +18,7 @@ for (const op of operations) {
 }
 
 // CLI-only commands that bypass the operation layer
-const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations', 'repair-jsonb', 'orphans']);
+const CLI_ONLY = new Set(['init', 'upgrade', 'post-upgrade', 'check-update', 'integrations', 'install-skills', 'publish', 'check-backlinks', 'lint', 'report', 'import', 'index', 'export', 'files', 'embed', 'serve', 'call', 'config', 'doctor', 'migrate', 'eval', 'sync', 'extract', 'features', 'autopilot', 'whoami', 'canonical-url', 'remember', 'apply-migrations', 'repair-jsonb', 'orphans', 'brief']);
 
 async function main() {
   const args = process.argv.slice(2);
@@ -450,6 +450,19 @@ async function handleCliOnly(command: string, args: string[]) {
         await runOrphans(engine, args);
         break;
       }
+      case 'brief': {
+        const { runBrief } = await import('./commands/brief.ts');
+        const { output, exitCode } = await runBrief(engine, args, {
+          cwd: process.cwd(),
+          home: process.env.HOME,
+        });
+        process.stdout.write(output);
+        if (exitCode !== 0) {
+          await engine.disconnect();
+          process.exit(exitCode);
+        }
+        break;
+      }
     }
   } finally {
     if (command !== 'serve') await engine.disconnect();
@@ -565,6 +578,7 @@ ADMIN
   features [--json] [--auto-fix]     Scan usage + recommend unused features
   autopilot [--repo] [--interval N]  Self-maintaining brain daemon
   whoami [--verbose]                 Resolve cwd to a brain project (via marker or git remote)
+  brief [--format xml|text]          Emit project context block (compiled_truth + recent timeline, <=10k chars)
   config [show|get|set] <key> [val]  Brain config
   serve                              MCP server (stdio)
   call <tool> '<json>'               Raw tool invocation

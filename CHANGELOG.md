@@ -4,6 +4,66 @@ All notable changes to PBrain will be documented in this file.
 
 > **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[0.1.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
+## [0.2.0] - 2026-04-20
+
+## **The subtraction release: fewer tools in context, one user-invoked brief command, and a doctrine that gates future work.**
+## **Your coding agent sees 24 focused tools instead of 32 — under the BFCL 30-tool cliff — and nothing it was doing before has stopped working.**
+
+Four agent research swarms (context-engineering failure modes, Anthropic's 2026 guidance, Cursor/Cline/Aider/Continue patterns, memory systems) landed a convergent verdict: most automated context injection is net-negative. AGENTbench (Feb 2026) measured LLM-generated `AGENTS.md` / `CLAUDE.md` files *reducing* SWE-bench Lite success by 0.5% and AGENTbench by 2%. Chroma 2025 showed context rot starting at 2,500-5,000 words. BFCL 2025 pinned the tool-count cliff at 30 for frontier models.
+
+v0.2 is the response: a written doctrine, a net subtraction, and one small user-invoked primitive. Everything else the first-draft plan proposed got cut by a 4-agent review swarm that caught four broken deferral rationales before they shipped.
+
+### What you can do now that you couldn't before
+
+- **Your coding agent sees 24 always-visible MCP tools instead of 32.** Eight ops (`find_repo_by_url`, `get_health`, `get_versions`, `revert_version`, `sync_brain`, `log_ingest`, `get_ingest_log`, `file_url`) now emit `defer_loading: true` in the `ListTools` response. Claude Code's Tool Search (on by default as of Jan 14 2026) gates their full schema until the agent searches by keyword or invokes by exact name. Deferral is schema-gating, not removal — every deferred op remains fully invokable. The always-visible count crosses under the BFCL 30-tool cliff with 6 tools of headroom.
+- **Run `pbrain brief` and paste the output into any Claude Code session.** New user-invoked CLI command that emits a ≤10,000-char XML context block: project slug (detected via marker or git remote), compiled-truth excerpt, last 5 timeline entries, and a pointer to `pbrain query` for deeper lookups. XML structure ordered longform-first, query-last per Anthropic's 2026 prompt-engineering guidance (up-to-30% quality uplift). Flags: `--format xml|text`, `--scope project|activity|all`, `--json`. Graceful `<no_project>` sentinel when cwd isn't onboarded.
+- **Wire `pbrain brief` into your own SessionStart hook if you want automatic project context.** The command is CLI-only by design — PBrain explicitly does NOT auto-install a hook. The doctrine draws a hard line on auto-push. If you choose to wire it into `~/.claude/settings.json` yourself, `docs/guides/brief-command.md` shows the two-line config.
+- **Read the new doctrine before proposing new MCP tools or brain-injection features.** `docs/ethos/CONTEXT_ENGINEERING.md` (~150 lines) documents the four principles (minimalism, just-in-time, sub-agent quarantine, structured resets), the explicit anti-patterns (auto-generated CLAUDE.md, dumping search results, hook auto-push, tool-bloat, meta-read-first rules, monotonic growth, edge-case lists, unmeasured changes), and the honest measurement contract. Every future skill or feature is gated through this list. CLAUDE.md gets an 80-line shortform reference appended.
+- **Side-effect bug fix: the MCP server now honors `cliHints.hidden: true` via Tool Search.** Before: `sync_brain` was marked hidden from CLI but still exposed to agents via MCP. After: the new `agentSurface: 'deferred'` annotation on `sync_brain` brings MCP in sync with CLI intent. `autopilot.ts` calls `engine.performSync()` directly, so nothing automated changes.
+
+### What v0.2 deliberately does NOT ship
+
+Documented here so the same proposals don't come back without engaging with the research:
+
+- **Auto-generating project `CLAUDE.md` / `AGENTS.md` briefings.** AGENTbench-proven net-negative. PBrain only writes the ≤10-line `## pbrain` pointer stanza via `project-onboard`.
+- **SessionStart hook that auto-pushes context.** Violates the doctrine's anti-pattern #3. `pbrain brief` is the user-invoked alternative.
+- **MCP resources for pages (`pbrain:page://<slug>`).** Speculative parallelism with the existing `get_page` tool. Revisit when a real user reports `get_page` idle cost.
+- **MCP prompt `/mcp__pbrain__briefing`.** Wraps `pbrain query` with a UI; feasibility review also found it depended on a non-existent `listPagesByTag` op.
+- **Scratchpad (`pbrain scratch` + 4 new MCP ops).** Anthropic already ships auto-memory at `~/.claude/projects/<project>/memory/MEMORY.md`. Scratchpad would duplicate it, and adding 4 MCP ops is the "add-without-retire" anti-pattern.
+- **Bi-temporal edges + Mem0 diff cycle + Auto Dream consolidation.** Worth doing; deferred to v0.3 as a dedicated data-model wave.
+- **Cross-harness exporters** (Cursor `.cursor/rules/*.mdc`, Copilot `.github/agents/*.agent.md`). Claude Code first; revisit after v0.2 measurement.
+- **Coding-task eval harness (`eval/coding-tasks/`).** Bigger than all of v0.2 combined. Its own wave.
+
+### How to upgrade
+
+```bash
+pbrain upgrade
+```
+
+No migration. No schema change. No data touch. The `agentSurface` annotation is additive; ops not explicitly tagged default to `'always'`.
+
+### Itemized changes
+
+**Operation.agentSurface annotation (the subtraction primitive)**
+- `src/core/operations.ts` — extend the `Operation` interface with `agentSurface?: 'always' | 'deferred'` (default `'always'`). Tag 8 verified ops as deferred: `find_repo_by_url`, `get_health`, `get_versions`, `revert_version`, `sync_brain`, `log_ingest`, `get_ingest_log`, `file_url`. Each annotation carries a one-line comment explaining why it's safe/intended to defer.
+- `src/mcp/server.ts` — in the existing `ListToolsRequestSchema` handler, emit `defer_loading: true` for deferred ops. Tool schemas remain fully invokable via `CallToolRequestSchema` by exact name.
+- `test/agent-surface.test.ts` — new unit test: exactly 8 ops flagged; always-visible count lands at 24 under the BFCL 30 cliff; critical working-set ops (`query`, `search`, `get_page`, `put_page`, `get_links`, `get_backlinks`, `put_raw_data`, `get_raw_data`, etc.) confirmed always-visible; `ListTools` emits `defer_loading: true` for exactly the deferred subset and omits the field for everyone else.
+
+**`pbrain brief` CLI command**
+- `src/commands/brief.ts` — new CLI handler. Calls `resolveProject()` from `src/core/project-resolver.ts` (the correct reusable primitive — `whoami` is a CLI command, not a library function). Composes compiled-truth excerpt + last 5 timeline entries. XML (default) or text or JSON output. 10,000-char cap with a `<!-- truncated -->` sentinel.
+- `src/cli.ts` — register `brief` in the `CLI_ONLY` set; wire the handler in `handleCliOnly`; add one-line entry to `printHelp`.
+- `test/brief.test.ts` — 11 unit tests: marker hit, git-remote detection (implicit via resolver), XML vs text vs JSON formats, scope filters (`project` / `activity` / `all`), graceful no-project case, 10k-char cap, XML-escaping of hostile content in slugs/summaries/sources.
+- `docs/guides/brief-command.md` — user guide covering the command, flags, and the opt-in SessionStart hook configuration.
+
+**Context Engineering doctrine**
+- `docs/ethos/CONTEXT_ENGINEERING.md` — new 150-line essay on the four principles, the anti-patterns (each with research citation), and the honest measurement contract. Styled after `docs/ethos/THIN_HARNESS_FAT_SKILLS.md` and `docs/ethos/MARKDOWN_SKILLS_AS_RECIPES.md`.
+- `CLAUDE.md` — 80-line shortform reference appended after the Architecture section: principles + anti-patterns list. No duplicate citations (those live in the ethos doc).
+- `README.md` — one-line pointer to the new ethos doc in the "For humans" docs index.
+
+**Version and changelog**
+- `VERSION` — bumped to `0.2.0`.
+- `CHANGELOG.md` — this entry.
+
 <!-- GBRAIN_HISTORICAL_v0.12.3 -->
 ## [0.12.3] - 2026-04-19
 

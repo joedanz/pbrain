@@ -180,6 +180,20 @@ export interface Operation {
     stdin?: string;
     hidden?: boolean;
   };
+  /**
+   * Controls agent-facing visibility in MCP `ListTools` responses.
+   *
+   * - `'always'` (default): full schema emitted upfront; agent sees tool every turn
+   * - `'deferred'`: schema emitted with `defer_loading: true`; Claude Code's Tool Search
+   *   gates schema loading until the agent searches by keyword or invokes by exact name
+   *
+   * Deferral is a schema-gating operation, not a removal. Deferred tools remain fully
+   * invokable via `callTool` by name and via Tool Search keyword match. Set `'deferred'`
+   * on rare/admin/destructive ops whose idle schema cost doesn't earn its keep.
+   *
+   * See docs/ethos/CONTEXT_ENGINEERING.md for the doctrine behind this field.
+   */
+  agentSurface?: 'always' | 'deferred';
 }
 
 // --- Page CRUD ---
@@ -519,6 +533,7 @@ const get_health: Operation = {
     return ctx.engine.getHealth();
   },
   cliHints: { name: 'health' },
+  agentSurface: 'deferred',
 };
 
 const get_versions: Operation = {
@@ -531,6 +546,7 @@ const get_versions: Operation = {
     return ctx.engine.getVersions(p.slug as string);
   },
   cliHints: { name: 'history', positional: ['slug'] },
+  agentSurface: 'deferred',
 };
 
 const revert_version: Operation = {
@@ -548,6 +564,9 @@ const revert_version: Operation = {
     return { status: 'reverted' };
   },
   cliHints: { name: 'revert', positional: ['slug', 'version_id'] },
+  // Destructive op: Tool Search friction is an intentional guardrail. The agent must
+  // actively search for "revert" before invoking, reducing accidental destruction risk.
+  agentSurface: 'deferred',
 };
 
 // --- Sync ---
@@ -574,6 +593,9 @@ const sync_brain: Operation = {
     });
   },
   cliHints: { name: 'sync', hidden: true },
+  // Already `hidden` from CLI; deferral brings MCP in sync with that intent.
+  // autopilot.ts and recipes invoke engine.performSync() directly, not the MCP tool.
+  agentSurface: 'deferred',
 };
 
 // --- Raw Data ---
@@ -632,6 +654,10 @@ const find_repo_by_url: Operation = {
   handler: async (ctx, p) => {
     return ctx.engine.findRepoByUrl(p.url as string);
   },
+  // Internal resolver helper: called by resolveProject() in project-resolver.ts
+  // and by `pbrain whoami` / `pbrain remember` CLI. Not a tool the agent reaches
+  // for directly — `query` covers "find project for URL X" use cases.
+  agentSurface: 'deferred',
 };
 
 const get_chunks: Operation = {
@@ -667,6 +693,8 @@ const log_ingest: Operation = {
     });
     return { status: 'ok' };
   },
+  // Internal provenance op: zero references in skills, recipes, or docs.
+  agentSurface: 'deferred',
 };
 
 const get_ingest_log: Operation = {
@@ -678,6 +706,8 @@ const get_ingest_log: Operation = {
   handler: async (ctx, p) => {
     return ctx.engine.getIngestLog({ limit: clampSearchLimit(p.limit as number | undefined, 20, 50) });
   },
+  // Diagnostic op: zero references in any agent workflow.
+  agentSurface: 'deferred',
 };
 
 // --- File Operations ---
@@ -800,6 +830,8 @@ const file_url: Operation = {
     // TODO: generate signed URL from Supabase Storage
     return { storage_path: rows[0].storage_path, url: `pbrain:files/${rows[0].storage_path}` };
   },
+  // Rarely invoked: URL format is trivially constructable from file_upload's return.
+  agentSurface: 'deferred',
 };
 
 // --- Orphans ---

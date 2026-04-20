@@ -20,6 +20,54 @@ markdown files (tool-agnostic, work with the CLI and MCP server contexts).
 `file_upload` tighten filesystem confinement when `remote=true` and default to
 strict behavior when unset.
 
+**Agent surface (v0.2):** `Operation.agentSurface` is `'always'` (default) or `'deferred'`.
+Deferred ops emit `defer_loading: true` in the MCP `ListTools` response so Claude Code's
+Tool Search gates their full schema until the agent searches by keyword or invokes them
+by exact name. As of v0.2, 24 ops are always-visible and 8 are deferred
+(`find_repo_by_url`, `get_health`, `get_versions`, `revert_version`, `sync_brain`,
+`log_ingest`, `get_ingest_log`, `file_url`) — under the BFCL 30-tool cliff.
+
+## Context Engineering Doctrine
+
+PBrain's context engineering discipline is four evidence-backed principles. Every new
+skill, feature, or MCP op is gated through them. Full reasoning and citations live in
+`docs/ethos/CONTEXT_ENGINEERING.md`; this section is the shortform reference.
+
+### Principles
+
+1. **Minimalism beats completeness.** Smallest set of high-signal tokens. CLAUDE.md
+   under 200 lines (Anthropic guideline). Skill file ≤ 500 lines. SessionStart hook
+   `additionalContext` caps at 10,000 chars (Claude Code harness).
+2. **Just-in-time beats pre-stuffing.** Brain pages are dereferenced on demand via MCP
+   tools (`pbrain query`, `get_page`) — never auto-injected via RAG-style pre-stuffing.
+3. **Sub-agent quarantine beats inline accumulation.** Brain-heavy exploration runs in
+   subagents (their context is already isolated by default). Use `isolation: worktree`
+   for filesystem isolation.
+4. **Structured resets beat compaction.** For long sessions, prefer explicit handoff
+   (stash state, fresh session) over passive `/compact`.
+
+### Anti-patterns (explicit prohibitions)
+
+- **Auto-generating CLAUDE.md / AGENTS.md with project briefings.** AGENTbench Feb 2026:
+  LLM-generated files are net-negative except when they replace existing docs. PBrain
+  only writes a ≤ 10-line `## pbrain` pointer stanza (via `project-onboard`).
+- **Dumping search results into the system prompt.** Always expose brain pages via
+  tools the agent pulls on demand.
+- **Auto-pushing session context via hooks.** `pbrain brief` is a CLI command; wiring
+  it to SessionStart is a user opt-in, never a default. Auto-push is the same
+  category as the AGENTbench anti-pattern.
+- **Adding MCP tools without retiring others.** BFCL: 30-tool cliff for frontier
+  models. Every addition must retire equal-or-more (or defer via `agentSurface`).
+- **"Always read X before Y" meta-rules.** Practitioner-reported failure: agents claim
+  compliance but don't read. Use `.claude/rules/*.md` with `paths:` frontmatter
+  (Claude Code's officially-sanctioned path-scoped auto-load).
+- **Monotonic CLAUDE.md growth.** Any PR growing `skills/**/SKILL.md` or `CLAUDE.md`
+  without removing equivalent content fails review.
+- **Edge-case enumeration.** 3-5 canonical examples beat 30 rules (Liu 2023 + Anthropic).
+- **Context-engineering changes that can't be measured.** If we can't say "N fewer
+  turns" or "P@5 improved X%," we don't ship. Until a coding-task eval harness exists,
+  gate on explicit manual A/B.
+
 ## Key files
 
 - `src/core/operations.ts` — Contract-first operation definitions (the foundation). Also exports upload validators: `validateUploadPath`, `validatePageSlug`, `validateFilename`. `OperationContext.remote` flags untrusted callers.
