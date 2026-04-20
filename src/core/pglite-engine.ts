@@ -335,16 +335,18 @@ export class PGLiteEngine implements BrainEngine {
 
   // Links
   async addLink(from: string, to: string, context?: string, linkType?: string, validFrom?: string): Promise<void> {
-    await this.db.query(
+    const result = await this.db.query(
       `INSERT INTO links (from_page_id, to_page_id, link_type, context, valid_from)
        SELECT f.id, t.id, $3, $4, $5::date
        FROM pages f, pages t
        WHERE f.slug = $1 AND t.slug = $2
        ON CONFLICT (from_page_id, to_page_id, link_type) WHERE valid_until IS NULL DO UPDATE SET
          context = EXCLUDED.context,
-         valid_from = COALESCE(links.valid_from, EXCLUDED.valid_from)`,
+         valid_from = COALESCE(links.valid_from, EXCLUDED.valid_from)
+       RETURNING id`,
       [from, to, linkType || '', context || '', validFrom || null]
     );
+    if (result.rows.length === 0) throw new Error(`addLink failed: page "${from}" or "${to}" not found`);
   }
 
   async addLinksBatch(links: LinkBatchInput[]): Promise<number> {

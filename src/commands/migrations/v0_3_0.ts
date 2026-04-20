@@ -37,7 +37,7 @@ function phaseBVerify(opts: OrchestratorOpts): OrchestratorPhaseResult {
     // transactional — it either completes fully or rolls back — so we don't
     // assert column existence here; we just confirm pbrain responds.
     execSync(
-      `pbrain query "links table schema" --json 2>/dev/null || echo '[]'`,
+      `pbrain query "links table schema" --json 2>/dev/null`,
       { encoding: 'utf-8', timeout: 30_000, env: process.env }
     );
     return { name: 'verify', status: 'complete', detail: 'schema migration applied idempotently' };
