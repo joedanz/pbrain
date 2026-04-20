@@ -96,7 +96,7 @@ describe('indexCompleted + statusForVersion', () => {
 });
 
 describe('buildPlan — diff against completed + installed VERSION', () => {
-  // PBrain fork: migration registry contains only v0.12.2 (JSONB repair).
+  // PBrain fork: migration registry contains v0.3.0 (bi-temporal links) and v0.12.2 (JSONB repair).
   // Upstream's v0.11.0 (Minions) and v0.12.0 (knowledge-graph) orchestrators
   // are deliberately NOT registered. These tests exercise the planner against
   // that reduced registry.
@@ -111,7 +111,10 @@ describe('buildPlan — diff against completed + installed VERSION', () => {
   });
 
   test('already applied → v0.12.2 lands in `applied` bucket, not pending', () => {
-    const idx = indexCompleted([{ version: '0.12.2', status: 'complete' }]);
+    const idx = indexCompleted([
+      { version: '0.3.0', status: 'complete' },
+      { version: '0.12.2', status: 'complete' },
+    ]);
     const plan = buildPlan(idx, '0.12.2');
     expect(plan.applied.map(m => m.version)).toContain('0.12.2');
     expect(plan.pending).toEqual([]);
@@ -119,18 +122,20 @@ describe('buildPlan — diff against completed + installed VERSION', () => {
 
   test('stopgap wrote partial → v0.12.2 lands in `partial` bucket (resumable)', () => {
     const idx = indexCompleted([
+      { version: '0.3.0', status: 'complete' },
       { version: '0.12.2', status: 'partial', apply_migrations_pending: true },
     ]);
     const plan = buildPlan(idx, '0.12.2');
     expect(plan.partial.map(m => m.version)).toContain('0.12.2');
-    expect(plan.applied).toEqual([]);
+    expect(plan.applied.map(m => m.version)).not.toContain('0.12.2');
     expect(plan.pending).toEqual([]);
   });
 
   test('Codex H9 regression: installed older than migration → skippedFuture, not skipped silently', () => {
     // Running an older binary that somehow has v0.12.2 in its registry but
     // installed VERSION is older: migration is skippedFuture, NOT ignored.
-    const idx = indexCompleted([]);
+    // v0.3.0 (< 0.10.5) is marked complete so only v0.12.2 appears in skippedFuture.
+    const idx = indexCompleted([{ version: '0.3.0', status: 'complete' }]);
     const plan = buildPlan(idx, '0.10.5');
     expect(plan.skippedFuture.map(m => m.version)).toContain('0.12.2');
     expect(plan.pending).toEqual([]);

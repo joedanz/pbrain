@@ -97,7 +97,9 @@ describe('migrate: v8 (links_dedup) regression — must be fast on 1K duplicate 
     // version so v8 re-runs. Schema-embedded.ts already has the constraint, so
     // initSchema() above set it up; explicit DROP makes the test premise valid.
     const db = (engine as any).db;
+    // v0.3.0 replaced the named UNIQUE constraint with a partial unique index — drop both so duplicates can be inserted.
     await db.exec(`ALTER TABLE links DROP CONSTRAINT IF EXISTS links_from_to_type_unique`);
+    await db.exec(`DROP INDEX IF EXISTS idx_links_current_unique`);
 
     // Two pages so the FK is satisfied
     await engine.putPage('p/from', { type: 'concept', title: 'F', compiled_truth: '', timeline: '' });
@@ -128,12 +130,12 @@ describe('migrate: v8 (links_dedup) regression — must be fast on 1K duplicate 
     const afterCount = (await db.query(`SELECT COUNT(*)::int AS c FROM links`)).rows[0].c;
     expect(afterCount).toBe(1); // deduped to one row
 
-    // Unique constraint reinstated
-    const constraints = (await db.query(`
-      SELECT conname FROM pg_constraint
-      WHERE conrelid = 'links'::regclass AND contype = 'u'
+    // v0.3.0 replaced the named UNIQUE constraint with a partial unique index (WHERE valid_until IS NULL)
+    const partialIdx = (await db.query(`
+      SELECT indexname FROM pg_indexes
+      WHERE tablename = 'links' AND indexname = 'idx_links_current_unique'
     `)).rows;
-    expect(constraints.some((c: { conname: string }) => c.conname === 'links_from_to_type_unique')).toBe(true);
+    expect(partialIdx.length).toBeGreaterThan(0);
 
     // Helper index was dropped after dedup
     const helperIdx = (await db.query(`
