@@ -1,13 +1,20 @@
 /**
- * pbrain eval — Retrieval Evaluation Command
+ * pbrain eval — Unified eval harness CLI (v0.4.0)
  *
- * Runs search quality benchmarks against user-defined ground truth (qrels).
- * Supports single-config runs and A/B comparison mode for tuning parameters.
+ * Subcommand surface:
+ *   pbrain eval retrieve --fixtures <path>   # new envelope format
+ *   pbrain eval ingest   --fixtures <path>   # stub until PR 3 lands
+ *   pbrain eval answer   --fixtures <path>   # stub until PR 4 lands
+ *   pbrain eval all      --fixtures-dir <d>  # stub until PR 5 lands
  *
- * Usage:
- *   pbrain eval --qrels <path|json>
- *   pbrain eval --qrels <path> --config-a <path|json> --config-b <path|json>
- *   pbrain eval --qrels <path> --strategy hybrid --rrf-k 30 --k 5
+ * Backward-compat (preserved EXACTLY):
+ *   pbrain eval --qrels <path|json> [--config-a ...] [--config-b ...] ...
+ *
+ * Routing rule: if the first non-flag arg is a known subcommand name,
+ * consume it and dispatch. Otherwise fall through to legacy retrieval
+ * behavior (which requires --qrels). The legacy code path is unchanged
+ * from its v0.3.x form — the retrieve subcommand shares the same runner
+ * via a different fixture loader.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -16,11 +23,98 @@ import {
   runEval,
   parseQrels,
   type EvalConfig,
+  type EvalQrel,
   type EvalReport,
-  type QueryResult,
 } from '../core/search/eval.ts';
+import { loadRetrievalFixture } from '../core/eval/retrieval.ts';
+import { FixtureParseError } from '../core/eval/fixtures.ts';
+
+type Subcommand = 'retrieve' | 'ingest' | 'answer' | 'all';
+const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set(['retrieve', 'ingest', 'answer', 'all']);
 
 export async function runEvalCommand(engine: BrainEngine, args: string[]): Promise<void> {
+  // Unified help path (covers bare `pbrain eval`, `--help`, `-h`)
+  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+    printHelp();
+    return;
+  }
+
+  // Subcommand dispatch: first token without a leading `-` picks a stage.
+  const first = args[0];
+  if (!first.startsWith('-') && SUBCOMMANDS.has(first as Subcommand)) {
+    const sub = first as Subcommand;
+    const rest = args.slice(1);
+    switch (sub) {
+      case 'retrieve':
+        await runRetrieveSubcommand(engine, rest);
+        return;
+      case 'ingest':
+      case 'answer':
+      case 'all':
+        printStubSubcommand(sub);
+        process.exit(2);
+    }
+  }
+
+  // Fallthrough: legacy `pbrain eval --qrels ...` behavior, unchanged.
+  await runLegacyQrelsMode(engine, args);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Stub subcommands — land in PRs 3/4/5
+// ─────────────────────────────────────────────────────────────────
+
+function printStubSubcommand(sub: 'ingest' | 'answer' | 'all'): void {
+  const planRef = { ingest: 'PR 3', answer: 'PR 4', all: 'PR 5' }[sub];
+  console.error(`\`pbrain eval ${sub}\` is not yet implemented (lands in v0.4.0 ${planRef}).`);
+  console.error('See the v0.4.0 eval-harness plan for the full stage surface.');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// retrieve subcommand — new fixture envelope entry point
+// ─────────────────────────────────────────────────────────────────
+
+async function runRetrieveSubcommand(engine: BrainEngine, args: string[]): Promise<void> {
+  const opts = parseArgs(args);
+
+  if (opts.help) {
+    printHelp();
+    return;
+  }
+
+  const fixturePath = opts.fixtures;
+  if (!fixturePath) {
+    console.error('Error: `pbrain eval retrieve` requires --fixtures <path|json>\n');
+    printHelp();
+    process.exit(1);
+  }
+
+  let qrels: EvalQrel[];
+  try {
+    qrels = loadRetrievalFixture(fixturePath);
+  } catch (err) {
+    if (err instanceof FixtureParseError) {
+      console.error(`Error loading fixture: ${err.message}`);
+    } else {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Error loading fixture: ${msg}`);
+    }
+    process.exit(1);
+  }
+
+  if (qrels.length === 0) {
+    console.error('Error: fixture contains no retrieval cases');
+    process.exit(1);
+  }
+
+  await runRetrievalReports(engine, qrels, opts);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Legacy --qrels mode — unchanged behavior
+// ─────────────────────────────────────────────────────────────────
+
+async function runLegacyQrelsMode(engine: BrainEngine, args: string[]): Promise<void> {
   const opts = parseArgs(args);
 
   if (opts.help) {
@@ -34,11 +128,12 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
     process.exit(1);
   }
 
-  let qrels;
+  let qrels: EvalQrel[];
   try {
     qrels = parseQrels(opts.qrels);
-  } catch (err: any) {
-    console.error(`Error loading qrels: ${err.message}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error loading qrels: ${msg}`);
     process.exit(1);
   }
 
@@ -47,11 +142,22 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
     process.exit(1);
   }
 
+  await runRetrievalReports(engine, qrels, opts);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Shared retrieval runner — used by both retrieve subcommand + legacy mode
+// ─────────────────────────────────────────────────────────────────
+
+async function runRetrievalReports(
+  engine: BrainEngine,
+  qrels: EvalQrel[],
+  opts: ParsedArgs,
+): Promise<void> {
   const k = opts.k ?? 5;
   const configA = buildConfig(opts, 'a');
 
-  if (opts.configB || opts.configBPath) {
-    // A/B comparison mode
+  if (opts.configBPath) {
     const configB = buildConfig(opts, 'b');
     const [reportA, reportB] = await Promise.all([
       runEval(engine, qrels, configA, k),
@@ -59,7 +165,6 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
     ]);
     printABTable(reportA, reportB, k);
   } else {
-    // Single-run mode
     const report = await runEval(engine, qrels, configA, k);
     printSingleTable(report);
   }
@@ -72,9 +177,9 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
 interface ParsedArgs {
   help: boolean;
   qrels?: string;
+  fixtures?: string;
   configAPath?: string;
   configBPath?: string;
-  configB?: EvalConfig;
   strategy?: EvalConfig['strategy'];
   rrfK?: number;
   expand?: boolean;
@@ -95,6 +200,7 @@ function parseArgs(args: string[]): ParsedArgs {
     switch (arg) {
       case '--help': case '-h': opts.help = true; break;
       case '--qrels': opts.qrels = next; i++; break;
+      case '--fixtures': opts.fixtures = next; i++; break;
       case '--config-a': opts.configAPath = next; i++; break;
       case '--config-b': opts.configBPath = next; i++; break;
       case '--strategy': opts.strategy = next as EvalConfig['strategy']; i++; break;
@@ -115,13 +221,11 @@ function parseArgs(args: string[]): ParsedArgs {
 function buildConfig(opts: ParsedArgs, side: 'a' | 'b'): EvalConfig {
   const pathOpt = side === 'a' ? opts.configAPath : opts.configBPath;
 
-  // Start from file or inline JSON if provided
   let base: EvalConfig = {};
   if (pathOpt) {
     base = loadConfigFile(pathOpt);
   }
 
-  // CLI flags override config file (only for side A — side B comes entirely from its config file)
   if (side === 'a') {
     if (opts.strategy !== undefined) base.strategy = opts.strategy;
     if (opts.rrfK !== undefined) base.rrf_k = opts.rrfK;
@@ -131,7 +235,6 @@ function buildConfig(opts: ParsedArgs, side: 'a' | 'b'): EvalConfig {
     if (opts.dedupMaxPerPage !== undefined) base.dedup_max_per_page = opts.dedupMaxPerPage;
     if (opts.limit !== undefined) base.limit = opts.limit;
 
-    // Defaults for side A
     if (!base.name) base.name = 'Config A';
     if (!base.strategy) base.strategy = 'hybrid';
   } else {
@@ -202,9 +305,8 @@ function printABTable(reportA: EvalReport, reportB: EvalReport, k: number): void
 
   const COL_QUERY = 34;
   const COL_METRIC = 8;
-  const COLS_PER_SIDE = 3; // P@k, MRR, nDCG@k
+  const COLS_PER_SIDE = 3;
 
-  // Header line 1: section labels
   const aLabel = ` ${labelA} `.slice(0, COL_METRIC * COLS_PER_SIDE - 2);
   const bLabel = ` ${labelB} `.slice(0, COL_METRIC * COLS_PER_SIDE - 2);
   const line1 =
@@ -214,14 +316,13 @@ function printABTable(reportA: EvalReport, reportB: EvalReport, k: number): void
     `  Δ nDCG`;
   console.log(line1);
 
-  // Header line 2: metric names
-  const metricHeader = (suffix: string) =>
+  const metricHeader = () =>
     padL(`P@${k}`, COL_METRIC) + padL('MRR', COL_METRIC) + padL(`nDCG@${k}`, COL_METRIC);
 
   const line2 =
     padR('Query', COL_QUERY) +
-    metricHeader('A') +
-    '  ' + metricHeader('B') +
+    metricHeader() +
+    '  ' + metricHeader() +
     '  ' + padL('Δ nDCG', 10);
   console.log(line2);
   console.log('─'.repeat(line2.length));
@@ -288,15 +389,19 @@ function truncate(s: string, max: number): string {
 
 function printHelp(): void {
   console.log(`
-pbrain eval — measure and compare retrieval quality
+pbrain eval — measure and compare retrieval, ingest, and answer quality
 
 USAGE
-  pbrain eval --qrels <path>
-  pbrain eval --qrels <path> --config-a <path> --config-b <path>
+  pbrain eval retrieve --fixtures <path>     measure search quality (v0.4 form)
+  pbrain eval ingest   --fixtures <path>     coming in v0.4.0 PR 3
+  pbrain eval answer   --fixtures <path>     coming in v0.4.0 PR 4
+  pbrain eval all      --fixtures-dir <dir>  coming in v0.4.0 PR 5
+  pbrain eval --qrels <path>                  legacy alias for \`retrieve\`
 
-OPTIONS
-  --qrels <path|json>         Path to qrels JSON file (required)
+RETRIEVE / LEGACY OPTIONS
+  --qrels <path|json>         Legacy qrels file (aliases \`retrieve\`)
                               Or inline JSON: '[{"query":"...","relevant":["slug"]}]'
+  --fixtures <path|json>      v0.4 retrieval fixture (envelope: kind=retrieval)
   --config-a <path|json>      Config for strategy A (default: hybrid with defaults)
   --config-b <path|json>      Config for strategy B (triggers A/B mode)
   --strategy <s>              Search strategy: hybrid | keyword | vector
@@ -308,7 +413,7 @@ OPTIONS
   --limit <n>                 Max results to fetch per query (default: 10)
   --k <n>                     Metric cutoff depth (default: 5)
 
-QRELS FORMAT
+LEGACY QRELS FORMAT (--qrels)
   {
     "version": 1,
     "queries": [
@@ -319,15 +424,22 @@ QRELS FORMAT
       }
     ]
   }
-  "grades" is optional — enables graded nDCG. Without it, binary relevance is used.
+
+V0.4 FIXTURE ENVELOPE (--fixtures)
+  {
+    "version": 1,
+    "kind": "retrieval",
+    "meta": { "description": "..." },
+    "cases": [{ "query": "...", "relevant": ["slug"], "grades": { "slug": 3 } }]
+  }
 
 CONFIG FORMAT
   { "name": "rrf-k-30", "strategy": "hybrid", "rrf_k": 30, "expand": false }
 
 EXAMPLES
-  pbrain eval --qrels ./my-queries.json
-  pbrain eval --qrels ./qrels.json --strategy keyword
-  pbrain eval --qrels ./qrels.json --rrf-k 30
-  pbrain eval --qrels ./qrels.json --config-a baseline.json --config-b experiment.json
+  pbrain eval --qrels ./legacy.json
+  pbrain eval retrieve --fixtures ./fixtures/retrieval/baseline.json
+  pbrain eval retrieve --fixtures ./baseline.json --config-a a.json --config-b b.json
+  pbrain eval retrieve --fixtures ./baseline.json --strategy keyword
 `.trim());
 }
