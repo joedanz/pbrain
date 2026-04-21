@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "kind": "answer",
+  "meta": {
+    "description": "Senior-dev baseline answer cases — factual lookup, temporal/structural, refusal. Three of the ten baseline cases planned for v0.4.0; remaining seven ship in a fixtures follow-up PR. Retrieved context is inlined; PR 5 orchestrator will produce context via live retrieval against the frozen seed brain.",
+    "generator_model": "claude-haiku-4-5-20251001",
+    "judge_model": "claude-sonnet-4-5-20250929",
+    "curated_at": "2026-04-21",
+    "curator": "joe@ticc.net",
+    "fixture_class": "baseline"
+  },
+  "cases": [
+    {
+      "id": "database-choice-factual",
+      "query": "What database did I pick for the pbrain data pipeline and why?",
+      "required_answer_facts": [
+        "Chose Postgres with pgvector",
+        "Reason was hybrid search — pgvector plus full Postgres in one system"
+      ],
+      "forbidden_answer_facts": [
+        "Chose SQLite",
+        "Chose DuckDB",
+        "The decision was made in 2024"
+      ],
+      "required_citations": ["decisions/adr-001-database-choice"],
+      "forbidden_citations": [],
+      "expected_refusal": false,
+      "retrieved_context": [
+        {
+          "slug": "decisions/adr-001-database-choice",
+          "text": "ADR 001: database choice for pbrain. Decision: Postgres with pgvector over SQLite and DuckDB. Date: 2026-02-14. Primary reason: pgvector gives HNSW vector search plus real Postgres features (triggers, JSONB, full-text, row-level security) in one system. PGLite is the zero-config default for solo users; managed Supabase is the scale path via `pbrain migrate --to supabase`. SQLite was considered but lacks first-class vector search. DuckDB was ruled out because it's optimized for analytics, not OLTP."
+        }
+      ]
+    },
+    {
+      "id": "attention-paper-temporal",
+      "query": "When was the Attention Is All You Need paper published and who are two of the authors?",
+      "required_answer_facts": [
+        "The paper was published in 2017 at NeurIPS",
+        "Vaswani is one of the authors",
+        "Shazeer is one of the authors"
+      ],
+      "forbidden_answer_facts": [
+        "The paper was published in 2023",
+        "The paper uses RoPE positional embeddings"
+      ],
+      "required_citations": ["reading-notes/attention-is-all-you-need"],
+      "forbidden_citations": [],
+      "expected_refusal": false,
+      "retrieved_context": [
+        {
+          "slug": "reading-notes/attention-is-all-you-need",
+          "text": "Reading notes on Attention Is All You Need (Vaswani et al., 2017). The paper replaces both recurrence and convolutions with pure attention. Scaled dot-product attention divides Q·Kᵀ by √d_k before softmax. Multi-head (h=8) outperforms single-head by roughly 0.9 BLEU. Published at NeurIPS in June 2017. Listed authors include Ashish Vaswani and Noam Shazeer. Position encoding is sinusoidal."
+        }
+      ]
+    },
+    {
+      "id": "refusal-unknown-project",
+      "query": "When did I ship version 9.0 of project-fictional-z and what was in the release?",
+      "required_answer_facts": [],
+      "forbidden_answer_facts": [
+        "project-fictional-z shipped version 9.0 on any specific date",
+        "The release included specific features"
+      ],
+      "required_citations": [],
+      "forbidden_citations": [
+        "projects/fictional-z",
+        "decisions/adr-001-database-choice",
+        "reading-notes/attention-is-all-you-need"
+      ],
+      "expected_refusal": true,
+      "retrieved_context": [
+        {
+          "slug": "decisions/adr-001-database-choice",
+          "text": "ADR 001: database choice. Postgres + pgvector. No mention of any project-fictional-z or version 9.0."
+        },
+        {
+          "slug": "reading-notes/attention-is-all-you-need",
+          "text": "Reading notes on the 2017 Transformer paper. Nothing about project-fictional-z or any 9.0 release."
+        }
+      ]
+    }
+  ]
+}
