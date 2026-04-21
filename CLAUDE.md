@@ -88,7 +88,13 @@ skill, feature, or MCP op is gated through them. Full reasoning and citations li
 - `src/core/search/` — Hybrid search: vector + keyword + RRF + multi-query expansion + dedup
 - `src/core/search/intent.ts` — Query intent classifier (entity/temporal/event/general → auto-selects detail level)
 - `src/core/search/eval.ts` — Retrieval eval harness: P@k, R@k, MRR, nDCG@k metrics + runEval() orchestrator
-- `src/commands/eval.ts` — `pbrain eval` command: single-run table + A/B config comparison
+- `src/commands/eval.ts` — `pbrain eval` router: subcommands `retrieve` (A/B-capable), `ingest`, `answer`, `all` (composite orchestrator with `--runs N` variance reporting). Legacy `pbrain eval --qrels ...` aliases to `retrieve` exactly.
+- `src/core/eval/fixtures.ts` — v0.4 fixture envelope (`{version:1, kind, meta, cases}`) + per-kind case types + strict parser. Exports `FixtureParseError` with explicit unknown-version rejection.
+- `src/core/eval/metrics.ts` — shared metric primitives: precision/recall/F1, Levenshtein, hierarchical slug matching (exact/descendant/ancestor/near), mean/stdev.
+- `src/core/eval/judge.ts` — asymmetric-tier LLM judge. `DEFAULT_JUDGE_MODEL = 'claude-sonnet-4-5-20250929'` pinned; `EVAL_JUDGE_MODEL` override. `judgeFactExpressed` uses `tool_use` for deterministic `{verdict, reason}`. `parseCalibrationFile` + `computeAgreement` for calibration artifacts.
+- `src/core/eval/ingest.ts` — stage 1 runner. Fresh in-memory PGLite per case → `importFromContent` → `buildPageView` → judge loop. Ship-gate metric: `fact_union_recall`. Injectable `JudgeFn` for hermetic tests.
+- `src/core/eval/retrieval.ts` — stage 2 adapter. Thin shim that loads a retrieval-kind envelope and projects onto `EvalQrel[]`; the retrieval primitive in `src/core/search/eval.ts` is untouched.
+- `src/core/eval/answer.ts` — stage 3 runner. `DEFAULT_GENERATOR_MODEL = 'claude-haiku-4-5-20251001'` via `tool_use` for structured `{answer, citations, refused}`; degraded fallback refuses safely. Ship-gate metrics: `citation_hallucination_rate` (must=0), `refusal_correctness` on `expected_refusal` cases, `forbidden_fact_rate`.
 - `src/core/embedding.ts` — OpenAI text-embedding-3-large, batch, retry, backoff
 - `src/core/check-resolvable.ts` — Resolver validation: reachability, MECE overlap, DRY checks, structured fix objects
 - `src/core/backoff.ts` — Adaptive load-aware throttling: CPU/memory checks, exponential backoff, active hours multiplier
@@ -171,6 +177,13 @@ Key commands added in v0.3.0:
 - `add_link` operation gains optional `valid_from` DATE param — record when a relationship became true in the real world.
 - `remove_link` operation gains optional `link_type` param — soft-delete only one relationship type between two entities, leaving others open.
 
+Key commands added in v0.4.0 (eval harness):
+- `pbrain eval ingest --fixtures <path>` — measure markdown-ingest fact capture. Ship-gate metrics: `fact_union_recall` (primary), `forbidden_fact_rate` (must=0).
+- `pbrain eval answer --fixtures <path>` — measure answer correctness + citation accuracy against inline `retrieved_context`. Ship gates: `citation_hallucination_rate` (must=0), `refusal_correctness` (must=1 on `expected_refusal` cases), `forbidden_fact_rate`.
+- `pbrain eval retrieve --fixtures <path>` — measure search quality against a v0.4 fixture envelope. Legacy `pbrain eval --qrels <path>` still works exactly as before.
+- `pbrain eval all --fixtures-dir <path>` — composite orchestrator across all three stages. `--runs N` reports mean ± stdev on ship-gate metrics (variance-aware regression detection). Missing stages skip with a clear notice.
+- See `docs/guides/eval-harness.md` for fixture format, cost/runtime numbers, regression-guard pattern, and CI recipe.
+
 Key commands added in v0.12.2:
 - `gbrain repair-jsonb [--dry-run] [--json]` — repair double-encoded JSONB rows left over from v0.12.0-and-earlier Postgres writes. Idempotent; PGLite no-ops. The `v0_12_2` migration runs this automatically on `gbrain upgrade`.
 
@@ -206,6 +219,12 @@ parity), `test/cli.test.ts` (CLI structure), `test/config.test.ts` (config redac
 `test/dedup.test.ts` (source-aware dedup, compiled truth guarantee, layer interactions),
 `test/intent.test.ts` (query intent classification: entity/temporal/event/general),
 `test/eval.test.ts` (retrieval metrics: precisionAtK, recallAtK, mrr, ndcgAtK, parseQrels),
+`test/eval-fixtures.test.ts` (v0.4 envelope parsing, version rejection, per-kind case validation),
+`test/eval-judge.test.ts` (v0.4 judge calibration artifact parsing + agreement math),
+`test/eval-retrieval.test.ts` (v0.4 retrieval adapter: envelope → EvalQrel projection + kind-mismatch diagnostics),
+`test/eval-ingest.test.ts` (v0.4 ingest stage: hermetic runner with injected fake judge + in-memory PGLite per case; API-key-gated integration on baseline fixture),
+`test/eval-answer.test.ts` (v0.4 answer stage: hermetic runner with injected fake generator + judge; covers fact coverage, hallucination detection, hierarchical citation matching, refusal correctness, forbidden citations; API-key-gated integration on baseline fixture),
+`test/eval-orchestrator.test.ts` (v0.4 `eval all` fixture discovery: direct baseline.json, nested PR 3 layout, first-*.json fallback, missing/empty-stage edge cases),
 `test/check-resolvable.test.ts` (resolver reachability, MECE overlap, gap detection, DRY checks),
 `test/backoff.test.ts` (load-aware throttling, concurrency limits, active hours),
 `test/fail-improve.test.ts` (deterministic/LLM cascade, JSONL logging, test generation, rotation),
