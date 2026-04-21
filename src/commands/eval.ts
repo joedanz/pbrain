@@ -18,6 +18,7 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
+import { dirname } from 'path';
 import type { BrainEngine } from '../core/engine.ts';
 import {
   runEval,
@@ -27,7 +28,8 @@ import {
   type EvalReport,
 } from '../core/search/eval.ts';
 import { loadRetrievalFixture } from '../core/eval/retrieval.ts';
-import { FixtureParseError } from '../core/eval/fixtures.ts';
+import { FixtureParseError, parseFixture, type IngestFixture } from '../core/eval/fixtures.ts';
+import { runIngestEval, type IngestReport } from '../core/eval/ingest.ts';
 
 type Subcommand = 'retrieve' | 'ingest' | 'answer' | 'all';
 const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set(['retrieve', 'ingest', 'answer', 'all']);
@@ -49,6 +51,8 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
         await runRetrieveSubcommand(engine, rest);
         return;
       case 'ingest':
+        await runIngestSubcommand(rest);
+        return;
       case 'answer':
       case 'all':
         printStubSubcommand(sub);
@@ -64,10 +68,118 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
 // Stub subcommands — land in PRs 3/4/5
 // ─────────────────────────────────────────────────────────────────
 
-function printStubSubcommand(sub: 'ingest' | 'answer' | 'all'): void {
-  const planRef = { ingest: 'PR 3', answer: 'PR 4', all: 'PR 5' }[sub];
+function printStubSubcommand(sub: 'answer' | 'all'): void {
+  const planRef = { answer: 'PR 4', all: 'PR 5' }[sub];
   console.error(`\`pbrain eval ${sub}\` is not yet implemented (lands in v0.4.0 ${planRef}).`);
   console.error('See the v0.4.0 eval-harness plan for the full stage surface.');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ingest subcommand — stage 1 of the v0.4 eval harness
+// ─────────────────────────────────────────────────────────────────
+
+async function runIngestSubcommand(args: string[]): Promise<void> {
+  const opts = parseArgs(args);
+  if (opts.help) { printHelp(); return; }
+
+  if (!opts.fixtures) {
+    console.error('Error: `pbrain eval ingest` requires --fixtures <path|json>\n');
+    printHelp();
+    process.exit(1);
+  }
+
+  // Preflight: the judge runs against Anthropic. Surface the missing-key
+  // condition here rather than letting the first case crash mid-migration.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('Error: ANTHROPIC_API_KEY is required for `pbrain eval ingest` (judge calls Anthropic).');
+    console.error('Set the env var, or export EVAL_JUDGE_MODEL to override which model the judge uses.');
+    process.exit(1);
+  }
+
+  let fixture: IngestFixture;
+  try {
+    const env = parseFixture(opts.fixtures);
+    if (env.kind !== 'ingest') {
+      console.error(`Error: fixture kind is "${env.kind}"; expected "ingest" (use \`pbrain eval ${env.kind}\` instead)`);
+      process.exit(1);
+    }
+    fixture = env;
+  } catch (err) {
+    if (err instanceof FixtureParseError) {
+      console.error(`Error loading fixture: ${err.message}`);
+    } else {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Error loading fixture: ${msg}`);
+    }
+    process.exit(1);
+  }
+
+  const baseDir = fixturePathBaseDir(opts.fixtures);
+  const report = await runIngestEval(fixture, {
+    sample: opts.sample,
+    baseDir,
+  });
+
+  if (opts.json) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    printIngestTable(report);
+  }
+}
+
+function fixturePathBaseDir(input: string): string {
+  // If the caller passed inline JSON (leading `{` or `[`), relative source.path
+  // values don't make sense; anchor to cwd for that case.
+  const trimmed = input.trimStart();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return process.cwd();
+  return dirname(input);
+}
+
+function printIngestTable(report: IngestReport): void {
+  const cases = report.cases;
+  console.log(`\npbrain eval ingest — ${cases.length} case${cases.length === 1 ? '' : 's'}\n`);
+
+  const COL_ID = 40;
+  const COL_NUM = 9;
+  const header =
+    padR('Case', COL_ID) +
+    padL('recall', COL_NUM) +
+    padL('forbid', COL_NUM) +
+    padL('pageF1', COL_NUM) +
+    padL('judge', COL_NUM);
+  const divider = '─'.repeat(header.length);
+  console.log(header);
+  console.log(divider);
+
+  for (const m of cases) {
+    const recall = m.import_error ? 'ERR' : fmt(m.fact_union_recall);
+    const forbid = m.import_error ? '—' : fmt(m.forbidden_fact_rate);
+    const pf1 = m.import_error ? '—' : fmt(m.page_f1);
+    const judge = String(m.judge_calls);
+    console.log(
+      padR(truncate(m.case_id, COL_ID - 1), COL_ID) +
+      padL(recall, COL_NUM) +
+      padL(forbid, COL_NUM) +
+      padL(pf1, COL_NUM) +
+      padL(judge, COL_NUM),
+    );
+    if (m.import_error) {
+      console.log(`    ↳ ${m.import_error}`);
+    }
+  }
+
+  console.log(divider);
+  console.log(
+    padR('Mean', COL_ID) +
+    padL(fmt(report.mean.fact_union_recall), COL_NUM) +
+    padL(fmt(report.mean.forbidden_fact_rate), COL_NUM) +
+    padL(fmt(report.mean.page_f1), COL_NUM) +
+    padL(String(report.totals.judge_calls), COL_NUM),
+  );
+
+  console.log('');
+  console.log(`Totals: judge_calls=${report.totals.judge_calls} tokens_in=${report.totals.tokens_in} tokens_out=${report.totals.tokens_out} latency_ms=${report.totals.latency_ms}`);
+  console.log('');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -188,6 +300,10 @@ interface ParsedArgs {
   dedupMaxPerPage?: number;
   limit?: number;
   k?: number;
+  /** Ingest/answer: run only the first N cases. */
+  sample?: number;
+  /** Emit machine-readable JSON instead of the text table. */
+  json?: boolean;
 }
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -212,6 +328,8 @@ function parseArgs(args: string[]): ParsedArgs {
       case '--dedup-max-per-page': opts.dedupMaxPerPage = parseInt(next, 10); i++; break;
       case '--limit': opts.limit = parseInt(next, 10); i++; break;
       case '--k': opts.k = parseInt(next, 10); i++; break;
+      case '--sample': opts.sample = parseInt(next, 10); i++; break;
+      case '--json': opts.json = true; break;
     }
   }
 
@@ -393,7 +511,7 @@ pbrain eval — measure and compare retrieval, ingest, and answer quality
 
 USAGE
   pbrain eval retrieve --fixtures <path>     measure search quality (v0.4 form)
-  pbrain eval ingest   --fixtures <path>     coming in v0.4.0 PR 3
+  pbrain eval ingest   --fixtures <path>     measure markdown-ingest fact capture
   pbrain eval answer   --fixtures <path>     coming in v0.4.0 PR 4
   pbrain eval all      --fixtures-dir <dir>  coming in v0.4.0 PR 5
   pbrain eval --qrels <path>                  legacy alias for \`retrieve\`
@@ -412,6 +530,11 @@ RETRIEVE / LEGACY OPTIONS
   --dedup-max-per-page <n>    Override max chunks per page (default: 2)
   --limit <n>                 Max results to fetch per query (default: 10)
   --k <n>                     Metric cutoff depth (default: 5)
+
+INGEST OPTIONS
+  --fixtures <path|json>      v0.4 ingest fixture (envelope: kind=ingest)
+  --sample <n>                Run only the first N cases (dev-loop speed)
+  --json                      Machine-readable JSON output
 
 LEGACY QRELS FORMAT (--qrels)
   {
@@ -441,5 +564,7 @@ EXAMPLES
   pbrain eval retrieve --fixtures ./fixtures/retrieval/baseline.json
   pbrain eval retrieve --fixtures ./baseline.json --config-a a.json --config-b b.json
   pbrain eval retrieve --fixtures ./baseline.json --strategy keyword
+  pbrain eval ingest   --fixtures ./fixtures/ingest/baseline/baseline.json --sample 1
+  pbrain eval ingest   --fixtures ./baseline.json --json > runs/ingest.json
 `.trim());
 }

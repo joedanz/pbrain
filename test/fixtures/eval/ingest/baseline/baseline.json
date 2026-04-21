@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "kind": "ingest",
+  "meta": {
+    "description": "Senior-dev baseline ingest cases — ADR, reading notes, 1:1 meeting notes. First three of the ten baseline cases planned for v0.4.0; remaining seven ship in a fixtures follow-up PR.",
+    "generator_model": "claude-haiku-4-5-20251001",
+    "judge_model": "claude-sonnet-4-5-20250929",
+    "source_type": "markdown",
+    "curated_at": "2026-04-21",
+    "curator": "joe@ticc.net",
+    "fixture_class": "baseline"
+  },
+  "cases": [
+    {
+      "id": "adr-001-database-choice",
+      "source": {
+        "type": "markdown",
+        "path": "./sources/adr-001-database-choice.md"
+      },
+      "expected_pages": [
+        {
+          "slug": "decisions/adr-001-database-choice",
+          "type": "decision"
+        }
+      ],
+      "required_facts": [
+        { "fact": "Chose Postgres with pgvector over SQLite and DuckDB", "fact_type": "narrative" },
+        { "fact": "PGLite is the zero-config default for solo users", "fact_type": "narrative" },
+        { "fact": "The decision was made on 2026-02-14", "fact_type": "temporal" },
+        { "fact": "Primary reason: pgvector gives HNSW vector search plus real Postgres features in one system", "fact_type": "narrative" },
+        { "fact": "Migration path is pbrain migrate --to supabase for scale", "fact_type": "narrative" }
+      ],
+      "forbidden_facts": [
+        { "fact": "Chose SQLite as the production engine" },
+        { "fact": "The decision was made in 2024" },
+        { "fact": "DuckDB was selected as the primary database" }
+      ],
+      "forbidden_pages": []
+    },
+    {
+      "id": "reading-notes-attention-is-all-you-need",
+      "source": {
+        "type": "markdown",
+        "path": "./sources/reading-notes-attention-is-all-you-need.md"
+      },
+      "expected_pages": [
+        {
+          "slug": "reading-notes/attention-is-all-you-need",
+          "type": "reading-note"
+        }
+      ],
+      "required_facts": [
+        { "fact": "The paper replaces both recurrence and convolutions with pure attention", "fact_type": "narrative" },
+        { "fact": "Scaled dot-product attention divides by the square root of d_k", "fact_type": "narrative" },
+        { "fact": "Multi-head attention outperforms single-head — ablation shows h=1 loses roughly 0.9 BLEU versus h=8", "fact_type": "narrative" },
+        { "fact": "The original paper was published at NeurIPS in June 2017", "fact_type": "temporal" },
+        { "fact": "Vaswani and Shazeer are two of the listed authors", "fact_type": "structural" }
+      ],
+      "forbidden_facts": [
+        { "fact": "The paper uses RoPE positional embeddings" },
+        { "fact": "The paper was published in 2023" },
+        { "fact": "The paper proves attention is not enough for modern LLMs" }
+      ],
+      "forbidden_pages": []
+    },
+    {
+      "id": "1on1-notes-sarah-2026-03-15",
+      "source": {
+        "type": "markdown",
+        "path": "./sources/1on1-notes-2026-03-15-sarah.md"
+      },
+      "expected_pages": [
+        {
+          "slug": "meetings/2026-03-15-sarah-chen",
+          "type": "meeting-note"
+        }
+      ],
+      "required_facts": [
+        { "fact": "Sarah Chen pushed back on the v0.4 eval-harness scope, arguing each stage deserves its own release cycle", "fact_type": "narrative" },
+        { "fact": "Sarah's team is taking on the background sync daemon rewrite with a three-week estimate", "fact_type": "narrative" },
+        { "fact": "Priya Menon cleared both the tech screen and the design-sense interview and is moving to the final round", "fact_type": "narrative" },
+        { "fact": "Sarah is moving to NYC in June and will stay on remote", "fact_type": "narrative" },
+        { "fact": "The meeting took place on 2026-03-15", "fact_type": "temporal" }
+      ],
+      "forbidden_facts": [
+        { "fact": "Sarah is leaving the team" },
+        { "fact": "Priya Menon was rejected in the screening rounds" },
+        { "fact": "Joe declined to pair on the adaptive-backoff work" }
+      ],
+      "forbidden_pages": []
+    }
+  ]
+}
