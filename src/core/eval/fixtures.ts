@@ -89,6 +89,17 @@ export interface RetrievalCase {
   grades?: Record<string, number>;
 }
 
+/**
+ * A retrieved chunk + its slug. The answer stage accepts these inline in the
+ * fixture (PR 4) OR derives them from a retrieval pass against a seed brain
+ * (PR 5 orchestrator). Inline is the hermetic-test path; live-retrieval is the
+ * production path.
+ */
+export interface RetrievedChunk {
+  slug: string;
+  text: string;
+}
+
 export interface AnswerCase {
   id: string;
   query: string;
@@ -98,6 +109,13 @@ export interface AnswerCase {
   forbidden_citations?: string[];
   /** When true, the model is expected to refuse; no citations should be emitted. */
   expected_refusal?: boolean;
+  /**
+   * Pre-computed retrieved context. When omitted, the orchestrator is expected
+   * to fill it by running retrieval against a seed brain (PR 5). For PR 4's
+   * standalone `pbrain eval answer`, this field MUST be present (empty array
+   * is legal and exercises the refusal path).
+   */
+  retrieved_context?: RetrievedChunk[];
 }
 
 export type IngestFixture = FixtureEnvelope<IngestCase>;
@@ -279,6 +297,12 @@ function validateAnswerCase(raw: unknown, idx: number): AnswerCase {
     : validateStringArray(c.forbidden_citations, `answer case[${idx}] (${id}): forbidden_citations`);
   const expected_refusal = c.expected_refusal === undefined ? undefined : Boolean(c.expected_refusal);
 
+  let retrieved_context: RetrievedChunk[] | undefined;
+  if (c.retrieved_context !== undefined) {
+    const arr = validateArray(c.retrieved_context, `answer case[${idx}] (${id}): retrieved_context`);
+    retrieved_context = arr.map((raw, i) => validateRetrievedChunk(raw, id, i));
+  }
+
   return {
     id, query,
     required_answer_facts,
@@ -286,6 +310,7 @@ function validateAnswerCase(raw: unknown, idx: number): AnswerCase {
     required_citations,
     forbidden_citations,
     expected_refusal,
+    retrieved_context,
   };
 }
 
@@ -369,6 +394,24 @@ function validateForbiddenFact(raw: unknown, caseId: string, idx: number): Forbi
     );
   }
   return { fact: obj.fact, page_scope };
+}
+
+function validateRetrievedChunk(raw: unknown, caseId: string, idx: number): RetrievedChunk {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new FixtureParseError(`case ${caseId}: retrieved_context[${idx}] must be an object`);
+  }
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.slug !== 'string' || obj.slug.length === 0) {
+    throw new FixtureParseError(
+      `case ${caseId}: retrieved_context[${idx}].slug must be a non-empty string`,
+    );
+  }
+  if (typeof obj.text !== 'string') {
+    throw new FixtureParseError(
+      `case ${caseId}: retrieved_context[${idx}].text must be a string`,
+    );
+  }
+  return { slug: obj.slug, text: obj.text };
 }
 
 function validateExpectedLink(raw: unknown, caseId: string, idx: number): ExpectedLink {

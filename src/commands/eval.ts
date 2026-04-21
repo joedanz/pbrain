@@ -28,8 +28,14 @@ import {
   type EvalReport,
 } from '../core/search/eval.ts';
 import { loadRetrievalFixture } from '../core/eval/retrieval.ts';
-import { FixtureParseError, parseFixture, type IngestFixture } from '../core/eval/fixtures.ts';
+import {
+  FixtureParseError,
+  parseFixture,
+  type AnswerFixture,
+  type IngestFixture,
+} from '../core/eval/fixtures.ts';
 import { runIngestEval, type IngestReport } from '../core/eval/ingest.ts';
+import { runAnswerEval, type AnswerReport } from '../core/eval/answer.ts';
 
 type Subcommand = 'retrieve' | 'ingest' | 'answer' | 'all';
 const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set(['retrieve', 'ingest', 'answer', 'all']);
@@ -54,6 +60,8 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
         await runIngestSubcommand(rest);
         return;
       case 'answer':
+        await runAnswerSubcommand(rest);
+        return;
       case 'all':
         printStubSubcommand(sub);
         process.exit(2);
@@ -68,8 +76,8 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
 // Stub subcommands — land in PRs 3/4/5
 // ─────────────────────────────────────────────────────────────────
 
-function printStubSubcommand(sub: 'answer' | 'all'): void {
-  const planRef = { answer: 'PR 4', all: 'PR 5' }[sub];
+function printStubSubcommand(sub: 'all'): void {
+  const planRef = { all: 'PR 5' }[sub];
   console.error(`\`pbrain eval ${sub}\` is not yet implemented (lands in v0.4.0 ${planRef}).`);
   console.error('See the v0.4.0 eval-harness plan for the full stage surface.');
 }
@@ -175,6 +183,119 @@ function printIngestTable(report: IngestReport): void {
     padL(fmt(report.mean.forbidden_fact_rate), COL_NUM) +
     padL(fmt(report.mean.page_f1), COL_NUM) +
     padL(String(report.totals.judge_calls), COL_NUM),
+  );
+
+  console.log('');
+  console.log(`Totals: judge_calls=${report.totals.judge_calls} tokens_in=${report.totals.tokens_in} tokens_out=${report.totals.tokens_out} latency_ms=${report.totals.latency_ms}`);
+  console.log('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// answer subcommand — stage 3 of the v0.4 eval harness
+// ─────────────────────────────────────────────────────────────────
+
+async function runAnswerSubcommand(args: string[]): Promise<void> {
+  const opts = parseArgs(args);
+  if (opts.help) { printHelp(); return; }
+
+  if (!opts.fixtures) {
+    console.error('Error: `pbrain eval answer` requires --fixtures <path|json>\n');
+    printHelp();
+    process.exit(1);
+  }
+
+  // Preflight: both generator + judge call Anthropic. Fail fast, not mid-case.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('Error: ANTHROPIC_API_KEY is required for `pbrain eval answer` (generator + judge both call Anthropic).');
+    console.error('Set the env var, or export EVAL_GENERATOR_MODEL / EVAL_JUDGE_MODEL to override models.');
+    process.exit(1);
+  }
+
+  let fixture: AnswerFixture;
+  try {
+    const env = parseFixture(opts.fixtures);
+    if (env.kind !== 'answer') {
+      console.error(`Error: fixture kind is "${env.kind}"; expected "answer" (use \`pbrain eval ${env.kind}\` instead)`);
+      process.exit(1);
+    }
+    fixture = env;
+  } catch (err) {
+    if (err instanceof FixtureParseError) {
+      console.error(`Error loading fixture: ${err.message}`);
+    } else {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Error loading fixture: ${msg}`);
+    }
+    process.exit(1);
+  }
+
+  // v0.4.0 PR 4 ships inline-context only. Fail loud if any case is missing
+  // retrieved_context — PR 5's orchestrator fills this in from retrieval.
+  for (const c of fixture.cases) {
+    if (c.retrieved_context === undefined) {
+      console.error(`Error: case "${c.id}" is missing retrieved_context. v0.4.0 \`pbrain eval answer\` requires inline retrieved_context on every case. Live retrieval wiring lands in the \`pbrain eval all\` orchestrator (PR 5).`);
+      process.exit(1);
+    }
+  }
+
+  const report = await runAnswerEval(fixture, { sample: opts.sample });
+
+  if (opts.json) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    printAnswerTable(report);
+  }
+}
+
+function printAnswerTable(report: AnswerReport): void {
+  const cases = report.cases;
+  console.log(`\npbrain eval answer — ${cases.length} case${cases.length === 1 ? '' : 's'}\n`);
+
+  const COL_ID = 36;
+  const COL_NUM = 9;
+  const header =
+    padR('Case', COL_ID) +
+    padL('factCov', COL_NUM) +
+    padL('forbid', COL_NUM) +
+    padL('hallRate', COL_NUM) +
+    padL('citF1', COL_NUM) +
+    padL('refusal', COL_NUM);
+  const divider = '─'.repeat(header.length);
+  console.log(header);
+  console.log(divider);
+
+  for (const m of cases) {
+    const refusal = m.refusal_correctness === -1 ? '—' : fmt(m.refusal_correctness);
+    console.log(
+      padR(truncate(m.case_id, COL_ID - 1), COL_ID) +
+      padL(fmt(m.answer_fact_coverage), COL_NUM) +
+      padL(fmt(m.forbidden_fact_rate), COL_NUM) +
+      padL(fmt(m.citation_hallucination_rate), COL_NUM) +
+      padL(fmt(m.citation_f1_hierarchical), COL_NUM) +
+      padL(refusal, COL_NUM),
+    );
+    if (m.generator_degraded) {
+      console.log('    ↳ generator returned degraded (tool_use fallback)');
+    }
+    if (m.citation_hallucinations.length > 0) {
+      console.log(`    ↳ hallucinated citations: ${m.citation_hallucinations.join(', ')}`);
+    }
+    if (m.forbidden_citation_hits.length > 0) {
+      console.log(`    ↳ forbidden citations hit: ${m.forbidden_citation_hits.join(', ')}`);
+    }
+  }
+
+  console.log(divider);
+  const meanRefusal = Number.isFinite(report.mean.refusal_correctness)
+    ? fmt(report.mean.refusal_correctness)
+    : '—';
+  console.log(
+    padR('Mean', COL_ID) +
+    padL(fmt(report.mean.answer_fact_coverage), COL_NUM) +
+    padL(fmt(report.mean.forbidden_fact_rate), COL_NUM) +
+    padL(fmt(report.mean.citation_hallucination_rate), COL_NUM) +
+    padL(fmt(report.mean.citation_f1_hierarchical), COL_NUM) +
+    padL(meanRefusal, COL_NUM),
   );
 
   console.log('');
@@ -512,7 +633,7 @@ pbrain eval — measure and compare retrieval, ingest, and answer quality
 USAGE
   pbrain eval retrieve --fixtures <path>     measure search quality (v0.4 form)
   pbrain eval ingest   --fixtures <path>     measure markdown-ingest fact capture
-  pbrain eval answer   --fixtures <path>     coming in v0.4.0 PR 4
+  pbrain eval answer   --fixtures <path>     measure answer-generation quality + citation accuracy
   pbrain eval all      --fixtures-dir <dir>  coming in v0.4.0 PR 5
   pbrain eval --qrels <path>                  legacy alias for \`retrieve\`
 
@@ -533,6 +654,12 @@ RETRIEVE / LEGACY OPTIONS
 
 INGEST OPTIONS
   --fixtures <path|json>      v0.4 ingest fixture (envelope: kind=ingest)
+  --sample <n>                Run only the first N cases (dev-loop speed)
+  --json                      Machine-readable JSON output
+
+ANSWER OPTIONS
+  --fixtures <path|json>      v0.4 answer fixture (envelope: kind=answer)
+                              Each case must carry retrieved_context inline.
   --sample <n>                Run only the first N cases (dev-loop speed)
   --json                      Machine-readable JSON output
 
@@ -566,5 +693,7 @@ EXAMPLES
   pbrain eval retrieve --fixtures ./baseline.json --strategy keyword
   pbrain eval ingest   --fixtures ./fixtures/ingest/baseline/baseline.json --sample 1
   pbrain eval ingest   --fixtures ./baseline.json --json > runs/ingest.json
+  pbrain eval answer   --fixtures ./fixtures/answer/baseline.json --sample 1
+  pbrain eval answer   --fixtures ./baseline.json --json > runs/answer.json
 `.trim());
 }
