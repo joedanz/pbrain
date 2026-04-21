@@ -4,6 +4,53 @@ All notable changes to PBrain will be documented in this file.
 
 > **Fork notice.** PBrain is a fork of [GBrain](https://github.com/garrytan/gbrain) by [Garry Tan](https://github.com/garrytan). All entries below `[0.1.0]` describe work done on the GBrain project under its original name and are preserved for historical context. See [NOTICE](NOTICE) and [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) for attribution.
 
+## [0.4.0] - unreleased
+
+## **The measurement foundation: pbrain now measures itself.**
+## **`pbrain eval` ships three stages — markdown ingest, retrieval, and answer generation — each with its own metrics, ship gates, and regression guard.**
+
+Until now, "does pbrain work better after this change?" was a gut check. v0.4.0 replaces it with numbers you can diff. Ship regressions get caught before users do.
+
+The harness measures three stages end-to-end:
+
+- **Ingest**: did the brain capture the facts in a markdown source doc?
+- **Retrieval**: did search rank the right pages at the top?
+- **Answer**: did generation produce a factually correct answer with correct, non-hallucinated citations?
+
+Judge = Sonnet (pinned snapshot). Generator = Haiku (pinned snapshot). Asymmetric-tier setup reduces self-rating bias ~30% per the Zheng 2023 result. Both pins are explicit so alias drift shows up loudly instead of silently shifting calibration.
+
+### What you can do now that you couldn't before
+
+- **Run `pbrain eval ingest --fixtures <path>` to measure markdown-ingest fact capture.** Primary metric: `fact_union_recall` — "does the brain contain this fact, regardless of which page it landed on?" Ship gate: `forbidden_fact_rate` must be zero (hallucination guard).
+- **Run `pbrain eval retrieve --fixtures <path>` to measure search quality against a fixture envelope.** Thin adapter over the existing retrieval primitive; same P@k / R@k / MRR / nDCG metrics, A/B config comparison works the same way. Legacy `pbrain eval --qrels <path>` still works exactly as before — aliases to `retrieve`.
+- **Run `pbrain eval answer --fixtures <path>` to measure answer correctness + citation accuracy.** Generator emits structured JSON via `tool_use` (no fragile regex-parse-from-prose). Ship gates: `citation_hallucination_rate` must be zero (no citing what isn't in context), `refusal_correctness` must be 1 on `expected_refusal` cases (must refuse unanswerable queries without citing).
+- **Run `pbrain eval all --fixtures-dir <path>` to orchestrate all three stages in one pass.** Composite report across ingest + retrieval + answer. Missing stages skip with a clear notice — CI fails loudly if an expected stage is silently absent. `--runs 3` reports mean ± stdev on ship-gate metrics so regression detection can distinguish noise from signal.
+- **Hierarchical citation matching in answer eval.** A cited slug gets full credit for exact match OR descendant (more specific than expected) OR partial credit for ancestor (less specific). Matches how real retrieval disagrees with hand-curated expected citations without penalizing reasonable flexibility.
+- **Inject fake generators and judges for hermetic unit testing.** `AnswerGeneratorFn` and `AnswerJudgeFn` types + `JudgeFn` for ingest. Tests cover fact coverage, hallucination detection, refusal correctness, hierarchical citation matching — all without burning API tokens.
+- **Use `--sample N` for dev-loop speed.** Runs only the first N cases against any stage; keeps iteration under $0.25.
+- **Use `--json` for regression tooling.** Every stage emits machine-readable JSON with per-case + aggregate metrics, token counts, latencies, and judge-degradation rates.
+- **Read the eval-harness guide at `docs/guides/eval-harness.md`.** Fixture format, cost/runtime numbers, regression-guard pattern, CI recipe, how to add new fixtures.
+
+### What v0.4.0 deliberately does NOT ship
+
+- **VERSION bump to 0.4.0.** The harness code + docs ship now. The `runs/v0_4_0-baseline.json` capture + VERSION bump land in a focused follow-up PR (per the plan's baseline-update policy: dedicated PR, one file touched, loud diff).
+- **Full 10 baselines + 3 adversarials per stage.** Ships 3 representative baselines per stage (ingest, answer). A fixtures-completion PR lands the remaining 7 baselines + 3 adversarials + judge-calibration JSONL (50 rows per stage).
+- **Frozen seed brain.** Committed PGLite dump for hermetic retrieval + answer eval. v0.4.x work once the fixture set is complete. Today: retrieval runs against the engine the CLI passes in; answer uses inline `retrieved_context` from fixtures.
+- **Meta-eval.** Proving the harness detects a known regression between two real pbrain versions. v0.4.1 work — converts the harness from "measurement tool" to "trusted measurement tool."
+- **Cross-family judge.** Haiku + Sonnet is tier-only decorrelation, not true cross-family separation. GPT-4.1-mini or Gemini-Flash as second judge is deferred to v0.4.x.
+
+### How to upgrade
+
+```bash
+pbrain upgrade
+# No schema migration. Harness is pure-Node code + fixture JSON.
+pbrain eval --help    # tour the subcommand surface
+```
+
+No data loss. No schema changes. Existing `pbrain eval --qrels ...` usage works identically.
+
+---
+
 ## [0.3.0] - 2026-04-20
 
 ## **The temporal foundation: links now remember their history.**

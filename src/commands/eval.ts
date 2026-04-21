@@ -17,8 +17,8 @@
  * via a different fixture loader.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { dirname } from 'path';
+import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
+import { dirname, join } from 'path';
 import type { BrainEngine } from '../core/engine.ts';
 import {
   runEval,
@@ -36,6 +36,7 @@ import {
 } from '../core/eval/fixtures.ts';
 import { runIngestEval, type IngestReport } from '../core/eval/ingest.ts';
 import { runAnswerEval, type AnswerReport } from '../core/eval/answer.ts';
+import { mean, stdev } from '../core/eval/metrics.ts';
 
 type Subcommand = 'retrieve' | 'ingest' | 'answer' | 'all';
 const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set(['retrieve', 'ingest', 'answer', 'all']);
@@ -63,23 +64,13 @@ export async function runEvalCommand(engine: BrainEngine, args: string[]): Promi
         await runAnswerSubcommand(rest);
         return;
       case 'all':
-        printStubSubcommand(sub);
-        process.exit(2);
+        await runAllSubcommand(engine, rest);
+        return;
     }
   }
 
   // Fallthrough: legacy `pbrain eval --qrels ...` behavior, unchanged.
   await runLegacyQrelsMode(engine, args);
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Stub subcommands — land in PRs 3/4/5
-// ─────────────────────────────────────────────────────────────────
-
-function printStubSubcommand(sub: 'all'): void {
-  const planRef = { all: 'PR 5' }[sub];
-  console.error(`\`pbrain eval ${sub}\` is not yet implemented (lands in v0.4.0 ${planRef}).`);
-  console.error('See the v0.4.0 eval-harness plan for the full stage surface.');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -304,6 +295,258 @@ function printAnswerTable(report: AnswerReport): void {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// all subcommand — composite orchestrator (v0.4.0 PR 5)
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * `pbrain eval all` — composite orchestrator across ingest + retrieval + answer.
+ *
+ * Discovery model: for `--fixtures-dir <path>`, we look for:
+ *   <path>/ingest/baseline.json   OR any <path>/ingest/*.json
+ *   <path>/retrieval/baseline.json OR any <path>/retrieval/*.json
+ *   <path>/answer/baseline.json    OR any <path>/answer/*.json
+ * Missing stages are skipped with a notice — the composite report lists
+ * what ran so CI can fail loudly if an expected stage is silently absent.
+ *
+ * `--runs N` (default 1) runs each stage N times and reports mean + stdev
+ * per metric. `--runs 3` is the ship-gate variance-aware path per the v0.4
+ * plan. `--sample N` and `--json` forward to each stage.
+ *
+ * v0.4.0 scope honesty: retrieval runs against the BrainEngine passed in
+ * by the CLI (i.e. the user's live brain by default). A frozen seed brain
+ * for hermetic retrieval/answer eval is deferred to v0.4.x. Answer eval
+ * uses inline retrieved_context from fixtures today (PR 4), which keeps
+ * answer decoupled from whatever retrieval returned.
+ */
+async function runAllSubcommand(engine: BrainEngine, args: string[]): Promise<void> {
+  const opts = parseArgs(args);
+  if (opts.help) { printHelp(); return; }
+
+  if (!opts.fixturesDir) {
+    console.error('Error: `pbrain eval all` requires --fixtures-dir <path>\n');
+    printHelp();
+    process.exit(1);
+  }
+  if (!existsSync(opts.fixturesDir) || !statSync(opts.fixturesDir).isDirectory()) {
+    console.error(`Error: --fixtures-dir ${opts.fixturesDir} is not a directory`);
+    process.exit(1);
+  }
+
+  const runs = opts.runs && opts.runs > 0 ? opts.runs : 1;
+
+  const ingestPath = discoverStageFixture(opts.fixturesDir, 'ingest');
+  const retrievalPath = discoverStageFixture(opts.fixturesDir, 'retrieval');
+  const answerPath = discoverStageFixture(opts.fixturesDir, 'answer');
+
+  if (!ingestPath && !retrievalPath && !answerPath) {
+    console.error(`Error: no stage fixtures found under ${opts.fixturesDir}. Expected ingest/ retrieval/ answer/ subdirectories with *.json.`);
+    process.exit(1);
+  }
+
+  // Preflight API keys only for stages we actually have fixtures for.
+  if ((ingestPath || answerPath) && !process.env.ANTHROPIC_API_KEY) {
+    console.error('Error: ANTHROPIC_API_KEY is required for ingest + answer stages (judge + generator call Anthropic).');
+    process.exit(1);
+  }
+
+  const composite: CompositeReport = {
+    runs,
+    stages: {
+      ingest: ingestPath ? { fixture_path: ingestPath, runs: [] } : null,
+      retrieval: retrievalPath ? { fixture_path: retrievalPath, runs: [] } : null,
+      answer: answerPath ? { fixture_path: answerPath, runs: [] } : null,
+    },
+  };
+
+  for (let i = 0; i < runs; i++) {
+    if (ingestPath) {
+      const fixture = parseIngestFixtureOrExit(ingestPath);
+      const report = await runIngestEval(fixture, {
+        sample: opts.sample,
+        baseDir: dirname(ingestPath),
+      });
+      composite.stages.ingest!.runs.push(report);
+    }
+    if (retrievalPath) {
+      const qrels = loadRetrievalFixtureOrExit(retrievalPath);
+      const config = buildConfig(opts, 'a');
+      const report = await runEval(engine, qrels, config, opts.k ?? 5);
+      composite.stages.retrieval!.runs.push(report);
+    }
+    if (answerPath) {
+      const fixture = parseAnswerFixtureOrExit(answerPath);
+      // Orchestrator-mode answer eval still uses inline retrieved_context.
+      // Live-retrieval wiring lands in v0.4.x once the seed brain is committed.
+      for (const c of fixture.cases) {
+        if (c.retrieved_context === undefined) {
+          console.error(`Error: answer case "${c.id}" is missing retrieved_context. v0.4.0 \`pbrain eval all\` requires inline retrieved_context on every answer case.`);
+          process.exit(1);
+        }
+      }
+      const report = await runAnswerEval(fixture, { sample: opts.sample });
+      composite.stages.answer!.runs.push(report);
+    }
+  }
+
+  if (opts.json) {
+    console.log(JSON.stringify(composite, null, 2));
+  } else {
+    printCompositeReport(composite);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Orchestrator helpers — fixture discovery + parse-or-exit
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Look for a stage fixture under `<dir>/<stage>/`. Preference order:
+ *   1. `<dir>/<stage>/baseline.json`
+ *   2. `<dir>/<stage>/baseline/baseline.json` (nested pattern PR 3 uses for ingest)
+ *   3. First *.json in `<dir>/<stage>/` (sorted)
+ * Returns undefined if none found. Does NOT follow symlinks, doesn't recurse.
+ *
+ * Exported for unit testing — the orchestrator's file-discovery behavior is
+ * the novel logic worth pinning down.
+ */
+export function discoverStageFixture(dir: string, stage: 'ingest' | 'retrieval' | 'answer'): string | undefined {
+  const stageDir = join(dir, stage);
+  if (!existsSync(stageDir) || !statSync(stageDir).isDirectory()) return undefined;
+
+  const direct = join(stageDir, 'baseline.json');
+  if (existsSync(direct) && statSync(direct).isFile()) return direct;
+
+  const nested = join(stageDir, 'baseline', 'baseline.json');
+  if (existsSync(nested) && statSync(nested).isFile()) return nested;
+
+  const jsons = readdirSync(stageDir)
+    .filter((f) => f.endsWith('.json'))
+    .sort();
+  if (jsons.length > 0) return join(stageDir, jsons[0]);
+
+  return undefined;
+}
+
+function parseIngestFixtureOrExit(path: string): IngestFixture {
+  try {
+    const env = parseFixture(path);
+    if (env.kind !== 'ingest') {
+      console.error(`Error: ${path} kind is "${env.kind}"; expected "ingest"`);
+      process.exit(1);
+    }
+    return env;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error loading ingest fixture ${path}: ${msg}`);
+    process.exit(1);
+  }
+}
+
+function parseAnswerFixtureOrExit(path: string): AnswerFixture {
+  try {
+    const env = parseFixture(path);
+    if (env.kind !== 'answer') {
+      console.error(`Error: ${path} kind is "${env.kind}"; expected "answer"`);
+      process.exit(1);
+    }
+    return env;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error loading answer fixture ${path}: ${msg}`);
+    process.exit(1);
+  }
+}
+
+function loadRetrievalFixtureOrExit(path: string): EvalQrel[] {
+  try {
+    return loadRetrievalFixture(path);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error loading retrieval fixture ${path}: ${msg}`);
+    process.exit(1);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Composite report shape + rendering
+// ─────────────────────────────────────────────────────────────────
+
+interface StageSlot<R> {
+  fixture_path: string;
+  runs: R[];
+}
+
+interface CompositeReport {
+  runs: number;
+  stages: {
+    ingest: StageSlot<IngestReport> | null;
+    retrieval: StageSlot<EvalReport> | null;
+    answer: StageSlot<AnswerReport> | null;
+  };
+}
+
+/**
+ * Render a composite report. For --runs N with N > 1, we emit mean ± stdev
+ * on the ship-gate metrics so regression detection can distinguish noise
+ * from signal (plan: "require (baseline_mean - candidate_mean) > 2 * candidate_stdev").
+ */
+function printCompositeReport(c: CompositeReport): void {
+  const header = c.runs === 1
+    ? 'pbrain eval all'
+    : `pbrain eval all — ${c.runs} runs (mean ± stdev on ship-gate metrics)`;
+  console.log(`\n${header}\n`);
+
+  if (c.stages.ingest) {
+    console.log('── ingest ──');
+    const metric = (pick: (r: IngestReport) => number) => c.stages.ingest!.runs.map(pick);
+    renderMetricLine('fact_union_recall', metric((r) => r.mean.fact_union_recall), c.runs);
+    renderMetricLine('forbidden_fact_rate', metric((r) => r.mean.forbidden_fact_rate), c.runs);
+    renderMetricLine('page_f1', metric((r) => r.mean.page_f1), c.runs);
+    console.log(`  fixture: ${c.stages.ingest.fixture_path}`);
+    console.log('');
+  }
+
+  if (c.stages.retrieval) {
+    console.log('── retrieval ──');
+    const metric = (pick: (r: EvalReport) => number) => c.stages.retrieval!.runs.map(pick);
+    renderMetricLine('precision', metric((r) => r.mean_precision), c.runs);
+    renderMetricLine('recall', metric((r) => r.mean_recall), c.runs);
+    renderMetricLine('mrr', metric((r) => r.mean_mrr), c.runs);
+    renderMetricLine('ndcg', metric((r) => r.mean_ndcg), c.runs);
+    console.log(`  fixture: ${c.stages.retrieval.fixture_path}`);
+    console.log('');
+  }
+
+  if (c.stages.answer) {
+    console.log('── answer ──');
+    const metric = (pick: (r: AnswerReport) => number) => c.stages.answer!.runs.map(pick);
+    renderMetricLine('answer_fact_coverage', metric((r) => r.mean.answer_fact_coverage), c.runs);
+    renderMetricLine('forbidden_fact_rate', metric((r) => r.mean.forbidden_fact_rate), c.runs);
+    renderMetricLine('citation_hallucination_rate', metric((r) => r.mean.citation_hallucination_rate), c.runs);
+    renderMetricLine('citation_f1_hierarchical', metric((r) => r.mean.citation_f1_hierarchical), c.runs);
+    const refusalPerRun = c.stages.answer.runs.map((r) => r.mean.refusal_correctness);
+    renderMetricLine('refusal_correctness', refusalPerRun, c.runs);
+    console.log(`  fixture: ${c.stages.answer.fixture_path}`);
+    console.log('');
+  }
+}
+
+function renderMetricLine(name: string, values: number[], runs: number): void {
+  const finite = values.filter(Number.isFinite);
+  if (finite.length === 0) {
+    console.log(`  ${padR(name, 32)} —`);
+    return;
+  }
+  const m = mean(finite);
+  if (runs === 1) {
+    console.log(`  ${padR(name, 32)} ${fmt(m)}`);
+  } else {
+    const s = stdev(finite);
+    console.log(`  ${padR(name, 32)} ${fmt(m)} ± ${fmt(s)}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // retrieve subcommand — new fixture envelope entry point
 // ─────────────────────────────────────────────────────────────────
 
@@ -411,6 +654,8 @@ interface ParsedArgs {
   help: boolean;
   qrels?: string;
   fixtures?: string;
+  /** `pbrain eval all --fixtures-dir <path>`: discovers per-stage fixtures. */
+  fixturesDir?: string;
   configAPath?: string;
   configBPath?: string;
   strategy?: EvalConfig['strategy'];
@@ -423,6 +668,12 @@ interface ParsedArgs {
   k?: number;
   /** Ingest/answer: run only the first N cases. */
   sample?: number;
+  /**
+   * Orchestrator: re-run each stage this many times, report mean ± stdev on
+   * ship-gate metrics. Default 1. `--runs 3` is the ship-gate variance-aware
+   * path per the v0.4 plan.
+   */
+  runs?: number;
   /** Emit machine-readable JSON instead of the text table. */
   json?: boolean;
 }
@@ -450,6 +701,8 @@ function parseArgs(args: string[]): ParsedArgs {
       case '--limit': opts.limit = parseInt(next, 10); i++; break;
       case '--k': opts.k = parseInt(next, 10); i++; break;
       case '--sample': opts.sample = parseInt(next, 10); i++; break;
+      case '--runs': opts.runs = parseInt(next, 10); i++; break;
+      case '--fixtures-dir': opts.fixturesDir = next; i++; break;
       case '--json': opts.json = true; break;
     }
   }
@@ -634,7 +887,7 @@ USAGE
   pbrain eval retrieve --fixtures <path>     measure search quality (v0.4 form)
   pbrain eval ingest   --fixtures <path>     measure markdown-ingest fact capture
   pbrain eval answer   --fixtures <path>     measure answer-generation quality + citation accuracy
-  pbrain eval all      --fixtures-dir <dir>  coming in v0.4.0 PR 5
+  pbrain eval all      --fixtures-dir <dir>  run ingest + retrieval + answer in one pass
   pbrain eval --qrels <path>                  legacy alias for \`retrieve\`
 
 RETRIEVE / LEGACY OPTIONS
@@ -662,6 +915,18 @@ ANSWER OPTIONS
                               Each case must carry retrieved_context inline.
   --sample <n>                Run only the first N cases (dev-loop speed)
   --json                      Machine-readable JSON output
+
+ALL (ORCHESTRATOR) OPTIONS
+  --fixtures-dir <dir>        Directory containing ingest/ retrieval/ answer/
+                              subdirs with baseline.json fixtures. Missing
+                              stages are skipped with a notice.
+  --sample <n>                Forwarded to each stage (dev-loop speed)
+  --runs <n>                  Re-run each stage N times; report mean ± stdev
+                              on ship-gate metrics (default 1). --runs 3 is
+                              the variance-aware ship-gate path.
+  --json                      Machine-readable JSON output
+  --strategy/--rrf-k/...      Retrieval config flags forward into the
+                              retrieval stage (same as \`pbrain eval retrieve\`)
 
 LEGACY QRELS FORMAT (--qrels)
   {
@@ -695,5 +960,7 @@ EXAMPLES
   pbrain eval ingest   --fixtures ./baseline.json --json > runs/ingest.json
   pbrain eval answer   --fixtures ./fixtures/answer/baseline.json --sample 1
   pbrain eval answer   --fixtures ./baseline.json --json > runs/answer.json
+  pbrain eval all      --fixtures-dir ./test/fixtures/eval/ --sample 3
+  pbrain eval all      --fixtures-dir ./test/fixtures/eval/ --runs 3 --json > runs/candidate.json
 `.trim());
 }
